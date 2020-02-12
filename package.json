@@ -1,0 +1,51 @@
+{
+  "name": "screwdriver-queue-service",
+  "version": "1.0.0",
+  "description": "Screwdriver Queue Service API",
+  "main": "app.js",
+  "directories": {
+    "lib": "lib"
+  },
+  "dependencies": {
+    "@hapi/hapi": "^19.1.0",
+    "@hapi/hoek": "^9.0.3",
+    "@hapi/joi": "^17.1.0",
+    "circuit-fuses": "^4.0.0",
+    "cron-parser": "^2.13.0",
+    "ioredis": "^3.2.2",
+    "node-resque": "^5.5.3",
+    "requestretry": "^3.1.0",
+    "screwdriver-logger": "^1.0.0",
+    "amqp-connection-manager": "^2.3.0",
+    "amqplib": "^0.5.3",
+    "config": "^1.31.0",
+    "request": "^2.88.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "start": "node app.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/screwdriver-cd/screwdriver-queue-service.git"
+  },
+  "keywords": [
+    "screwdriver"
+  ],
+  "author": "Pritam Paul <pritamstyz4ever@gmail.com>",
+  "license": "BSD-3-Clause",
+  "contributors": [
+    "Pritam Paul <pritamstyz4ever@gmail.com>"
+  ],
+  "bugs": {
+    "url": "https://github.com/screwdriver-cd/screwdriver/issues"
+  },
+  "homepage": "https://github.com/screwdriver-cd/screwdriver-queue-service#readme",
+  "release": {
+    "debug": false,
+    "verifyConditions": {
+      "path": "./node_modules/semantic-release/src/lib/plugin-noop.js"
+    }
+  }
+}
