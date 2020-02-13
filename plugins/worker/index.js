@@ -1,13 +1,13 @@
 'use strict';
-const schedulerRoute = require('./scheduler');
+const createRoute = require('./create');
 
-module.exports = async function register(server, options, next) {
-    server.route([
-        schedulerRoute()
-    ])
-    await next();
-}
-
-exports.register.attributes = {
-    name: 'worker'
+const workerPlugin = {
+    name: 'worker',
+    register: async function (server, options) {
+        server.route([
+            createRoute()
+        ]);
+    }
 };
+
+module.exports = workerPlugin;

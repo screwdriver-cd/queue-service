@@ -1,0 +1,32 @@
+#!/usr/bin/env node
+
+'use strict';
+
+const config = require('config');
+const server = require('../app');
+const hoek = require('@hapi/hoek');
+const ExecutorQueue = require('../lib/queue');
+
+// Setup HTTPd
+const httpdConfig = config.get('httpd');
+// Special urls for things like the UI
+const ecosystem = config.get('ecosystem');
+
+// ecosystem.api = httpdConfig.uri;
+
+// Setup Executor
+const queueConfig = config.get('queue');
+
+const executor = new ExecutorQueue(Object.assign(
+    { ecosystem: hoek.clone(ecosystem) },
+    queueConfig
+));
+
+server.app = {
+    executorQueue: executor
+};
+
+server({
+    httpd: httpdConfig,
+    ecosystem
+});

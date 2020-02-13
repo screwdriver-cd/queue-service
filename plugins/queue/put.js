@@ -2,8 +2,10 @@
 const logger = require('screwdriver-logger');
 const { merge, reach } = require('@hapi/hoek');
 const cron = require('./utils/cron');
+const helper = require('../helper');
 const { timeOutOfWindows } = require('./utils/freezeWindows');
 const DEFAULT_BUILD_TIMEOUT = 90;
+
 
 module.exports = () => ({
     method: 'POST',

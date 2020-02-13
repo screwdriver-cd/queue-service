@@ -1,8 +1,8 @@
 'use strict';
 
 const NodeResque = require('node-resque');
-const { queuePrefix } = require('../config/redis');
-const rabbitmqConf = require('../config/rabbitmq');
+const { queuePrefix } = require('../../../config/redis');
+const rabbitmqConf = require('../../../config/rabbitmq');
 
 class Filter extends NodeResque.Plugin {
     /**

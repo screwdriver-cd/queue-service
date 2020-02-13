@@ -3,14 +3,14 @@
 const amqp = require('amqp-connection-manager');
 const Redis = require('ioredis');
 const config = require('config');
-const hoek = require('hoek');
+const hoek = require('@hapi/hoek');
 const BlockedBy = require('./BlockedBy').BlockedBy;
 const Filter = require('./Filter').Filter;
 const blockedByConfig = config.get('plugins').blockedBy;
 const ExecutorRouter = require('screwdriver-executor-router');
 const { connectionDetails, queuePrefix, runningJobsPrefix, waitingJobsPrefix }
-= require('../config/redis');
-const rabbitmqConf = require('../config/rabbitmq');
+= require('../../../config/redis');
+const rabbitmqConf = require('../../../config/rabbitmq');
 const { amqpURI, exchange } = rabbitmqConf.getConfig();
 const logger = require('screwdriver-logger');
 
@@ -21,6 +21,7 @@ const redis = new Redis(connectionDetails.port, connectionDetails.host, connecti
 
 const ecosystem = config.get('ecosystem');
 const executorConfig = config.get('executor');
+
 const executorPlugins = Object.keys(executorConfig).reduce((aggregator, keyName) => {
     if (keyName !== 'plugin') {
         aggregator.push(Object.assign({

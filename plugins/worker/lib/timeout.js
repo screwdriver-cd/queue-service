@@ -1,7 +1,7 @@
 'use strict';
 
-const helper = require('./helper.js');
-const { waitingJobsPrefix, runningJobsPrefix, queuePrefix } = require('../config/redis');
+const helper = require('../../helper.js');
+const { waitingJobsPrefix, runningJobsPrefix, queuePrefix } = require('../../../config/redis');
 const logger = require('screwdriver-logger');
 const TIMEOUT_CODE = 3;
 const TIMEOUT_BUFFER = 1;

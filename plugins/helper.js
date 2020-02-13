@@ -2,7 +2,8 @@
 
 const request = require('request');
 const requestretry = require('requestretry');
-const { queuePrefix } = require('../config/redis');
+const config = require('config');
+const { queuePrefix } = config.get('queue').prefix;
 const RETRY_LIMIT = 3;
 const RETRY_DELAY = 5;
 
@@ -12,7 +13,7 @@ const RETRY_DELAY = 5;
  * @param  {Object}  updateConfig build config of the job
  * @return {Object}  err Callback with err object
  */
-function updateBuildStatus(updateConfig) {
+async function updateBuildStatus(updateConfig) {
     const { redisInstance, status, statusMessage, buildId } = updateConfig;
 
     const buildConfig = await redisInstance.hget(`${queuePrefix}buildConfigs`, buildId)
@@ -241,7 +242,7 @@ async function updateBuildStatusWithRetry(updateConfig) {
     });
 }
 
-export default {
+module.exports = {
     updateBuildStatus,
     updateStepStop,
     getCurrentStep,

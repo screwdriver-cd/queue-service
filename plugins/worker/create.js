@@ -3,11 +3,11 @@ const NodeResque = require('node-resque');
 const config = require('config');
 const jobs = require('./lib/jobs');
 const timeout = require('./lib/timeout');
-const helper = require('./lib/helper');
+const helper = require('../helper');
 const Redis = require('ioredis');
 const logger = require('screwdriver-logger');
 const workerConfig = config.get('worker');
-const { connectionDetails, queuePrefix } = require('./config/redis');
+const { connectionDetails, queuePrefix } = require('../../config/redis');
 const redis = new Redis(
     connectionDetails.port, connectionDetails.host, connectionDetails.options);
 
@@ -18,8 +18,8 @@ module.exports = () => ({
         description: 'Reads and process a message from the queue',
         notes: 'Should process a message from the queue',
         tags: ['api', 'queue'],
-        handler: (request, reply) => {
-            await schedule();
+        handler: async (request, reply) => {
+            await schedule(request);
             reply({})
         }
     }

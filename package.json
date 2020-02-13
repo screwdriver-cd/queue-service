@@ -10,21 +10,28 @@
     "@hapi/hapi": "^19.1.0",
     "@hapi/hoek": "^9.0.3",
     "@hapi/joi": "^17.1.0",
-    "circuit-fuses": "^4.0.0",
-    "cron-parser": "^2.13.0",
-    "ioredis": "^3.2.2",
-    "node-resque": "^5.5.3",
-    "requestretry": "^3.1.0",
-    "screwdriver-logger": "^1.0.0",
     "amqp-connection-manager": "^2.3.0",
     "amqplib": "^0.5.3",
+    "circuit-fuses": "^4.0.0",
     "config": "^1.31.0",
-    "request": "^2.88.0"
+    "cron-parser": "^2.13.0",
+    "ioredis": "^3.2.2",
+    "js-yaml": "^3.13.1",
+    "node-resque": "^5.5.3",
+    "request": "^2.88.0",
+    "requestretry": "^3.1.0",
+    "screwdriver-logger": "^1.0.0",
+    "screwdriver-executor-docker": "^4.2.2",
+    "screwdriver-executor-jenkins": "^4.5.0",
+    "screwdriver-executor-k8s": "^13.6.1",
+    "screwdriver-executor-k8s-vm": "^3.2.2",
+    "screwdriver-executor-router": "^1.0.11"
   },
   "devDependencies": {},
   "scripts": {
-    "start": "node app.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node ./bin/server",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "debug": "node --nolazy --inspect-brk=9229 ./bin/server"
   },
   "repository": {
     "type": "git",

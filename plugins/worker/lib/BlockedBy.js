@@ -1,9 +1,9 @@
 'use strict';
 
 const NodeResque = require('node-resque');
-const helper = require('./helper.js');
-const hoek = require('hoek');
-const { runningJobsPrefix, waitingJobsPrefix, queuePrefix } = require('../config/redis');
+const helper = require('../../helper.js');
+const hoek = require('@hapi/hoek');
+const { runningJobsPrefix, waitingJobsPrefix, queuePrefix } = require('../../../config/redis');
 const logger = require('screwdriver-logger');
 const BLOCK_TIMEOUT_BUFFER = 30;
 
