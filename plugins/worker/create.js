@@ -13,14 +13,15 @@ const redis = new Redis(
 
 module.exports = () => ({
     method: 'POST',
-    path: '/queue/scheduler',
+    path: '/queue/worker',
     config: {
         description: 'Reads and process a message from the queue',
         notes: 'Should process a message from the queue',
         tags: ['api', 'queue'],
-        handler: async (request, reply) => {
+        handler: async (request, h) => {
             await schedule(request);
-            reply({})
+            
+            return h.response().code(200);
         }
     }
 });
@@ -66,21 +67,21 @@ const scheduler = new NodeResque.Scheduler({ connection: connectionDetails });
 async function schedule() {
     /* eslint-disable max-len */
     multiWorker.on('start', workerId =>
-        logger.info(`worker[${workerId}] started`));
+        logger.info(`queueWorker->worker[${workerId}] started`));
     multiWorker.on('end', workerId =>
-        logger.info(`worker[${workerId}] ended`));
+        logger.info(`queueWorker->worker[${workerId}] ended`));
     multiWorker.on('cleaning_worker', (workerId, worker, pid) =>
-        logger.info(`cleaning old worker ${worker} pid ${pid}`));
+        logger.info(`queueWorker->cleaning old worker ${worker} pid ${pid}`));
     multiWorker.on('poll', async (workerId, queue) => {
-        logger.info(`worker[${workerId}] polling ${queue}`);
+        logger.info(`queueWorker->worker[${workerId}] polling ${queue}`);
         await timeout.check(redis, queue);
     });
     multiWorker.on('job', (workerId, queue, job) =>
-        logger.info(`worker[${workerId}] working job ${queue} ${JSON.stringify(job)}`));
+        logger.info(`queueWorker->worker[${workerId}] working job ${queue} ${JSON.stringify(job)}`));
     multiWorker.on('reEnqueue', (workerId, queue, job, plugin) =>
-        logger.info(`worker[${workerId}] reEnqueue job (${JSON.stringify(plugin)}) ${queue} ${JSON.stringify(job)}`));
+        logger.info(`queueWorker->worker[${workerId}] reEnqueue job (${JSON.stringify(plugin)}) ${queue} ${JSON.stringify(job)}`));
     multiWorker.on('success', (workerId, queue, job, result) =>
-        logger.info(`worker[${workerId}] ${job} success ${queue} ${JSON.stringify(job)} >> ${result}`));
+        logger.info(`queueWorker->worker[${workerId}] ${job} success ${queue} ${JSON.stringify(job)} >> ${result}`));
     multiWorker.on('failure', (workerId, queue, job, failure) =>
         helper.updateBuildStatus({
             redisInstance: redis,
@@ -97,29 +98,28 @@ async function schedule() {
     multiWorker.on('error', (workerId, queue, job, error) =>
         logger.error(`worker[${workerId}] error ${queue} ${JSON.stringify(job)} >> ${error}`));
     multiWorker.on('pause', workerId =>
-        logger.info(`worker[${workerId}] paused`));
-    /* eslint-enable max-len */
+        logger.info(`queueWorker->worker[${workerId}] paused`));
 
     // multiWorker emitters
     multiWorker.on('internalError', error =>
         logger.error(error));
     multiWorker.on('multiWorkerAction', (verb, delay) =>
-        logger.info(`*** checked for worker status: ${verb} (event loop delay: ${delay}ms)`));
+        logger.info(`queueWorker->*** checked for worker status: ${verb} (event loop delay: ${delay}ms)`));
 
     scheduler.on('start', () =>
-        logger.info('scheduler started'));
+        logger.info('queueWorker->scheduler started'));
     scheduler.on('end', () =>
-        logger.info('scheduler ended'));
+        logger.info('queueWorker->scheduler ended'));
     scheduler.on('poll', () =>
-        logger.info('scheduler polling'));
+        logger.info('queueWorker->scheduler polling'));
     scheduler.on('master', state =>
-        logger.info(`scheduler became master ${state}`));
+        logger.info(`queueWorker->scheduler became master ${state}`));
     scheduler.on('error', error =>
-        logger.info(`scheduler error >> ${error}`));
+        logger.info(`queueWorker->scheduler error >> ${error}`));
     scheduler.on('working_timestamp', timestamp =>
-        logger.info(`scheduler working timestamp ${timestamp}`));
+        logger.info(`queueWorker->scheduler working timestamp ${timestamp}`));
     scheduler.on('transferred_job', (timestamp, job) =>
-        logger.info(`scheduler enqueuing job timestamp  >>  ${JSON.stringify(job)}`));
+        logger.info(`queueWorker->scheduler enqueuing job timestamp  >>  ${JSON.stringify(job)}`));
 
     multiWorker.start();
 

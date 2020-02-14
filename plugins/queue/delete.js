@@ -3,13 +3,13 @@ const logger = require('screwdriver-logger');
 const EXPIRE_TIME = 1800; // 30 mins
 
 module.exports = () => ({
-    method: 'DEL',
+    method: 'DELETE',
     path: '/queue/message',
     config: {
         description: 'Deletes a message to the queue',
         notes: 'Should delete a message from the queue',
         tags: ['api', 'queue'],
-        handler: async (request, reply) => {
+        handler: async (request, h) => {
             const type = request.query.type;
             switch (type) {
                 case 'periodic':
@@ -26,7 +26,7 @@ module.exports = () => ({
                     break;
             }
 
-            reply({})
+            return h.response({}).code(200);
         }
     }
 });

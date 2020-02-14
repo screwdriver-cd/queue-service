@@ -2,9 +2,12 @@
 const logger = require('screwdriver-logger');
 const { merge, reach } = require('@hapi/hoek');
 const cron = require('./utils/cron');
+const Resque = require('node-resque');
 const helper = require('../helper');
 const { timeOutOfWindows } = require('./utils/freezeWindows');
 const DEFAULT_BUILD_TIMEOUT = 90;
+const RETRY_LIMIT = 3;
+const RETRY_DELAY = 5;
 
 module.exports = () => ({
     method: 'POST',
@@ -13,27 +16,136 @@ module.exports = () => ({
         description: 'Puts a message to the queue',
         notes: 'Should add a message to the queue',
         tags: ['api', 'queue'],
-        handler: async (request, reply) => {
+        handler: async (request, h) => {
+            const executor = request.server.app.executorQueue;
+
+            if (!executor.multiWorker) {
+                await init(executor);
+
+                return h.response({}).code(200); 
+            }
+
             const type = request.query.type;
             switch (type) {
                 case 'periodic':
-                    await startPeriodic(request.server.app.executorQueue, request.payload)
+                    await startPeriodic(executor, request.payload)
                     break;
                 case 'frozen':
-                    await startFrozen(request.server.app.executorQueue, request.payload);
+                    await startFrozen(executor, request.payload);
                     break;
                 case 'timer':
-                    await startTimer(request.server.app.executorQueue, request.payload);
+                    await startTimer(executor, request.payload);
                     break;
                 default:
-                    await start(request.server.app.executorQueue, request.payload);
+                    await start(executor, request.payload);
                     break;
             }
 
-            reply({})
+            return h.response({}).code(200);
         }
     }
 });
+
+/**
+ * Intializes the scheduler and multiworker
+ * @async  init
+ * @param {Object} executor 
+ * @return {Promise}
+ */
+async function init(executor) {
+    if (executor.multiWorker) return;
+
+    const redisConnection = executor.redisConnection;
+    const retryOptions = {
+        plugins: ['Retry'],
+        pluginOptions: {
+            Retry: {
+                retryLimit: RETRY_LIMIT,
+                retryDelay: RETRY_DELAY
+            }
+        }
+    };
+    // Jobs object to register the worker with
+    const jobs = {
+        startDelayed: Object.assign({
+            perform: async (jobConfig) => {
+                try {
+                    const fullConfig = await executor.redisBreaker
+                        .runCommand('hget', executor.periodicBuildTable, jobConfig.jobId);
+
+                    return await startPeriodic(
+                        Object.assign(JSON.parse(fullConfig), { triggerBuild: true }));
+                } catch (err) {
+                    logger.error('err in startDelayed job: ', err);
+                    throw err;
+                }
+            }
+        }, retryOptions),
+        startFrozen: Object.assign({
+            perform: async (jobConfig) => {
+                try {
+                    const fullConfig = await executor.redisBreaker
+                        .runCommand('hget', executor.frozenBuildTable, jobConfig.jobId);
+
+                    return await startFrozen(JSON.parse(fullConfig));
+                } catch (err) {
+                    logger.error('err in startFrozen job: ', err);
+                    throw err;
+                }
+            }
+        }, retryOptions)
+    };
+
+    executor.multiWorker = new Resque.MultiWorker({
+        connection: redisConnection,
+        queues: [executor.periodicBuildQueue, executor.frozenBuildQueue],
+        minTaskProcessors: 1,
+        maxTaskProcessors: 10,
+        checkTimeout: 1000,
+        maxEventLoopDelay: 10,
+        toDisconnectProcessors: true
+    }, jobs);
+
+    executor.scheduler = new Resque.Scheduler({ connection: redisConnection });
+
+    executor.multiWorker.on('start', workerId =>
+        logger.info(`worker[${workerId}] started`));
+    executor.multiWorker.on('end', workerId =>
+        logger.info(`worker[${workerId}] ended`));
+    executor.multiWorker.on('cleaning_worker', (workerId, worker, pid) =>
+        logger.info(`cleaning old worker ${worker} pid ${pid}`));
+    executor.multiWorker.on('job', (workerId, queue, job) =>
+        logger.info(`worker[${workerId}] working job ${queue} ${JSON.stringify(job)}`));
+    executor.multiWorker.on('reEnqueue', (workerId, queue, job, plugin) =>
+        logger.info(`worker[${workerId}] reEnqueue job (${plugin}) ${queue} ${JSON.stringify(job)}`));
+    executor.multiWorker.on('success', (workerId, queue, job, result) =>
+        logger.info(`worker[${workerId}] job success ${queue} ${JSON.stringify(job)} >> ${result}`));
+    executor.multiWorker.on('failure', (workerId, queue, job, failure) =>
+        logger.info(`worker[${workerId}] job failure ${queue} ${JSON.stringify(job)} >> ${failure}`));
+    executor.multiWorker.on('error', (workerId, queue, job, error) =>
+        logger.error(`worker[${workerId}] error ${queue} ${JSON.stringify(job)} >> ${error}`));
+
+    // multiWorker emitters
+    executor.multiWorker.on('internalError', error =>
+        logger.error(error));
+
+    executor.scheduler.on('start', () =>
+        logger.info('scheduler started'));
+    executor.scheduler.on('end', () =>
+        logger.info('scheduler ended'));
+    executor.scheduler.on('master', state =>
+        logger.info(`scheduler became master ${state}`));
+    executor.scheduler.on('error', error =>
+        logger.info(`scheduler error >> ${error}`));
+    executor.scheduler.on('workingTimestamp', timestamp =>
+        logger.info(`scheduler working timestamp ${timestamp}`));
+    executor.scheduler.on('transferredJob', (timestamp, job) =>
+        logger.info(`scheduler enqueuing job timestamp  >>  ${JSON.stringify(job)}`));
+
+    await executor.multiWorker.start();
+    await executor.scheduler.connect()
+    await executor.scheduler.start();
+}
 
 /**
  * Stops a previously enqueued frozen build in an executor
