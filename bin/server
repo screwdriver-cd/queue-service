@@ -22,11 +22,11 @@ const executor = new ExecutorQueue(Object.assign(
     queueConfig
 ));
 
-server.app = {
-    executorQueue: executor
-};
 
 server({
     httpd: httpdConfig,
-    ecosystem
+    ecosystem,
+    stats: {
+        executor
+    }
 });

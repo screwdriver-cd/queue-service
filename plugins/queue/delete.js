@@ -6,23 +6,23 @@ module.exports = () => ({
     method: 'DEL',
     path: '/queue/message',
     config: {
-        description: 'Puts a message to the queue',
-        notes: 'Should add a message to the queue',
+        description: 'Deletes a message to the queue',
+        notes: 'Should delete a message from the queue',
         tags: ['api', 'queue'],
-        handler: (request, reply) => {
+        handler: async (request, reply) => {
             const type = request.query.type;
             switch (type) {
                 case 'periodic':
-                    await stopPeriodic(request.server.executorQueue,  request.payload)
+                    await stopPeriodic(request.server.app.executorQueue, request.payload)
                     break;
                 case 'frozen':
-                    await stopFrozen(request.server.executorQueue,  request.payload);
+                    await stopFrozen(request.server.app.executorQueue, request.payload);
                     break;
                 case 'timer':
-                    await stopTimer(request.server.executorQueue,  request.payload);
+                    await stopTimer(request.server.app.executorQueue, request.payload);
                     break;
                 default:
-                    await stop(request.server.executorQueue,  request.payload);
+                    await stop(request.server.app.executorQueue, request.payload);
                     break;
             }
 

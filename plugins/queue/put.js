@@ -6,7 +6,6 @@ const helper = require('../helper');
 const { timeOutOfWindows } = require('./utils/freezeWindows');
 const DEFAULT_BUILD_TIMEOUT = 90;
 
-
 module.exports = () => ({
     method: 'POST',
     path: '/queue/message',
@@ -14,20 +13,20 @@ module.exports = () => ({
         description: 'Puts a message to the queue',
         notes: 'Should add a message to the queue',
         tags: ['api', 'queue'],
-        handler: (request, reply) => {
+        handler: async (request, reply) => {
             const type = request.query.type;
             switch (type) {
                 case 'periodic':
-                    await startPeriodic(request.server.executorQueue, request.payload)
+                    await startPeriodic(request.server.app.executorQueue, request.payload)
                     break;
                 case 'frozen':
-                    await startFrozen(request.server.executorQueue, request.payload);
+                    await startFrozen(request.server.app.executorQueue, request.payload);
                     break;
                 case 'timer':
-                    await startTimer(request.server.executorQueue, request.payload);
+                    await startTimer(request.server.app.executorQueue, request.payload);
                     break;
                 default:
-                    await start(request.server.executorQueue, request.payload);
+                    await start(request.server.app.executorQueue, request.payload);
                     break;
             }
 
@@ -36,6 +35,22 @@ module.exports = () => ({
     }
 });
 
+/**
+ * Stops a previously enqueued frozen build in an executor
+ * @async  stopFrozen
+ * @param  {Object}  config        Configuration
+ * @param  {Integer} config.jobId  ID of the job with frozen builds
+ * @return {Promise}
+ */
+async function stopFrozen(executor, config) {
+    await executor.connect();
+
+    await executor.queueBreaker.runCommand('delDelayed', executor.frozenBuildQueue, 'startFrozen', [{
+        jobId: config.jobId
+    }]);
+
+    return executor.redisBreaker.runCommand('hdel', executor.frozenBuildTable, config.jobId);
+}
 
 /**
  * Starts a new build in an executor
@@ -83,7 +98,7 @@ async function start(executor, config) {
     delete config.causeMessage;
 
     // TODO: move this
-    await stopFrozen({
+    await stopFrozen(executor, {
         jobId
     });
 
@@ -153,6 +168,24 @@ async function start(executor, config) {
     return enq;
 }
 
+
+/**
+* Stops a previously scheduled periodic build in an executor
+* @async  _stopPeriodic
+* @param  {Object}  config        Configuration
+* @param  {Integer} config.jobId  ID of the job with periodic builds
+* @return {Promise}
+*/
+async function stopPeriodic(executor, config) {
+    await executor.connect();
+
+    await executor.queueBreaker.runCommand('delDelayed', executor.periodicBuildQueue, 'startDelayed', [{
+        jobId: config.jobId
+    }]);
+
+    return executor.redisBreaker.runCommand('hdel', executor.periodicBuildTable, config.jobId);
+}
+
 /**
  * Starts a new periodic build in an executor
  * @method startPeriodic
@@ -178,7 +211,7 @@ async function startPeriodic(executor, config) {
 
     if (isUpdate) {
         // TODO: move this
-        await executor.stopPeriodic({ jobId: job.id });
+        await stopPeriodic(executor, { jobId: job.id });
     }
 
     if (triggerBuild) {
@@ -329,8 +362,7 @@ async function postBuildEvent({ pipeline, job, apiUri, eventId, buildId, causeMe
         pipelineId,
         retryStrategyFn);
 
-    logger.info(`POST event for pipeline ${pipeline.id}:${job.name}` +
-        `using user ${admin.username}`);
+    logger.info(`POST event for pipeline ${pipeline.id}:${job.name} using user ${admin.username}`);
 
     const buildEvent = {
         pipelineId: pipeline.id,
