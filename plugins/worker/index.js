@@ -1,9 +1,10 @@
 'use strict';
+
 const createRoute = require('./create');
 
 const workerPlugin = {
     name: 'worker',
-    register: async function (server, options) {
+    async register(server) {
         server.route([
             createRoute()
         ]);

@@ -31,9 +31,14 @@
     "screwdriver-logger": "^1.0.0",
     "string-hash": "^1.1.3"
   },
-  "devDependencies": {},
+  "devDependencies": {
+    "chai": "^4.2.0",
+    "eslint": "^6.8.0",
+    "eslint-config-screwdriver": "^3.0.1"
+  },
   "scripts": {
     "start": "node ./bin/server",
+    "pretest": "eslint .",
     "test": "echo \"Error: no test specified\" && exit 1",
     "debug": "node --nolazy --inspect-brk=9229 ./bin/server"
   },

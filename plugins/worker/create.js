@@ -1,3 +1,4 @@
+'use strict';
 
 const NodeResque = require('node-resque');
 const config = require('config');
@@ -10,21 +11,6 @@ const workerConfig = config.get('worker');
 const { connectionDetails, queuePrefix } = require('../../config/redis');
 const redis = new Redis(
     connectionDetails.port, connectionDetails.host, connectionDetails.options);
-
-module.exports = () => ({
-    method: 'POST',
-    path: '/queue/worker',
-    config: {
-        description: 'Reads and process a message from the queue',
-        notes: 'Should process a message from the queue',
-        tags: ['api', 'queue'],
-        handler: async (request, h) => {
-            await schedule(request);
-            
-            return h.response().code(200);
-        }
-    }
-});
 
 /**
  * Shutdown both worker and scheduler and then exit the process
@@ -79,9 +65,11 @@ async function schedule() {
     multiWorker.on('job', (workerId, queue, job) =>
         logger.info(`queueWorker->worker[${workerId}] working job ${queue} ${JSON.stringify(job)}`));
     multiWorker.on('reEnqueue', (workerId, queue, job, plugin) =>
-        logger.info(`queueWorker->worker[${workerId}] reEnqueue job (${JSON.stringify(plugin)}) ${queue} ${JSON.stringify(job)}`));
+        logger.info(`queueWorker->worker[${workerId}] reEnqueue job (${JSON.stringify(plugin)})`
+            + `${queue} ${JSON.stringify(job)}`));
     multiWorker.on('success', (workerId, queue, job, result) =>
-        logger.info(`queueWorker->worker[${workerId}] ${job} success ${queue} ${JSON.stringify(job)} >> ${result}`));
+        logger.info(`queueWorker->worker[${workerId}] ${job} success ${queue}`
+            + `${JSON.stringify(job)} >> ${result}`));
     multiWorker.on('failure', (workerId, queue, job, failure) =>
         helper.updateBuildStatus({
             redisInstance: redis,
@@ -90,9 +78,11 @@ async function schedule() {
             statusMessage: `${failure}`
         }, (err, response) => {
             if (!err) {
-                logger.error(`worker[${workerId}] ${JSON.stringify(job)} failure ${queue} ${JSON.stringify(job)} >> successfully update build status: ${failure}`);
+                logger.error(`worker[${workerId}] ${JSON.stringify(job)} failure ${queue}`
+                    + `${JSON.stringify(job)} >> successfully update build status: ${failure}`);
             } else {
-                logger.error(`worker[${workerId}] ${job} failure ${queue} ${JSON.stringify(job)} >> ${failure} ${err} ${JSON.stringify(response)}`);
+                logger.error(`worker[${workerId}] ${job} failure ${queue} ${JSON.stringify(job)}` +
+                    `>> ${failure} ${err} ${JSON.stringify(response)}`);
             }
         }));
     multiWorker.on('error', (workerId, queue, job, error) =>
@@ -104,7 +94,8 @@ async function schedule() {
     multiWorker.on('internalError', error =>
         logger.error(error));
     multiWorker.on('multiWorkerAction', (verb, delay) =>
-        logger.info(`queueWorker->*** checked for worker status: ${verb} (event loop delay: ${delay}ms)`));
+        logger.info(`queueWorker->*** checked for worker status: ${verb}`
+            + `(event loop delay: ${delay}ms)`));
 
     scheduler.on('start', () =>
         logger.info('queueWorker->scheduler started'));
@@ -129,3 +120,18 @@ async function schedule() {
     // Shut down workers before exit the process
     process.on('SIGTERM', async () => shutDownAll(multiWorker, scheduler));
 }
+
+module.exports = () => ({
+    method: 'POST',
+    path: '/queue/worker',
+    config: {
+        description: 'Reads and process a message from the queue',
+        notes: 'Should process a message from the queue',
+        tags: ['api', 'queue'],
+        handler: async (request, h) => {
+            await schedule(request);
+
+            return h.response().code(200);
+        }
+    }
+});

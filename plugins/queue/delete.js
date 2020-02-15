@@ -1,35 +1,7 @@
 'use strict';
+
 const logger = require('screwdriver-logger');
 const EXPIRE_TIME = 1800; // 30 mins
-
-module.exports = () => ({
-    method: 'DELETE',
-    path: '/queue/message',
-    config: {
-        description: 'Deletes a message to the queue',
-        notes: 'Should delete a message from the queue',
-        tags: ['api', 'queue'],
-        handler: async (request, h) => {
-            const type = request.query.type;
-            switch (type) {
-                case 'periodic':
-                    await stopPeriodic(request.server.app.executorQueue, request.payload)
-                    break;
-                case 'frozen':
-                    await stopFrozen(request.server.app.executorQueue, request.payload);
-                    break;
-                case 'timer':
-                    await stopTimer(request.server.app.executorQueue, request.payload);
-                    break;
-                default:
-                    await stop(request.server.app.executorQueue, request.payload);
-                    break;
-            }
-
-            return h.response({}).code(200);
-        }
-    }
-});
 
 /**
 * Stops a previously scheduled periodic build in an executor
@@ -41,9 +13,8 @@ module.exports = () => ({
 async function stopPeriodic(executor, config) {
     await executor.connect();
 
-    await executor.queueBreaker.runCommand('delDelayed', executor.periodicBuildQueue, 'startDelayed', [{
-        jobId: config.jobId
-    }]);
+    await executor.queueBreaker.runCommand('delDelayed', executor.periodicBuildQueue,
+        'startDelayed', [{ jobId: config.jobId }]);
 
     return executor.redisBreaker.runCommand('hdel', executor.periodicBuildTable, config.jobId);
 }
@@ -58,9 +29,8 @@ async function stopPeriodic(executor, config) {
 async function stopFrozen(executor, config) {
     await executor.connect();
 
-    await executor.queueBreaker.runCommand('delDelayed', executor.frozenBuildQueue, 'startFrozen', [{
-        jobId: config.jobId
-    }]);
+    await executor.queueBreaker.runCommand('delDelayed', executor.frozenBuildQueue, 'startFrozen',
+        [{ jobId: config.jobId }]);
 
     return executor.redisBreaker.runCommand('hdel', executor.frozenBuildTable, config.jobId);
 }
@@ -83,7 +53,10 @@ async function stopTimer(executor, config) {
             return Promise.resolve();
         }
 
-        return await executor.redisBreaker.runCommand('hdel', executor.timeoutQueue, config.buildId);
+        return await executor.redisBreaker.runCommand(
+            'hdel',
+            executor.timeoutQueue,
+            config.buildId);
     } catch (err) {
         logger.error(`Error occurred while removing from timeout queue ${err}`);
 
@@ -111,11 +84,12 @@ async function stop(executor, config) {
         blockedBy = config.blockedBy.toString();
     }
 
-    const numDeleted = await executor.queueBreaker.runCommand('del', executor.buildQueue, 'start', [{
-        buildId,
-        jobId,
-        blockedBy
-    }]);
+    const numDeleted = await executor.queueBreaker.runCommand('del', executor.buildQueue, 'start',
+        [{
+            buildId,
+            jobId,
+            blockedBy
+        }]);
     const deleteKey = `deleted_${jobId}_${buildId}`;
     let started = true;
 
@@ -137,3 +111,33 @@ async function stop(executor, config) {
         started // call executor.stop if the job already started
     }]);
 }
+
+module.exports = () => ({
+    method: 'DELETE',
+    path: '/queue/message',
+    config: {
+        description: 'Deletes a message to the queue',
+        notes: 'Should delete a message from the queue',
+        tags: ['api', 'queue'],
+        handler: async (request, h) => {
+            const type = request.query.type;
+
+            switch (type) {
+            case 'periodic':
+                await stopPeriodic(request.server.app.executorQueue, request.payload);
+                break;
+            case 'frozen':
+                await stopFrozen(request.server.app.executorQueue, request.payload);
+                break;
+            case 'timer':
+                await stopTimer(request.server.app.executorQueue, request.payload);
+                break;
+            default:
+                await stop(request.server.app.executorQueue, request.payload);
+                break;
+            }
+
+            return h.response({}).code(200);
+        }
+    }
+});

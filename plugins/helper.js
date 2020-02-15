@@ -25,13 +25,13 @@ async function updateBuildStatus(updateConfig) {
         request({
             json: true,
             method: 'PUT',
-            uri: `${fullBuildConfig.apiUri}/v4/builds/${buildId}`,
+            uri: `${buildConfig.apiUri}/v4/builds/${buildId}`,
             body: {
                 status,
                 statusMessage
             },
             auth: {
-                bearer: fullBuildConfig.token
+                bearer: buildConfig.token
             }
         }, (err, res) => {
             if (!err && res.statusCode === 200) {
@@ -86,13 +86,13 @@ async function updateStepStop(stepConfig) {
 /**
  * Gets the current active step in the build
 * @method getCurrentStep
- * @param {Object} config
- * @param {Object} config.redisInstance
- * @param {String} config.buildId
+ * @param {Object} stepConfig
+ * @param {Object} stepConfig.redisInstance
+ * @param {String} stepConfig.buildId
  * @return {Promise} active step or error
  */
-async function getCurrentStep(config) {
-    const { redisInstance, buildId } = config;
+async function getCurrentStep(stepConfig) {
+    const { redisInstance, buildId } = stepConfig;
     const buildConfig = await redisInstance.hget(`${queuePrefix}buildConfigs`, buildId)
         .then(JSON.parse);
 
@@ -122,16 +122,17 @@ async function getCurrentStep(config) {
 }
 
 /**
- * 
- * @param {String} apiUri 
- * @param {Object} config 
- * @param {Object} buildEvent 
- * @param {Function} retryStrategyFn 
+ *
+ * @param {String} apiUri
+ * @param {Object} eventConfig
+ * @param {Object} buildEvent
+ * @param {Function} retryStrategyFn
  */
-async function createBuildEvent(apiUri, config, buildEvent, retryStrategyFn) {
-    const { redisInstance, buildId } = config;
+async function createBuildEvent(apiUri, eventConfig, buildEvent, retryStrategyFn) {
+    const { redisInstance, buildId } = eventConfig;
     const buildConfig = await redisInstance.hget(`${queuePrefix}buildConfigs`, buildId)
         .then(JSON.parse);
+
     return new Promise((resolve, reject) => {
         requestretry({
             json: true,
@@ -159,15 +160,16 @@ async function createBuildEvent(apiUri, config, buildEvent, retryStrategyFn) {
 }
 
 /**
- * 
- * @param {String} apiUri 
- * @param {String} pipelineId 
- * @param {Function} retryStrategyFn 
+ *
+ * @param {String} apiUri
+ * @param {String} pipelineId
+ * @param {Function} retryStrategyFn
  */
-async function getPipelineAdmin(apiUri, pipelineId, retryStrategyFn) {
-    const { redisInstance, buildId } = config;
+async function getPipelineAdmin(requestConfig, apiUri, pipelineId, retryStrategyFn) {
+    const { redisInstance, buildId } = requestConfig;
     const buildConfig = await redisInstance.hget(`${queuePrefix}buildConfigs`, buildId)
         .then(JSON.parse);
+
     return new Promise((resolve, reject) => {
         requestretry({
             json: true,
@@ -177,7 +179,6 @@ async function getPipelineAdmin(apiUri, pipelineId, retryStrategyFn) {
                 Authorization: `Bearer ${buildConfig.token}`,
                 'Content-Type': 'application/json'
             },
-            body: buildEvent,
             maxAttempts: RETRY_LIMIT,
             retryDelay: RETRY_DELAY * 1000, // in ms
             retryStrategy: retryStrategyFn
@@ -195,13 +196,13 @@ async function getPipelineAdmin(apiUri, pipelineId, retryStrategyFn) {
 }
 
 /**
- * 
+ *
  * @param {String} buildId
  * @param {String} token
  * @param {String} status
- * @param {String} statusMessage 
- * @param {String} apiUri 
- * @param {Object} updateConfig 
+ * @param {String} statusMessage
+ * @param {String} apiUri
+ * @param {Object} updateConfig
  */
 async function updateBuildStatusWithRetry(updateConfig) {
     const { buildId, token, status, statusMessage, apiUri } = updateConfig;
