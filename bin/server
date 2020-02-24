@@ -12,7 +12,6 @@ const ecosystem = config.get('ecosystem');
 
 const queueConfig = config.get('queue');
 
-// ecosystem.api = httpdConfig.uri;
 server({
     httpd: httpdConfig,
     ecosystem,

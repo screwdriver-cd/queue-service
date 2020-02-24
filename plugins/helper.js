@@ -2,8 +2,7 @@
 
 const request = require('request');
 const requestretry = require('requestretry');
-const config = require('config');
-const { queuePrefix } = config.get('queue').prefix;
+const { queuePrefix } = require('../config/redis');
 const RETRY_LIMIT = 3;
 const RETRY_DELAY = 5;
 
@@ -142,7 +141,7 @@ async function createBuildEvent(apiUri, eventConfig, buildEvent, retryStrategyFn
                 Authorization: `Bearer ${buildConfig.token}`,
                 'Content-Type': 'application/json'
             },
-            body: buildEvent,
+            body: Object.assign(buildEvent, buildId),
             maxAttempts: RETRY_LIMIT,
             retryDelay: RETRY_DELAY * 1000, // in ms
             retryStrategy: retryStrategyFn
@@ -206,11 +205,6 @@ async function getPipelineAdmin(requestConfig, apiUri, pipelineId, retryStrategy
  */
 async function updateBuildStatusWithRetry(updateConfig) {
     const { buildId, token, status, statusMessage, apiUri } = updateConfig;
-    // const buildConfig = await redisInstance.hget(`${queuePrefix}buildConfigs`, buildId)
-    //     .then(JSON.parse);
-
-    // if (!buildConfig) return null;
-
     const options = {
         json: true,
         method: 'PUT',

@@ -14,9 +14,9 @@ jobs:
             - setup-ci: git clone https://github.com/screwdriver-cd/toolbox.git ci
             - install: npm install
             - duplicate: NPM_FILTER=screwdriver- ./ci/npm-dups.sh
-            # - test: npm test
-            # - coverage: ./ci/coverage.sh
-            # - cp-coverage-to-artifacts: cp -r artifacts/coverage $SD_ARTIFACTS_DIR
+            - test: npm test
+            - coverage: ./ci/coverage.sh
+            - cp-coverage-to-artifacts: cp -r artifacts/coverage $SD_ARTIFACTS_DIR
         environment:
             NODE_OPTIONS: "--max_old_space_size=8192"
         secrets:
@@ -50,7 +50,7 @@ jobs:
             - setup-ci: git clone https://github.com/screwdriver-cd/toolbox.git ci
             - wait-docker: DOCKER_TAG=`meta get docker_tag` ./ci/docker-wait.sh
             - deploy-k8s: K8S_TAG=`meta get docker_tag` ./ci/k8s-deploy.sh
-            #- test: npm install && npm run functional
+            - test: npm install && npm run functional
         environment:
             DOCKER_REPO: screwdrivercd/queue-service
             K8S_CONTAINER: screwdriver-queue-service
@@ -77,9 +77,9 @@ jobs:
             - setup-ci: git clone https://github.com/screwdriver-cd/toolbox.git ci
             - wait-docker: DOCKER_TAG=`meta get docker_tag` ./ci/docker-wait.sh
             - deploy-k8s: K8S_TAG=`meta get docker_tag` ./ci/k8s-deploy.sh
-            # - test: |
-            #     npm install
-            #     GIT_TOKEN=${GIT_TOKEN_PROD} SD_API_TOKEN=${SD_API_TOKEN_PROD} npm run functional
+             - test: |
+                npm install
+                GIT_TOKEN=${GIT_TOKEN_PROD} SD_API_TOKEN=${SD_API_TOKEN_PROD} npm run functional
         environment:
             DOCKER_REPO: screwdrivercd/screwdriver
             K8S_CONTAINER: screwdriver-api
