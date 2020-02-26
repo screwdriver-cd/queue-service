@@ -77,7 +77,7 @@ jobs:
             - setup-ci: git clone https://github.com/screwdriver-cd/toolbox.git ci
             - wait-docker: DOCKER_TAG=`meta get docker_tag` ./ci/docker-wait.sh
             - deploy-k8s: K8S_TAG=`meta get docker_tag` ./ci/k8s-deploy.sh
-             - test: |
+            - test: |
                 npm install
                 GIT_TOKEN=${GIT_TOKEN_PROD} SD_API_TOKEN=${SD_API_TOKEN_PROD} npm run functional
         environment:
