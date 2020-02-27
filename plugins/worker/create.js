@@ -1,18 +1,25 @@
 'use strict';
 
 const worker = require('./worker');
+const logger = require('screwdriver-logger');
 
 module.exports = () => ({
     method: 'POST',
     path: '/queue/worker',
     config: {
-        description: 'Reads and process a message from the queue',
-        notes: 'Should process a message from the queue',
+        description: 'Start worker to read and process messages from the queue',
+        notes: 'Should start worker to process messages from the queue',
         tags: ['api', 'queue'],
         handler: async (request, h) => {
-            const result = await worker.invoke(request);
+            try {
+                const result = await worker.invoke(request);
 
-            return h.response(result).code(200);
+                return h.response(result).code(200);
+            } catch (err) {
+                logger.error('Failed to start worker', err);
+
+                return h.response({ Error: err.message }).code(500);
+            }
         }
     }
 });

@@ -128,9 +128,10 @@ async function getCurrentStep(stepConfig) {
  * @param {Function} retryStrategyFn
  */
 async function createBuildEvent(apiUri, eventConfig, buildEvent, retryStrategyFn) {
-    const { redisInstance, buildId } = eventConfig;
+    const { redisInstance, buildId, eventId } = eventConfig;
     const buildConfig = await redisInstance.hget(`${queuePrefix}buildConfigs`, buildId)
         .then(JSON.parse);
+    const body = Object.assign({}, buildEvent, { buildId, parentEventId: eventId });
 
     return new Promise((resolve, reject) => {
         requestretry({
@@ -141,7 +142,7 @@ async function createBuildEvent(apiUri, eventConfig, buildEvent, retryStrategyFn
                 Authorization: `Bearer ${buildConfig.token}`,
                 'Content-Type': 'application/json'
             },
-            body: Object.assign(buildEvent, buildId),
+            body,
             maxAttempts: RETRY_LIMIT,
             retryDelay: RETRY_DELAY * 1000, // in ms
             retryStrategy: retryStrategyFn
@@ -182,11 +183,11 @@ async function getPipelineAdmin(requestConfig, apiUri, pipelineId, retryStrategy
             retryDelay: RETRY_DELAY * 1000, // in ms
             retryStrategy: retryStrategyFn
         }, (err, res) => {
-            if (!err && res.statusCode === 201) {
-                return resolve(res);
+            if (!err && res.statusCode === 200) {
+                return resolve(res.body);
             }
-            if (res.statusCode !== 201) {
-                return reject(JSON.stringify(res.body));
+            if (res.statusCode !== 200) {
+                return null;
             }
 
             return reject(err);
@@ -203,33 +204,31 @@ async function getPipelineAdmin(requestConfig, apiUri, pipelineId, retryStrategy
  * @param {String} apiUri
  * @param {Object} updateConfig
  */
-async function updateBuildStatusWithRetry(updateConfig) {
+async function updateBuildStatusWithRetry(updateConfig, retryStrategyFn) {
     const { buildId, token, status, statusMessage, apiUri } = updateConfig;
-    const options = {
-        json: true,
-        method: 'PUT',
-        uri: `${apiUri}/v4/builds/${buildId}`,
-        body: {
-            status,
-            statusMessage
-        },
-        headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json'
-        },
-        maxAttempts: RETRY_LIMIT,
-        retryDelay: RETRY_DELAY * 1000, // in ms
-        retryStrategy: this.requestRetryStrategy
-    };
 
     return new Promise((resolve, reject) => {
-        requestretry(options, (err, response) => {
-            if (!err && response.statusCode === 200) {
-                return resolve(response);
+        requestretry({
+            json: true,
+            method: 'PUT',
+            uri: `${apiUri}/v4/builds/${buildId}`,
+            body: {
+                status,
+                statusMessage
+            },
+            headers: {
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            maxAttempts: RETRY_LIMIT,
+            retryDelay: RETRY_DELAY * 1000, // in ms
+            retryStrategy: retryStrategyFn
+        }, (err, res) => {
+            if (!err && res.statusCode === 201) {
+                return resolve(res);
             }
-
-            if (response.statusCode !== 200) {
-                return reject(JSON.stringify(response.body));
+            if (res.statusCode !== 201) {
+                return null;
             }
 
             return reject(err);

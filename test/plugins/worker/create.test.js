@@ -34,8 +34,12 @@ describe('POST /queue/worker', () => {
             port: 12345,
             host: 'localhost'
         });
+        /* eslint-disable global-require */
+        const plugin = require('../../../plugins/worker');
+        /* eslint-enable global-require */
+
         server.register({
-            plugin: '../plugins/worker',
+            plugin,
             options: {
                 name: 'worker'
             },
@@ -48,7 +52,7 @@ describe('POST /queue/worker', () => {
         };
         options = {
             method: 'POST',
-            url: '/queue/worker',
+            url: '/v1/queue/worker',
             payload: {
             }
         };
@@ -61,8 +65,10 @@ describe('POST /queue/worker', () => {
         })
     );
 
-    it('returns 500 when build update returns an error', () =>
+    it('returns 500 when build update returns an error', () => {
+        mockWorker.invoke = sinon.stub().throws(new Error('Failed'));
         server.inject(options).then((reply) => {
             assert.equal(reply.statusCode, 500);
-        }));
+        });
+    });
 });

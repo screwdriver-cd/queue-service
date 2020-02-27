@@ -21,6 +21,7 @@ describe('Helper Test', () => {
         uri: `foo.bar/v4/builds/${job.args[0].buildId}`
     };
     let mockRequest;
+    let mockRequestRetry;
     let mockRedis;
     let mockRedisConfig;
     let helper;
@@ -34,6 +35,7 @@ describe('Helper Test', () => {
 
     beforeEach(() => {
         mockRequest = sinon.stub();
+        mockRequestRetry = sinon.stub();
         mockRedis = { hget: sinon.stub().resolves('{"apiUri": "foo.bar", "token": "fake"}') };
 
         mockRedisConfig = {
@@ -41,6 +43,7 @@ describe('Helper Test', () => {
         };
 
         mockery.registerMock('request', mockRequest);
+        mockery.registerMock('requestretry', mockRequestRetry);
         mockery.registerMock('../config/redis', mockRedisConfig);
 
         // eslint-disable-next-line global-require
@@ -57,46 +60,46 @@ describe('Helper Test', () => {
         mockery.disable();
     });
 
-    it('logs correct message when successfully update build failure status', (done) => {
+    it('logs correct message when successfully update build failure status', async () => {
         mockRequest.yieldsAsync(null, { statusCode: 200 });
-
-        helper.updateBuildStatus({
-            redisInstance: mockRedis,
-            status,
-            statusMessage,
-            buildId: 1
-        }, (err) => {
-            assert.calledWith(mockRedis.hget,
-                'mockQueuePrefix_buildConfigs', job.args[0].buildId);
-            assert.calledWith(mockRequest, requestOptions);
+        try {
+            await helper.updateBuildStatus({
+                redisInstance: mockRedis,
+                status,
+                statusMessage,
+                buildId: 1
+            });
+        } catch (err) {
             assert.isNull(err);
-            done();
-        });
+        }
+        assert.calledWith(mockRedis.hget, 'mockQueuePrefix_buildConfigs', job.args[0].buildId);
+        assert.calledWith(mockRequest, requestOptions);
     });
 
-    it('logs correct message when fail to update build failure status', (done) => {
+    it('logs correct message when fail to update build failure status', async () => {
         const requestErr = new Error('failed to update');
         const response = {};
 
         mockRequest.yieldsAsync(requestErr, response);
 
-        helper.updateBuildStatus({
-            redisInstance: mockRedis,
-            status,
-            statusMessage,
-            buildId: 1
-        }, (err) => {
+        try {
+            await helper.updateBuildStatus({
+                redisInstance: mockRedis,
+                status,
+                statusMessage,
+                buildId: 1
+            });
+        } catch (err) {
             assert.calledWith(mockRequest, requestOptions);
             assert.strictEqual(err.message, 'failed to update');
-            done();
-        });
+        }
     });
 
     it('logs correct message when successfully update step with code', async () => {
         const stepName = 'wait';
         const dateNow = Date.now();
         const isoTime = (new Date(dateNow)).toISOString();
-        const sandbox = sinon.sandbox.create({
+        const sandbox = sinon.createSandbox({
             useFakeTimers: false
         });
 
@@ -132,7 +135,7 @@ describe('Helper Test', () => {
         const response = [];
         const dateNow = Date.now();
         const isoTime = (new Date(dateNow)).toISOString();
-        const sandbox = sinon.sandbox.create({
+        const sandbox = sinon.createSandbox({
             useFakeTimers: false
         });
 
@@ -180,5 +183,101 @@ describe('Helper Test', () => {
             uri: `foo.bar/v4/builds/${job.args[0].buildId}/steps?status=active`
         });
         assert.equal(res.stepName, 'wait');
+    });
+
+    it('Correctly creates build event', async () => {
+        mockRequestRetry.yieldsAsync(null, { statusCode: 201 });
+        const retryFn = sinon.stub();
+
+        try {
+            await helper.createBuildEvent(
+                'foo.bar',
+                { redisInstance: mockRedis, buildId: 1, eventId: 321 },
+                { jobId: 123 },
+                retryFn
+            );
+        } catch (err) {
+            assert.isNull(err);
+        }
+
+        assert.calledWith(mockRedis.hget, 'mockQueuePrefix_buildConfigs', job.args[0].buildId);
+        assert.calledWith(mockRequestRetry, {
+            json: true,
+            method: 'POST',
+            uri: 'foo.bar/v4/events',
+            headers: {
+                Authorization: 'Bearer fake',
+                'Content-Type': 'application/json'
+            },
+            body: { jobId: 123, buildId: 1, parentEventId: 321 },
+            maxAttempts: 3,
+            retryDelay: 5000,
+            retryStrategy: retryFn
+        });
+    });
+
+    it('Gets the pipeline admin correctly', async () => {
+        mockRequestRetry.yieldsAsync(null, { statusCode: 200, body: { username: 'admin123' } });
+        const retryFn = sinon.stub();
+        const pipelineId = 123456;
+        let result;
+
+        try {
+            result = await helper.getPipelineAdmin(
+                { redisInstance: mockRedis, buildId: 1 },
+                'foo.bar',
+                pipelineId,
+                retryFn
+            );
+        } catch (err) {
+            assert.isNull(err);
+        }
+
+        assert.calledWith(mockRedis.hget, 'mockQueuePrefix_buildConfigs', job.args[0].buildId);
+        assert.calledWith(mockRequestRetry, {
+            json: true,
+            method: 'GET',
+            uri: `foo.bar/pipelines/${pipelineId}/admin`,
+            headers: {
+                Authorization: 'Bearer fake',
+                'Content-Type': 'application/json'
+            },
+            maxAttempts: 3,
+            retryDelay: 5000,
+            retryStrategy: retryFn
+        });
+        assert.equal(result.username, 'admin123');
+    });
+
+    it('Updates build status with retry', async () => {
+        mockRequestRetry.yieldsAsync(null, { statusCode: 201 });
+        const retryFn = sinon.stub();
+        const buildId = 1;
+
+        try {
+            await helper.updateBuildStatusWithRetry({
+                apiUri: 'foo.bar',
+                token: 'fake',
+                buildId,
+                status,
+                statusMessage
+            }, retryFn);
+        } catch (err) {
+            assert.isNull(err);
+        }
+
+        assert.calledWith(mockRequestRetry, {
+            json: true,
+            method: 'PUT',
+            uri: `foo.bar/v4/builds/${buildId}`,
+            headers: {
+                Authorization: 'Bearer fake',
+                'Content-Type': 'application/json'
+            },
+            body: { status, statusMessage },
+            maxAttempts: 3,
+            retryDelay: 5000,
+            retryStrategy: retryFn
+        });
     });
 });

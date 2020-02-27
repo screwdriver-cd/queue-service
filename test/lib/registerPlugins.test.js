@@ -53,58 +53,53 @@ describe('Register Plugins', () => {
         mockery.disable();
     });
 
-    it('registered resource plugins', () => {
+    it('registered resource plugins', async () => {
         serverMock.register.callsArgWithAsync(1);
 
-        return main(serverMock, config).then(() => {
-            assert.equal(serverMock.register.callCount, pluginLength);
+        await main(serverMock, config);
 
-            resourcePlugins.forEach((plugin) => {
-                assert.calledWith(serverMock.register, {
-                    plugin: mocks[plugin],
-                    options: {
-                        name: plugin
-                    },
-                    routes: {
-                        prefix: '/v1'
-                    }
-                });
-            });
-        });
-    });
+        assert.equal(serverMock.register.callCount, pluginLength);
 
-    it.skip('bubbles failures up', () => {
-        serverMock.register.callsArgWithAsync(2, new Error('failure loading'));
-
-        return main(serverMock, config)
-            .then(() => {
-                throw new Error('should not be here');
-            })
-            .catch((err) => {
-                assert.equal(err.message, 'failure loading');
-            });
-    });
-
-    it.skip('registers data for plugin when specified in the config object', () => {
-        serverMock.register.callsArgAsync(2);
-
-        return main(serverMock, {
-            auth: {
-                foo: 'bar'
-            }
-        }).then(() => {
-            assert.equal(serverMock.register.callCount, pluginLength);
-
+        resourcePlugins.forEach((plugin) => {
             assert.calledWith(serverMock.register, {
-                register: mocks['../plugins/queue'],
+                plugin: mocks[plugin],
                 options: {
-                    foo: 'bar'
-                }
-            }, {
+                    name: plugin
+                },
                 routes: {
                     prefix: '/v1'
                 }
             });
+        });
+    });
+
+    it('bubbles failures up', async () => {
+        serverMock.register.callsArgWithAsync(1, new Error('failure loading'));
+        try {
+            await main(serverMock, config);
+        } catch (err) {
+            assert.equal(err.message, 'failure loading');
+        }
+    });
+
+    it('registers data for plugin when specified in the config object', async () => {
+        serverMock.register.callsArgAsync(1);
+
+        await main(serverMock, {
+            auth: {
+                foo: 'bar'
+            }
+        });
+        assert.equal(serverMock.register.callCount, pluginLength);
+
+        assert.calledWith(serverMock.register, {
+            plugin: mocks['../plugins/queue'],
+            options: {
+                foo: 'bar'
+            },
+            routes: {
+                prefix: '/v1'
+            }
         });
     });
 });

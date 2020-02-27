@@ -24,7 +24,7 @@ async function postBuildEvent(executor, { pipeline, job, apiUri, eventId, buildI
     const admin = await helper.getPipelineAdmin(
         { redisBreaker: executor.redisBreaker, buildId },
         apiUri,
-        pipeline.id);
+        pipeline.id, executor.requestRetryStrategy);
 
     logger.info(`POST event for pipeline ${pipeline.id}:${job.name} using user ${admin.username}`);
 
@@ -44,7 +44,8 @@ async function postBuildEvent(executor, { pipeline, job, apiUri, eventId, buildI
     await helper.createBuildEvent(
         apiUri,
         { redisBreaker: executor.redisBreaker, buildId },
-        buildEvent
+        buildEvent,
+        executor.requestRetryStrategy
     );
 }
 
@@ -266,7 +267,7 @@ async function start(executor, config) {
             apiUri,
             status: 'FROZEN',
             statusMessage: `Blocked by freeze window, re-enqueued to ${currentTime}`
-        }).catch((err) => {
+        }, executor.requestRetryStrategy).catch((err) => {
             logger.error(`failed to update build status for build ${buildId}: ${err}`);
 
             return Promise.resolve();
