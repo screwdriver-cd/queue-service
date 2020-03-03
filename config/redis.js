@@ -8,12 +8,13 @@ const connectionDetails = {
     pkg: 'ioredis',
     host: redisConfig.host,
     options: {
-        password: redisConfig.options.password,
-        tls: redisConfig.options.tls
+        password: redisConfig.options && redisConfig.options.password,
+        tls: redisConfig.options ? redisConfig.options.tls : false
     },
     port: redisConfig.port,
-    database: 0
+    database: redisConfig.database
 };
+
 const queuePrefix = queueConfig.prefix || '';
 
 const runningJobsPrefix = `${queuePrefix}running_job_`;

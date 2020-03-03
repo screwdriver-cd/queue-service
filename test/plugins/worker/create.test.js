@@ -34,8 +34,19 @@ describe('POST /queue/worker', () => {
             port: 12345,
             host: 'localhost'
         });
+
+        mockWorker = {
+            invoke: sinon.stub().resolves('Success')
+        };
+        options = {
+            method: 'POST',
+            url: '/v1/queue/worker',
+            payload: {}
+        };
+        mockery.registerMock('./worker', mockWorker);
+
         /* eslint-disable global-require */
-        const plugin = require('../../../plugins/worker');
+        const plugin = require('../../../plugins/worker/index.js');
         /* eslint-enable global-require */
 
         server.register({
@@ -47,28 +58,19 @@ describe('POST /queue/worker', () => {
                 prefix: '/v1'
             }
         });
-        mockWorker = {
-            invoke: sinon.stub().returns('Success')
-        };
-        options = {
-            method: 'POST',
-            url: '/v1/queue/worker',
-            payload: {
-            }
-        };
-        mockery.registerMock('./worker', mockWorker);
     });
 
-    it('returns 200 when invoking worker', () =>
-        server.inject(options).then((reply) => {
-            assert.equal(reply.statusCode, 200);
-        })
-    );
+    it('returns 200 when invoking worker', async () => {
+        mockWorker.invoke = sinon.stub().resolves('Success');
+        const reply = await server.inject(options);
 
-    it('returns 500 when build update returns an error', () => {
-        mockWorker.invoke = sinon.stub().throws(new Error('Failed'));
-        server.inject(options).then((reply) => {
-            assert.equal(reply.statusCode, 500);
-        });
+        assert.equal(reply.statusCode, 200);
+    });
+
+    it('returns 500 when build update returns an error', async () => {
+        mockWorker.invoke = sinon.stub().rejects(new Error('Failed'));
+        const reply = await server.inject(options);
+
+        assert.equal(reply.statusCode, 500);
     });
 });

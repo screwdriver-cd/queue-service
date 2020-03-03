@@ -343,7 +343,7 @@ async function init(executor) {
                     return await startPeriodic(
                         Object.assign(JSON.parse(fullConfig), { triggerBuild: true }));
                 } catch (err) {
-                    logger.error('err in startDelayed job: ', err);
+                    logger.error(`err in startDelayed job: ${err}`);
                     throw err;
                 }
             }
@@ -356,7 +356,7 @@ async function init(executor) {
 
                     return await startFrozen(JSON.parse(fullConfig));
                 } catch (err) {
-                    logger.error('err in startFrozen job: ', err);
+                    logger.error(`err in startFrozen job: ${err}`);
                     throw err;
                 }
             }

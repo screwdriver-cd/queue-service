@@ -16,7 +16,7 @@ module.exports = () => ({
 
                 return h.response(result).code(200);
             } catch (err) {
-                logger.error('Failed to start worker', err);
+                logger.error(`Failed to start worker ${err}`);
 
                 return h.response({ Error: err.message }).code(500);
             }

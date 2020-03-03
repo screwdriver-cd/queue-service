@@ -147,11 +147,13 @@ async function createBuildEvent(apiUri, eventConfig, buildEvent, retryStrategyFn
             retryDelay: RETRY_DELAY * 1000, // in ms
             retryStrategy: retryStrategyFn
         }, (err, res) => {
-            if (!err && res.statusCode === 201) {
-                return resolve(res);
-            }
-            if (res.statusCode !== 201) {
-                return reject(JSON.stringify(res.body));
+            if (!err) {
+                if (res.statusCode === 201) {
+                    return resolve(res);
+                }
+                if (res.statusCode !== 201) {
+                    return reject(JSON.stringify(res.body));
+                }
             }
 
             return reject(err);
@@ -183,11 +185,13 @@ async function getPipelineAdmin(requestConfig, apiUri, pipelineId, retryStrategy
             retryDelay: RETRY_DELAY * 1000, // in ms
             retryStrategy: retryStrategyFn
         }, (err, res) => {
-            if (!err && res.statusCode === 200) {
-                return resolve(res.body);
-            }
-            if (res.statusCode !== 200) {
-                return null;
+            if (!err) {
+                if (res.statusCode === 200) {
+                    return resolve(res.body);
+                }
+                if (res.statusCode !== 200) {
+                    return null;
+                }
             }
 
             return reject(err);
@@ -224,11 +228,14 @@ async function updateBuildStatusWithRetry(updateConfig, retryStrategyFn) {
             retryDelay: RETRY_DELAY * 1000, // in ms
             retryStrategy: retryStrategyFn
         }, (err, res) => {
-            if (!err && res.statusCode === 201) {
-                return resolve(res);
-            }
-            if (res.statusCode !== 201) {
-                return null;
+            if (!err) {
+                if (res.statusCode === 201) {
+                    return resolve(res);
+                }
+
+                if (res.statusCode !== 201) {
+                    return null;
+                }
             }
 
             return reject(err);

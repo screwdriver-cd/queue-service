@@ -88,20 +88,27 @@ describe('server case', () => {
             assert.isObject(server.app.executorQueue);
         });
 
-        it.skip('injects server with route /v1/queue/message', () => {
-            server.inject = sinon.stub().resolves();
-
-            assert.calledWithArgs(server.inject, {
+        it('injects server with route /v1/queue/message', () => {
+            server.inject = sinon.stub();
+            assert.calledWith(server.inject, {
+                url: '/v1/queue/message',
                 method: 'POST',
-                url: '/v1/queue/message'
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                payload: {}
             });
         });
 
-        it.skip('injects server with route /v1/queue/worker', () => {
-            server.inject = sinon.stub().resolves();
-            assert.calledWithArgs(server.inject, {
+        it('injects server with route /v1/queue/worker', () => {
+            server.inject = sinon.stub();
+            assert.calledWith(server.inject, {
+                url: '/v1/queue/worker',
                 method: 'POST',
-                url: '/v1/queue/worker'
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                payload: {}
             });
         });
     });
@@ -117,7 +124,7 @@ describe('server case', () => {
             /* eslint-enable global-require */
         });
 
-        it.skip('calls errors with register plugins', () => {
+        it('calls errors with register plugins', () => {
             registrationManMock.rejects(new Error('registrationMan fail'));
 
             return hapiEngine(config).catch((error) => {
@@ -168,7 +175,7 @@ describe('server case', () => {
             /* eslint-enable global-require */
         });
 
-        it.skip('doesnt affect non-errors', () => (
+        it('doesnt affect non-errors', () => (
             hapiEngine(config).then(server => (
                 server.inject({
                     method: 'GET',
@@ -179,7 +186,7 @@ describe('server case', () => {
             ))
         ));
 
-        it.skip('doesnt affect errors', () => (
+        it('doesnt affect errors', () => (
             hapiEngine(config).then(server => (
                 server.inject({
                     method: 'GET',
@@ -191,7 +198,7 @@ describe('server case', () => {
             ))
         ));
 
-        it.skip('defaults to the error message if the stack trace is missing', () => (
+        it('defaults to the error message if the stack trace is missing', () => (
             hapiEngine(config).then(server => (
                 server.inject({
                     method: 'GET',
@@ -203,7 +210,7 @@ describe('server case', () => {
             ))
         ));
 
-        it.skip('responds with error response data', () => (
+        it('responds with error response data', () => (
             hapiEngine(config).then(server => (
                 server.inject({
                     method: 'GET',

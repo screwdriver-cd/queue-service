@@ -31,6 +31,7 @@ const executorPlugins = Object.keys(executorConfig).reduce((aggregator, keyName)
 
     return aggregator;
 }, []);
+
 const executor = new ExecutorRouter({
     defaultPlugin: executorConfig.plugin,
     executor: executorPlugins,
@@ -135,7 +136,7 @@ function start(buildConfig) {
     return redis.hget(`${queuePrefix}buildConfigs`, buildConfig.buildId)
         .then(fullBuildConfig => schedule('start', JSON.parse(fullBuildConfig)))
         .catch((err) => {
-            logger.error('err in start job: ', err);
+            logger.error(`err in start job: ${err}`);
 
             return Promise.reject(err);
         });

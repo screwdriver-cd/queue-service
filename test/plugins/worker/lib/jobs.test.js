@@ -82,7 +82,7 @@ describe('Jobs Unit Test', () => {
             getConfig: sinon.stub().returns(mockRabbitmqConfigObj)
         };
 
-        mockExecutorRouter = () => mockExecutor;
+        mockExecutorRouter = function () { return mockExecutor; };
         mockery.registerMock('screwdriver-executor-router', mockExecutorRouter);
 
         mockery.registerMock('amqp-connection-manager', mockAmqp);
@@ -120,7 +120,7 @@ describe('Jobs Unit Test', () => {
             const expectedPort = 6379;
             const expectedHost = '127.0.0.1';
             const expectedOptions = {
-                password: undefined,
+                password: 'a-secure-password',
                 tls: false
             };
 
