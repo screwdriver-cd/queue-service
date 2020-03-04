@@ -8,9 +8,9 @@ sinon.assert.expose(assert, { prefix: '' });
 
 describe('Register Plugins', () => {
     const resourcePlugins = [
-        'worker',
-        'queue',
-        'status'
+        '../plugins/worker',
+        '../plugins/queue',
+        '../plugins/status'
     ];
     const defaultPlugin = [
         'blipp'
@@ -53,9 +53,7 @@ describe('Register Plugins', () => {
         mockery.disable();
     });
 
-    it.skip('registered resource plugins', async () => {
-        serverMock.register.callsArgAsync(1);
-
+    it('registered resource plugins', async () => {
         await main(serverMock, config);
 
         assert.equal(serverMock.register.callCount, pluginLength);
@@ -64,7 +62,7 @@ describe('Register Plugins', () => {
             assert.calledWith(serverMock.register, {
                 plugin: mocks[plugin],
                 options: {
-                    name: plugin
+                    name: plugin.split('/')[2]
                 },
                 routes: {
                     prefix: '/v1'
@@ -73,8 +71,8 @@ describe('Register Plugins', () => {
         });
     });
 
-    it.skip('bubbles failures up', async () => {
-        serverMock.register.callsArgAsync(1, new Error('failure loading'));
+    it('bubbles failures up', async () => {
+        serverMock.register = sinon.stub().throws(new Error('failure loading'));
         try {
             await main(serverMock, config);
         } catch (err) {
@@ -82,11 +80,9 @@ describe('Register Plugins', () => {
         }
     });
 
-    it.skip('registers data for plugin when specified in the config object', async () => {
-        serverMock.register.callsArgAsync(1);
-
+    it('registers data for plugin when specified in the config object', async () => {
         await main(serverMock, {
-            auth: {
+            queue: {
                 foo: 'bar'
             }
         });
@@ -95,7 +91,8 @@ describe('Register Plugins', () => {
         assert.calledWith(serverMock.register, {
             plugin: mocks['../plugins/queue'],
             options: {
-                foo: 'bar'
+                foo: 'bar',
+                name: 'queue'
             },
             routes: {
                 prefix: '/v1'

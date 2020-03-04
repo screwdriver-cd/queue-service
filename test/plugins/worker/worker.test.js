@@ -120,7 +120,7 @@ describe('Schedule test', () => {
         mockery.registerMock('node-resque', nrMockClass);
         mockery.registerMock('request', requestMock);
         mockery.registerMock('../../config/redis', redisConfigMock);
-        mockery.registerMock('./lib/helper', helperMock);
+        mockery.registerMock('../helper', helperMock);
         mockery.registerMock('./lib/timeout', timeoutMock);
         mockery.registerMock('config', configMock);
         mockery.registerMock('screwdriver-logger', winstonMock);
@@ -176,53 +176,59 @@ describe('Schedule test', () => {
     });
 
     describe('event handler', () => {
-        it.skip('logs the correct message for worker', () => {
+        it('logs the correct message for worker', () => {
             testWorker.emit('start', workerId);
-            assert.calledWith(winstonMock.info, `worker[${workerId}] started`);
+            assert.calledWith(winstonMock.info, `queueWorker->worker[${workerId}] started`);
 
             testWorker.emit('end', workerId);
-            assert.calledWith(winstonMock.info, `worker[${workerId}] ended`);
+            assert.calledWith(winstonMock.info, `queueWorker->worker[${workerId}] ended`);
 
             testWorker.emit('cleaning_worker', workerId, worker, pid);
-            assert.calledWith(winstonMock.info, `cleaning old worker ${worker} pid ${pid}`);
+            assert.calledWith(winstonMock.info,
+                `queueWorker->cleaning old worker ${worker} pid ${pid}`);
 
             testWorker.emit('poll', workerId, queue);
-            assert.calledWith(winstonMock.info, `worker[${workerId}] polling ${queue}`);
+            assert.calledWith(winstonMock.info,
+                `queueWorker->worker[${workerId}] polling ${queue}`);
             assert.calledWith(timeoutMock.check);
 
             testWorker.emit('job', workerId, queue, job);
             assert.calledWith(winstonMock.info,
-                `worker[${workerId}] working job ${queue} ${JSON.stringify(job)}`);
+                `queueWorker->worker[${workerId}] working job ${queue} ${JSON.stringify(job)}`);
 
             testWorker.emit('reEnqueue', workerId, queue, job, plugin);
             assert.calledWith(winstonMock.info,
                 // eslint-disable-next-line max-len
-                `worker[${workerId}] reEnqueue job (${JSON.stringify(plugin)}) ${queue} ${JSON.stringify(job)}`);
+                `queueWorker->worker[${workerId}] reEnqueue job `
+                + `(${JSON.stringify(plugin)}) ${queue} ${JSON.stringify(job)}`);
 
             testWorker.emit('success', workerId, queue, job, result);
             assert.calledWith(winstonMock.info,
-                `worker[${workerId}] ${job} success ${queue} ${JSON.stringify(job)} >> ${result}`);
+                `queueWorker->worker[${workerId}] ${job} `
+                + `success ${queue} ${JSON.stringify(job)} >> ${result}`);
 
             testWorker.emit('error', workerId, queue, job, error);
             assert.calledWith(winstonMock.error,
-                `worker[${workerId}] error ${queue} ${JSON.stringify(job)} >> ${error}`);
+                `queueWorker->worker[${workerId}] error `
+                + `${queue} ${JSON.stringify(job)} >> ${error}`);
 
             testWorker.emit('pause', workerId);
-            assert.calledWith(winstonMock.info, `worker[${workerId}] paused`);
+            assert.calledWith(winstonMock.info, `queueWorker->worker[${workerId}] paused`);
 
             testWorker.emit('internalError', error);
             assert.calledWith(winstonMock.error, error);
 
             testWorker.emit('multiWorkerAction', verb, delay);
             assert.calledWith(winstonMock.info,
-                `*** checked for worker status: ${verb} (event loop delay: ${delay}ms)`);
+                'queueWorker->*** checked for worker status: '
+                + `${verb} (event loop delay: ${delay}ms)`);
         });
 
         /* Failure case is special because it needs to wait for the updateBuildStatus to finish then do worker logging.
          * We cannot guarantee the logs are executed sequentally because of event emitter.
          * Therefore, need to add a sleep after emit the event and assert afterward.
          */
-        it.skip('tests worker failure by some reason', async () => {
+        it('tests worker failure by some reason', async () => {
             const updateConfig = {
                 buildId: 1,
                 redisInstance: mockRedisObj,
@@ -233,7 +239,8 @@ describe('Schedule test', () => {
             const failure = 'failure';
 
             // When updateBuildStatus succeeds
-            let errMsg = `worker[${workerId}] ${JSON.stringify(job)} failure ${queue} ` +
+            let errMsg = `queueWorker->worker[${workerId}] `
+                + `${JSON.stringify(job)} failure ${queue} ` +
                 `${JSON.stringify(job)} >> successfully update build status: ${failure}`;
 
             helperMock.updateBuildStatus.yieldsAsync(null, {});
@@ -246,7 +253,7 @@ describe('Schedule test', () => {
             const updateStatusError = new Error('failed');
             const response = { statusCode: 500 };
 
-            errMsg = `worker[${workerId}] ${job} failure ${queue} ` +
+            errMsg = `queueWorker->worker[${workerId}] ${job} failure ${queue} ` +
                 `${JSON.stringify(job)} >> ${failure} ` +
                 `${updateStatusError} ${JSON.stringify(response)}`;
 
@@ -257,34 +264,34 @@ describe('Schedule test', () => {
             assert.calledWith(winstonMock.error, errMsg);
         });
 
-        it.skip('logs the correct message for scheduler', () => {
+        it('logs the correct message for scheduler', () => {
             const state = 'mock state';
             const timestamp = 'mock timestamp';
 
             testScheduler.emit('start');
-            assert.calledWith(winstonMock.info, 'scheduler started');
+            assert.calledWith(winstonMock.info, 'queueWorker->scheduler started');
 
             testScheduler.emit('end');
-            assert.calledWith(winstonMock.info, 'scheduler ended');
+            assert.calledWith(winstonMock.info, 'queueWorker->scheduler ended');
 
             testScheduler.emit('poll');
-            assert.calledWith(winstonMock.info, 'scheduler polling');
+            assert.calledWith(winstonMock.info, 'queueWorker->scheduler polling');
 
             testScheduler.emit('master', state);
             assert.calledWith(winstonMock.info,
-                `scheduler became master ${state}`);
+                `queueWorker->scheduler became master ${state}`);
 
             testScheduler.emit('error', error);
             assert.calledWith(winstonMock.info,
-                `scheduler error >> ${error}`);
+                `queueWorker->scheduler error >> ${error}`);
 
             testScheduler.emit('working_timestamp', timestamp);
             assert.calledWith(winstonMock.info,
-                `scheduler working timestamp ${timestamp}`);
+                `queueWorker->scheduler working timestamp ${timestamp}`);
 
             testScheduler.emit('transferred_job', timestamp, job);
             assert.calledWith(winstonMock.info,
-                `scheduler enqueuing job timestamp  >>  ${JSON.stringify(job)}`);
+                `queueWorker->scheduler enqueuing job timestamp  >>  ${JSON.stringify(job)}`);
         });
     });
 

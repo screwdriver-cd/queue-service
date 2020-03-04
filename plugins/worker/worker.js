@@ -67,9 +67,9 @@ async function invoke() {
             logger.info(`queueWorker->worker[${workerId}] working job ${queue} ${JSON.stringify(job)}`));
         multiWorker.on('reEnqueue', (workerId, queue, job, plugin) =>
             logger.info(`queueWorker->worker[${workerId}] reEnqueue job (${JSON.stringify(plugin)})`
-                + `${queue} ${JSON.stringify(job)}`));
+                + ` ${queue} ${JSON.stringify(job)}`));
         multiWorker.on('success', (workerId, queue, job, result) =>
-            logger.info(`queueWorker->worker[${workerId}] ${job} success ${queue}`
+            logger.info(`queueWorker->worker[${workerId}] ${job} success ${queue} `
                 + `${JSON.stringify(job)} >> ${result}`));
         multiWorker.on('failure', (workerId, queue, job, failure) =>
             helper.updateBuildStatus({
@@ -79,15 +79,17 @@ async function invoke() {
                 statusMessage: `${failure}`
             }, (err, response) => {
                 if (!err) {
-                    logger.error(`worker[${workerId}] ${JSON.stringify(job)} failure ${queue}`
+                    logger.error(`queueWorker->worker[${workerId}] ${JSON.stringify(job)} `
+                        + `failure ${queue} `
                         + `${JSON.stringify(job)} >> successfully update build status: ${failure}`);
                 } else {
-                    logger.error(`worker[${workerId}] ${job} failure ${queue} ${JSON.stringify(job)}` +
+                    logger.error(`queueWorker->worker[${workerId}] ${job} failure `
+                        + `${queue} ${JSON.stringify(job)} ` +
                         `>> ${failure} ${err} ${JSON.stringify(response)}`);
                 }
             }));
         multiWorker.on('error', (workerId, queue, job, error) =>
-            logger.error(`worker[${workerId}] error ${queue} ${JSON.stringify(job)} >> ${error}`));
+            logger.error(`queueWorker->worker[${workerId}] error ${queue} ${JSON.stringify(job)} >> ${error}`));
         multiWorker.on('pause', workerId =>
             logger.info(`queueWorker->worker[${workerId}] paused`));
 
@@ -95,7 +97,7 @@ async function invoke() {
         multiWorker.on('internalError', error =>
             logger.error(error));
         multiWorker.on('multiWorkerAction', (verb, delay) =>
-            logger.info(`queueWorker->*** checked for worker status: ${verb}`
+            logger.info(`queueWorker->*** checked for worker status: ${verb} `
                 + `(event loop delay: ${delay}ms)`));
 
         scheduler.on('start', () =>
