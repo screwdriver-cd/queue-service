@@ -54,6 +54,7 @@ describe('Schedule test', () => {
     let mockRedisObj;
     let configMock;
     let timeoutMock;
+    let clock;
 
     before(() => {
         mockery.enable({
@@ -296,6 +297,13 @@ describe('Schedule test', () => {
     });
 
     describe('multiWorker', () => {
+        beforeEach(() => {
+            clock = sinon.useFakeTimers();
+        });
+
+        afterEach(() => {
+            clock.restore();
+        });
         it('is constructed correctly', () => {
             assert.calledWith(MultiWorker, sinon.match(workerConfig), sinon.match({
                 start: mockJobs.start
@@ -307,8 +315,11 @@ describe('Schedule test', () => {
             testScheduler.end = sinon.stub().resolves(null);
 
             process.once('SIGTERM', async () => {
-                assert.calledOnce(testScheduler.end);
+                await clock.runAllAsync();
+
                 assert.calledOnce(testWorker.end);
+                assert.calledOnce(testScheduler.end);
+                assert.calledOnce(processExitMock);
                 assert.calledWith(processExitMock, 0);
             });
 
