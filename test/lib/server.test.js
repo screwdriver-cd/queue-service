@@ -203,3 +203,8 @@ describe('server case', () => {
         }));
     });
 });
+
+process.on('unhandledRejection', (e) => {
+    console.log('=========>>12312', e);
+    throw e;
+});

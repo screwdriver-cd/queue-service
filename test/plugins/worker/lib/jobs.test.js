@@ -35,6 +35,7 @@ describe('Jobs Unit Test', () => {
     let mockAmqp;
     let mockRabbitmqConnection;
     let mockRabbitmqCh;
+    let mockRedisConfig;
 
     before(() => {
         mockery.enable({
@@ -78,6 +79,21 @@ describe('Jobs Unit Test', () => {
             exchange: 'build'
         };
 
+        mockRedisConfig = {
+            connectionDetails: {
+                host: '127.0.0.1',
+                options: {
+                    password: 'test123',
+                    tls: false
+                },
+                port: 6379,
+                database: 0
+            },
+            queuePrefix: '',
+            runningJobsPrefix: 'running_job_',
+            waitingJobsPrefix: 'waiting_job_'
+        };
+
         mockRabbitmqConfig = {
             getConfig: sinon.stub().returns(mockRabbitmqConfigObj)
         };
@@ -91,6 +107,7 @@ describe('Jobs Unit Test', () => {
         mockery.registerMock('ioredis', mockRedis);
 
         mockery.registerMock('../../../config/rabbitmq', mockRabbitmqConfig);
+        mockery.registerMock('../../../config/redis', mockRedisConfig);
 
         mockBlockedBy = {
             BlockedBy: sinon.stub().returns()
@@ -120,7 +137,7 @@ describe('Jobs Unit Test', () => {
             const expectedPort = 6379;
             const expectedHost = '127.0.0.1';
             const expectedOptions = {
-                password: 'a-secure-password',
+                password: 'test123',
                 tls: false
             };
 

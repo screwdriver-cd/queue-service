@@ -14,7 +14,6 @@ describe('Timeout test', () => {
     const queuePrefix = 'mockQueuePrefix_';
     const runningJobsPrefix = undefined;
     const waitingJobsPrefix = undefined;
-    let mockRequest;
     let mockRedis;
     let mockRedisConfig;
     let helperMock;
@@ -28,7 +27,6 @@ describe('Timeout test', () => {
     });
 
     beforeEach(() => {
-        mockRequest = sinon.stub();
         mockRedis = {
             hget: sinon.stub().resolves(),
             hdel: sinon.stub().resolves(null),
@@ -51,7 +49,6 @@ describe('Timeout test', () => {
             })
         };
 
-        mockery.registerMock('request', mockRequest);
         mockery.registerMock('../../../config/redis', mockRedisConfig);
         mockery.registerMock('../../helper.js', helperMock);
 

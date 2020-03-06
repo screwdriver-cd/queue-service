@@ -439,7 +439,8 @@ async function startTimer(executor, config) {
         if (buildStatus === 'RUNNING') {
             const buildTimeout = reach(config, 'annotations>screwdriver.cd/timeout',
                 { separator: '>' });
-            const timeout = parseInt(buildTimeout || DEFAULT_BUILD_TIMEOUT, 10);
+            const timeout = !isNaN(buildTimeout) ? parseInt(buildTimeout, 10)
+                : DEFAULT_BUILD_TIMEOUT;
 
             const data = await executor.redisBreaker.runCommand('hget',
                 executor.timeoutQueue, buildId);
