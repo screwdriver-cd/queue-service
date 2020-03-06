@@ -143,7 +143,7 @@ describe('Schedule test', () => {
     });
 
     describe('shutDownAll', () => {
-        it.skip('logs error and then end scheduler when it fails to end worker', async () => {
+        it('logs error and then end scheduler when it fails to end worker', async () => {
             const expectedErr = new Error('failed');
 
             testWorker.end = sinon.stub().rejects(expectedErr);
@@ -155,7 +155,7 @@ describe('Schedule test', () => {
             assert.calledWith(processExitMock, 0);
         });
 
-        it.skip('logs error and exit with 128 when it fails to end scheduler', async () => {
+        it('logs error and exit with 128 when it fails to end scheduler', async () => {
             const expectedErr = new Error('failed');
 
             testWorker.end = sinon.stub().resolves(null);
@@ -166,7 +166,7 @@ describe('Schedule test', () => {
             assert.calledWith(processExitMock, 128);
         });
 
-        it.skip('exit with 0 when it successfully ends both scheduler and worker', async () => {
+        it('exit with 0 when it successfully ends both scheduler and worker', async () => {
             testWorker.end.resolves();
             testScheduler.end.resolves();
 
@@ -176,7 +176,7 @@ describe('Schedule test', () => {
     });
 
     describe('event handler', () => {
-        it.skip('logs the correct message for worker', () => {
+        it('logs the correct message for worker', () => {
             testWorker.emit('start', workerId);
             assert.calledWith(winstonMock.info, `queueWorker->worker[${workerId}] started`);
 
@@ -228,7 +228,7 @@ describe('Schedule test', () => {
          * We cannot guarantee the logs are executed sequentally because of event emitter.
          * Therefore, need to add a sleep after emit the event and assert afterward.
          */
-        it.skip('tests worker failure by some reason', async () => {
+        it('tests worker failure by some reason', async () => {
             const updateConfig = {
                 buildId: 1,
                 redisInstance: mockRedisObj,
@@ -264,7 +264,7 @@ describe('Schedule test', () => {
             assert.calledWith(winstonMock.error, errMsg);
         });
 
-        it.skip('logs the correct message for scheduler', () => {
+        it('logs the correct message for scheduler', () => {
             const state = 'mock state';
             const timestamp = 'mock timestamp';
 
@@ -296,13 +296,13 @@ describe('Schedule test', () => {
     });
 
     describe('multiWorker', () => {
-        it.skip('is constructed correctly', () => {
+        it('is constructed correctly', () => {
             assert.calledWith(MultiWorker, sinon.match(workerConfig), sinon.match({
                 start: mockJobs.start
             }));
         });
 
-        it.skip('shuts down worker and scheduler when received SIGTERM signal', async () => {
+        it('shuts down worker and scheduler when received SIGTERM signal', async () => {
             testWorker.end = sinon.stub().resolves(null);
             testScheduler.end = sinon.stub().resolves(null);
 
@@ -317,7 +317,7 @@ describe('Schedule test', () => {
     });
 
     describe('scheduler', () => {
-        it.skip('is constructed correctly', () => {
+        it('is constructed correctly', () => {
             const expectedConfig = {
                 connection: queueConfig.redisConnection
             };
