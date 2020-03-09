@@ -35,6 +35,7 @@
   "devDependencies": {
     "EventEmitter": "^1.0.0",
     "chai": "^4.2.0",
+    "coveralls": "^3.0.9",
     "eslint": "^6.8.0",
     "eslint-config-screwdriver": "^3.0.1",
     "mocha": "^7.0.1",
