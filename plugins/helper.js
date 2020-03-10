@@ -7,6 +7,39 @@ const RETRY_LIMIT = 3;
 const RETRY_DELAY = 5;
 
 /**
+ *
+ * @param {String} method
+ * @param {String} uri
+ * @param {String} token
+ * @param {Function} retryStrategyFn
+ * @param {Object} body
+ */
+function formatOptions(method, uri, token, body, retryStrategyFn) {
+    const options = {
+        json: true,
+        method,
+        uri,
+        headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        }
+    };
+
+    if (body) {
+        Object.assign(options, { body });
+    }
+    if (retryStrategyFn) {
+        Object.assign(options, {
+            retryStrategy: retryStrategyFn,
+            maxAttempts: RETRY_LIMIT,
+            retryDelay: RETRY_DELAY * 1000 // in ms
+        });
+    }
+
+    return options;
+}
+
+/**
  * Update build status
  * @method updateBuildStatus
  * @param  {Object}  updateConfig build config of the job
@@ -21,18 +54,14 @@ async function updateBuildStatus(updateConfig) {
     if (!buildConfig) return null;
 
     return new Promise((resolve, reject) => {
-        request({
-            json: true,
-            method: 'PUT',
-            uri: `${buildConfig.apiUri}/v4/builds/${buildId}`,
-            body: {
+        request(formatOptions(
+            'PUT',
+            `${buildConfig.apiUri}/v4/builds/${buildId}`,
+            buildConfig.token,
+            {
                 status,
                 statusMessage
-            },
-            auth: {
-                bearer: buildConfig.token
-            }
-        }, (err, res) => {
+            }), (err, res) => {
             if (!err && res.statusCode === 200) {
                 return resolve(res.body);
             }
@@ -61,18 +90,15 @@ async function updateStepStop(stepConfig) {
     if (!buildConfig) return null;
 
     return new Promise((resolve, reject) => {
-        request({
-            json: true,
-            method: 'PUT',
-            uri: `${buildConfig.apiUri}/v4/builds/${buildId}/steps/${stepName}`,
-            body: {
+        request(formatOptions(
+            'PUT',
+            `${buildConfig.apiUri}/v4/builds/${buildId}/steps/${stepName}`,
+            buildConfig.token,
+            {
                 endTime: new Date().toISOString(),
                 code
-            },
-            auth: {
-                bearer: buildConfig.token
             }
-        }, (err, res) => {
+        ), (err, res) => {
             if (!err && res.statusCode === 200) {
                 return resolve(res.body);
             }
@@ -99,14 +125,11 @@ async function getCurrentStep(stepConfig) {
     if (!buildConfig) return null;
 
     return new Promise((resolve, reject) => {
-        request({
-            json: true,
-            method: 'GET',
-            uri: `${buildConfig.apiUri}/v4/builds/${buildId}/steps?status=active`,
-            auth: {
-                bearer: buildConfig.token
-            }
-        }, (err, res) => {
+        request(formatOptions(
+            'GET',
+            `${buildConfig.apiUri}/v4/builds/${buildId}/steps?status=active`,
+            buildConfig.token
+        ), (err, res) => {
             if (!err && res.statusCode === 200) {
                 if (res.body && res.body.length > 0) {
                     return resolve(res.body[0]);
@@ -134,19 +157,13 @@ async function createBuildEvent(apiUri, eventConfig, buildEvent, retryStrategyFn
     const body = Object.assign({}, buildEvent, { buildId, parentEventId: eventId });
 
     return new Promise((resolve, reject) => {
-        requestretry({
-            json: true,
-            method: 'POST',
-            uri: `${apiUri}/v4/events`,
-            headers: {
-                Authorization: `Bearer ${buildConfig.token}`,
-                'Content-Type': 'application/json'
-            },
+        requestretry(formatOptions(
+            'POST',
+            `${apiUri}/v4/events`,
+            buildConfig.token,
             body,
-            maxAttempts: RETRY_LIMIT,
-            retryDelay: RETRY_DELAY * 1000, // in ms
-            retryStrategy: retryStrategyFn
-        }, (err, res) => {
+            retryStrategyFn
+        ), (err, res) => {
             if (!err) {
                 if (res.statusCode === 201) {
                     return resolve(res);
@@ -173,18 +190,13 @@ async function getPipelineAdmin(requestConfig, apiUri, pipelineId, retryStrategy
         .then(JSON.parse);
 
     return new Promise((resolve, reject) => {
-        requestretry({
-            json: true,
-            method: 'GET',
-            uri: `${apiUri}/pipelines/${pipelineId}/admin`,
-            headers: {
-                Authorization: `Bearer ${buildConfig.token}`,
-                'Content-Type': 'application/json'
-            },
-            maxAttempts: RETRY_LIMIT,
-            retryDelay: RETRY_DELAY * 1000, // in ms
-            retryStrategy: retryStrategyFn
-        }, (err, res) => {
+        requestretry(formatOptions(
+            'GET',
+            `${apiUri}/pipelines/${pipelineId}/admin`,
+            buildConfig.token,
+            undefined,
+            retryStrategyFn
+        ), (err, res) => {
             if (!err) {
                 if (res.statusCode === 200) {
                     return resolve(res.body);
@@ -212,22 +224,13 @@ async function updateBuildStatusWithRetry(updateConfig, retryStrategyFn) {
     const { buildId, token, status, statusMessage, apiUri } = updateConfig;
 
     return new Promise((resolve, reject) => {
-        requestretry({
-            json: true,
-            method: 'PUT',
-            uri: `${apiUri}/v4/builds/${buildId}`,
-            body: {
-                status,
-                statusMessage
-            },
-            headers: {
-                Authorization: `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            },
-            maxAttempts: RETRY_LIMIT,
-            retryDelay: RETRY_DELAY * 1000, // in ms
-            retryStrategy: retryStrategyFn
-        }, (err, res) => {
+        requestretry(formatOptions(
+            'PUT',
+            `${apiUri}/v4/builds/${buildId}`,
+            token,
+            { statusMessage, status },
+            retryStrategyFn
+        ), (err, res) => {
             if (!err) {
                 if (res.statusCode === 201) {
                     return resolve(res);

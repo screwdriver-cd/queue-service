@@ -11,7 +11,10 @@ describe('Helper Test', () => {
     const status = 'BLOCKED';
     const statusMessage = 'blocked by these bloking jobs: 123, 456';
     const requestOptions = {
-        auth: { bearer: 'fake' },
+        headers: {
+            Authorization: 'Bearer fake',
+            'Content-Type': 'application/json'
+        },
         json: true,
         method: 'PUT',
         body: {
@@ -116,7 +119,10 @@ describe('Helper Test', () => {
         assert.calledWith(mockRedis.hget,
             'mockQueuePrefix_buildConfigs', job.args[0].buildId);
         assert.calledWith(mockRequest, {
-            auth: { bearer: 'fake' },
+            headers: {
+                Authorization: 'Bearer fake',
+                'Content-Type': 'application/json'
+            },
             json: true,
             method: 'PUT',
             uri: `foo.bar/v4/builds/${job.args[0].buildId}/steps/${stepName}`,
@@ -154,7 +160,10 @@ describe('Helper Test', () => {
         }
 
         assert.calledWith(mockRequest, {
-            auth: { bearer: 'fake' },
+            headers: {
+                Authorization: 'Bearer fake',
+                'Content-Type': 'application/json'
+            },
             json: true,
             method: 'PUT',
             uri: `foo.bar/v4/builds/${job.args[0].buildId}/steps/${stepName}`,
@@ -177,7 +186,10 @@ describe('Helper Test', () => {
         assert.calledWith(mockRedis.hget,
             'mockQueuePrefix_buildConfigs', job.args[0].buildId);
         assert.calledWith(mockRequest, {
-            auth: { bearer: 'fake' },
+            headers: {
+                Authorization: 'Bearer fake',
+                'Content-Type': 'application/json'
+            },
             json: true,
             method: 'GET',
             uri: `foo.bar/v4/builds/${job.args[0].buildId}/steps?status=active`
