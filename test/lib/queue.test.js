@@ -3,7 +3,7 @@
 /* eslint-disable no-underscore-dangle */
 
 const chai = require('chai');
-const assert = chai.assert;
+const { assert } = chai;
 const mockery = require('mockery');
 const sinon = require('sinon');
 const testConnection = require('../data/testConnection.json');
@@ -102,7 +102,10 @@ describe('index test', () => {
         });
 
         it('throws when not given a redis connection', () => {
-            assert.throws(() => new Executor(), 'No redis connection passed in');
+            assert.throws(
+                () => new Executor(),
+                'No redis connection passed in'
+            );
         });
     });
 

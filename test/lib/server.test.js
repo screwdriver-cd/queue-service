@@ -1,6 +1,6 @@
 'use strict';
 
-const assert = require('chai').assert;
+const { assert } = require('chai');
 const boom = require('@hapi/boom');
 const mockery = require('mockery');
 const sinon = require('sinon');
@@ -67,7 +67,7 @@ describe('server case', () => {
 
             registrationManMock.resolves(null);
 
-            const svcConfig = Object.assign({}, config, { httpd: { port: 12347 } });
+            const svcConfig = { ...config, httpd: { port: 12347 } };
 
             server = await hapiEngine(svcConfig);
         });
@@ -108,9 +108,9 @@ describe('server case', () => {
 
         it('calls errors with register plugins', () => {
             registrationManMock.rejects(new Error('registrationMan fail'));
-            const svcConfig = Object.assign({}, config, { httpd: { port: 12347 } });
+            const svcConfig = { ...config, httpd: { port: 12347 } };
 
-            return hapiEngine(svcConfig).catch((error) => {
+            return hapiEngine(svcConfig).catch(error => {
                 assert.strictEqual('registrationMan fail', error.message);
             });
         });
@@ -121,7 +121,7 @@ describe('server case', () => {
         let hapiServer;
 
         beforeEach(async () => {
-            mockery.registerMock('./registerPlugins', (server) => {
+            mockery.registerMock('./registerPlugins', server => {
                 server.route({
                     method: 'GET',
                     path: '/yes',
@@ -153,7 +153,7 @@ describe('server case', () => {
                 return Promise.resolve();
             });
 
-            srvConfig = Object.assign({}, config, { httpd: { port: 12348 } });
+            srvConfig = { ...config, httpd: { port: 12348 } };
 
             /* eslint-disable global-require */
             hapiEngine = require('../../lib/server');
@@ -185,29 +185,37 @@ describe('server case', () => {
             assert.equal(JSON.parse(response.payload).message, 'Not OK');
         });
 
-        it('defaults to the error message if the stack trace is missing',
-            () => hapiServer.inject({
-                method: 'GET',
-                url: '/noStack'
-            }).then((response) => {
-                assert.equal(response.statusCode, 500);
-                assert.equal(JSON.parse(response.payload).message, 'whatStackTrace');
-            }));
+        it('defaults to the error message if the stack trace is missing', () =>
+            hapiServer
+                .inject({
+                    method: 'GET',
+                    url: '/noStack'
+                })
+                .then(response => {
+                    assert.equal(response.statusCode, 500);
+                    assert.equal(
+                        JSON.parse(response.payload).message,
+                        'whatStackTrace'
+                    );
+                }));
 
-        it('responds with error response data', () => hapiServer.inject({
-            method: 'GET',
-            url: '/noWithResponse'
-        }).then((response) => {
-            const { message, data } = JSON.parse(response.payload);
+        it('responds with error response data', () =>
+            hapiServer
+                .inject({
+                    method: 'GET',
+                    url: '/noWithResponse'
+                })
+                .then(response => {
+                    const { message, data } = JSON.parse(response.payload);
 
-            assert.equal(response.statusCode, 409);
-            assert.equal(message, 'conflict');
-            assert.deepEqual(data, { conflictOn: 1 });
-        }));
+                    assert.equal(response.statusCode, 409);
+                    assert.equal(message, 'conflict');
+                    assert.deepEqual(data, { conflictOn: 1 });
+                }));
     });
 });
 
-process.on('unhandledRejection', (e) => {
+process.on('unhandledRejection', e => {
     console.log('=========>>12312', e);
     throw e;
 });

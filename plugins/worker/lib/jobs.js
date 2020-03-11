@@ -4,33 +4,45 @@ const amqp = require('amqp-connection-manager');
 const Redis = require('ioredis');
 const config = require('config');
 const hoek = require('@hapi/hoek');
-const BlockedBy = require('./BlockedBy').BlockedBy;
-const Filter = require('./Filter').Filter;
-const blockedByConfig = config.get('plugins').blockedBy;
 const ExecutorRouter = require('screwdriver-executor-router');
-const { connectionDetails, queuePrefix, runningJobsPrefix, waitingJobsPrefix }
-= require('../../../config/redis');
+const logger = require('screwdriver-logger');
+const { BlockedBy } = require('./BlockedBy');
+const { Filter } = require('./Filter');
+const blockedByConfig = config.get('plugins').blockedBy;
+const {
+    connectionDetails,
+    queuePrefix,
+    runningJobsPrefix,
+    waitingJobsPrefix
+} = require('../../../config/redis');
 const rabbitmqConf = require('../../../config/rabbitmq');
 const { amqpURI, exchange } = rabbitmqConf.getConfig();
-const logger = require('screwdriver-logger');
 
 const RETRY_LIMIT = 3;
 // This is in milliseconds, reference: https://github.com/taskrabbit/node-resque/blob/master/lib/plugins/Retry.js#L12
 const RETRY_DELAY = 5 * 1000;
-const redis = new Redis(connectionDetails.port, connectionDetails.host, connectionDetails.options);
+const redis = new Redis(
+    connectionDetails.port,
+    connectionDetails.host,
+    connectionDetails.options
+);
 
 const ecosystem = config.get('ecosystem');
 const executorConfig = config.get('executor');
 
-const executorPlugins = Object.keys(executorConfig).reduce((aggregator, keyName) => {
-    if (keyName !== 'plugin') {
-        aggregator.push(Object.assign({
-            name: keyName
-        }, executorConfig[keyName]));
-    }
+const executorPlugins = Object.keys(executorConfig).reduce(
+    (aggregator, keyName) => {
+        if (keyName !== 'plugin') {
+            aggregator.push({
+                name: keyName,
+                ...executorConfig[keyName]
+            });
+        }
 
-    return aggregator;
-}, []);
+        return aggregator;
+    },
+    []
+);
 
 const executor = new ExecutorRouter({
     defaultPlugin: executorConfig.plugin,
@@ -71,8 +83,9 @@ function getRabbitmqConn() {
     logger.info('Creating new rabbitmq connection.');
 
     rabbitmqConn.on('connect', () => logger.info('Connected to rabbitmq!'));
-    rabbitmqConn.on('disconnect',
-        params => logger.info('Disconnected from rabbitmq.', params.err.stack));
+    rabbitmqConn.on('disconnect', params =>
+        logger.info('Disconnected from rabbitmq.', params.err.stack)
+    );
 
     return rabbitmqConn;
 }
@@ -101,14 +114,13 @@ function schedule(job, buildConfig) {
 
         logger.info('publishing msg to rabbitmq:', buildConfig.buildId);
 
-        return channelWrapper.publish(
-            exchange,
-            buildCluster,
-            msg,
-            { contentType: 'application/json', persistent: true }
-        )
+        return channelWrapper
+            .publish(exchange, buildCluster, msg, {
+                contentType: 'application/json',
+                persistent: true
+            })
             .then(() => channelWrapper.close())
-            .catch((err) => {
+            .catch(err => {
                 channelWrapper.close();
 
                 return Promise.reject(err);
@@ -133,9 +145,10 @@ function schedule(job, buildConfig) {
  * @return {Promise}
  */
 function start(buildConfig) {
-    return redis.hget(`${queuePrefix}buildConfigs`, buildConfig.buildId)
+    return redis
+        .hget(`${queuePrefix}buildConfigs`, buildConfig.buildId)
         .then(fullBuildConfig => schedule('start', JSON.parse(fullBuildConfig)))
-        .catch((err) => {
+        .catch(err => {
             logger.error(`err in start job: ${err}`);
 
             return Promise.reject(err);
@@ -158,36 +171,41 @@ function stop(buildConfig) {
     const stopConfig = { buildId };
     const runningKey = `${runningJobsPrefix}${jobId}`;
 
-    return redis.hget(`${queuePrefix}buildConfigs`, buildId)
-        .then((fullBuildConfig) => {
-            const parsedConfig = JSON.parse(fullBuildConfig);
+    return (
+        redis
+            .hget(`${queuePrefix}buildConfigs`, buildId)
+            .then(fullBuildConfig => {
+                const parsedConfig = JSON.parse(fullBuildConfig);
 
-            if (parsedConfig && parsedConfig.annotations) {
-                stopConfig.annotations = parsedConfig.annotations;
-            }
+                if (parsedConfig && parsedConfig.annotations) {
+                    stopConfig.annotations = parsedConfig.annotations;
+                }
 
-            if (parsedConfig && parsedConfig.buildClusterName) {
-                stopConfig.buildClusterName = parsedConfig.buildClusterName;
-            }
+                if (parsedConfig && parsedConfig.buildClusterName) {
+                    stopConfig.buildClusterName = parsedConfig.buildClusterName;
+                }
 
-            stopConfig.token = parsedConfig.token;
-        })
-        .catch((err) => {
-            logger.error(`[Stop Build] failed to get config for build ${buildId}: ${err.message}`);
-        })
-        .then(() => redis.hdel(`${queuePrefix}buildConfigs`, buildId))
-        // If this is a running job
-        .then(() => redis.get(runningKey))
-        .then((runningBuildId) => {
-            if (parseInt(runningBuildId, 10) === buildId) {
-                return redis.del(runningKey);
-            }
+                stopConfig.token = parsedConfig.token;
+            })
+            .catch(err => {
+                logger.error(
+                    `[Stop Build] failed to get config for build ${buildId}: ${err.message}`
+                );
+            })
+            .then(() => redis.hdel(`${queuePrefix}buildConfigs`, buildId))
+            // If this is a running job
+            .then(() => redis.get(runningKey))
+            .then(runningBuildId => {
+                if (parseInt(runningBuildId, 10) === buildId) {
+                    return redis.del(runningKey);
+                }
 
-            return null;
-        })
-        // If this is a waiting job
-        .then(() => redis.lrem(`${waitingJobsPrefix}${jobId}`, 0, buildId))
-        .then(() => (started ? schedule('stop', stopConfig) : null));
+                return null;
+            })
+            // If this is a waiting job
+            .then(() => redis.lrem(`${waitingJobsPrefix}${jobId}`, 0, buildId))
+            .then(() => (started ? schedule('stop', stopConfig) : null))
+    );
 }
 
 module.exports = {

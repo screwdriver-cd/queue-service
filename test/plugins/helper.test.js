@@ -1,6 +1,6 @@
 'use strict';
 
-const assert = require('chai').assert;
+const { assert } = require('chai');
 const mockery = require('mockery');
 const sinon = require('sinon');
 
@@ -39,7 +39,11 @@ describe('Helper Test', () => {
     beforeEach(() => {
         mockRequest = sinon.stub();
         mockRequestRetry = sinon.stub();
-        mockRedis = { hget: sinon.stub().resolves('{"apiUri": "foo.bar", "token": "fake"}') };
+        mockRedis = {
+            hget: sinon
+                .stub()
+                .resolves('{"apiUri": "foo.bar", "token": "fake"}')
+        };
 
         mockRedisConfig = {
             queuePrefix: 'mockQueuePrefix_'
@@ -75,7 +79,11 @@ describe('Helper Test', () => {
         } catch (err) {
             assert.isNull(err);
         }
-        assert.calledWith(mockRedis.hget, 'mockQueuePrefix_buildConfigs', job.args[0].buildId);
+        assert.calledWith(
+            mockRedis.hget,
+            'mockQueuePrefix_buildConfigs',
+            job.args[0].buildId
+        );
         assert.calledWith(mockRequest, requestOptions);
     });
 
@@ -101,7 +109,7 @@ describe('Helper Test', () => {
     it('logs correct message when successfully update step with code', async () => {
         const stepName = 'wait';
         const dateNow = Date.now();
-        const isoTime = (new Date(dateNow)).toISOString();
+        const isoTime = new Date(dateNow).toISOString();
         const sandbox = sinon.createSandbox({
             useFakeTimers: false
         });
@@ -116,8 +124,11 @@ describe('Helper Test', () => {
             stepName
         });
 
-        assert.calledWith(mockRedis.hget,
-            'mockQueuePrefix_buildConfigs', job.args[0].buildId);
+        assert.calledWith(
+            mockRedis.hget,
+            'mockQueuePrefix_buildConfigs',
+            job.args[0].buildId
+        );
         assert.calledWith(mockRequest, {
             headers: {
                 Authorization: 'Bearer fake',
@@ -140,7 +151,7 @@ describe('Helper Test', () => {
         const requestErr = new Error('failed to update');
         const response = [];
         const dateNow = Date.now();
-        const isoTime = (new Date(dateNow)).toISOString();
+        const isoTime = new Date(dateNow).toISOString();
         const sandbox = sinon.createSandbox({
             useFakeTimers: false
         });
@@ -176,15 +187,21 @@ describe('Helper Test', () => {
     });
 
     it('returns correct when get current step is called', async () => {
-        mockRequest.yieldsAsync(null, { statusCode: 200, body: [{ stepName: 'wait' }] });
+        mockRequest.yieldsAsync(null, {
+            statusCode: 200,
+            body: [{ stepName: 'wait' }]
+        });
 
         const res = await helper.getCurrentStep({
             redisInstance: mockRedis,
             buildId: 1
         });
 
-        assert.calledWith(mockRedis.hget,
-            'mockQueuePrefix_buildConfigs', job.args[0].buildId);
+        assert.calledWith(
+            mockRedis.hget,
+            'mockQueuePrefix_buildConfigs',
+            job.args[0].buildId
+        );
         assert.calledWith(mockRequest, {
             headers: {
                 Authorization: 'Bearer fake',
@@ -212,7 +229,11 @@ describe('Helper Test', () => {
             assert.isNull(err);
         }
 
-        assert.calledWith(mockRedis.hget, 'mockQueuePrefix_buildConfigs', job.args[0].buildId);
+        assert.calledWith(
+            mockRedis.hget,
+            'mockQueuePrefix_buildConfigs',
+            job.args[0].buildId
+        );
         assert.calledWith(mockRequestRetry, {
             json: true,
             method: 'POST',
@@ -229,7 +250,10 @@ describe('Helper Test', () => {
     });
 
     it('Gets the pipeline admin correctly', async () => {
-        mockRequestRetry.yieldsAsync(null, { statusCode: 200, body: { username: 'admin123' } });
+        mockRequestRetry.yieldsAsync(null, {
+            statusCode: 200,
+            body: { username: 'admin123' }
+        });
         const retryFn = sinon.stub();
         const pipelineId = 123456;
         let result;
@@ -245,7 +269,11 @@ describe('Helper Test', () => {
             assert.isNull(err);
         }
 
-        assert.calledWith(mockRedis.hget, 'mockQueuePrefix_buildConfigs', job.args[0].buildId);
+        assert.calledWith(
+            mockRedis.hget,
+            'mockQueuePrefix_buildConfigs',
+            job.args[0].buildId
+        );
         assert.calledWith(mockRequestRetry, {
             json: true,
             method: 'GET',
@@ -267,13 +295,16 @@ describe('Helper Test', () => {
         const buildId = 1;
 
         try {
-            await helper.updateBuildStatusWithRetry({
-                apiUri: 'foo.bar',
-                token: 'fake',
-                buildId,
-                status,
-                statusMessage
-            }, retryFn);
+            await helper.updateBuildStatusWithRetry(
+                {
+                    apiUri: 'foo.bar',
+                    token: 'fake',
+                    buildId,
+                    status,
+                    statusMessage
+                },
+                retryFn
+            );
         } catch (err) {
             assert.isNull(err);
         }

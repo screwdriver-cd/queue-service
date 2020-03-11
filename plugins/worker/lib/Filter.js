@@ -6,9 +6,9 @@ const rabbitmqConf = require('../../../config/rabbitmq');
 
 class Filter extends NodeResque.Plugin {
     /**
-   * Construct a new Filter plugin
-   * @method constructor
-   */
+     * Construct a new Filter plugin
+     * @method constructor
+     */
     constructor(worker, func, queue, job, args, options) {
         super(worker, func, queue, job, args, options);
 
@@ -23,8 +23,9 @@ class Filter extends NodeResque.Plugin {
      */
     async beforePerform() {
         const { buildId } = this.args[0];
-        const buildConfig = await this.queueObject
-            .connection.redis.hget(`${queuePrefix}buildConfigs`, buildId).then(JSON.parse);
+        const buildConfig = await this.queueObject.connection.redis
+            .hget(`${queuePrefix}buildConfigs`, buildId)
+            .then(JSON.parse);
 
         if (!buildConfig) {
             // this build or pipeline has already been deleted
@@ -57,7 +58,12 @@ class Filter extends NodeResque.Plugin {
      * @return {Promise}
      */
     async reEnqueue() {
-        await this.queueObject.enqueueIn(this.reenqueueTimeout(), this.queue, this.func, this.args);
+        await this.queueObject.enqueueIn(
+            this.reenqueueTimeout(),
+            this.queue,
+            this.func,
+            this.args
+        );
     }
 
     reenqueueTimeout() {

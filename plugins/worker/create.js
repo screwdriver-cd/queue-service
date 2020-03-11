@@ -1,7 +1,7 @@
 'use strict';
 
-const worker = require('./worker');
 const logger = require('screwdriver-logger');
+const worker = require('./worker');
 
 module.exports = () => ({
     method: 'POST',

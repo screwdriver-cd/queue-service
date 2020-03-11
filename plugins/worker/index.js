@@ -5,9 +5,7 @@ const createRoute = require('./create');
 const workerPlugin = {
     name: 'worker',
     async register(server) {
-        server.route([
-            createRoute()
-        ]);
+        server.route([createRoute()]);
     }
 };
 

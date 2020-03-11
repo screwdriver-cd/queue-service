@@ -1,6 +1,6 @@
 'use strict';
 
-const assert = require('chai').assert;
+const { assert } = require('chai');
 const mockery = require('mockery');
 const sinon = require('sinon');
 
@@ -29,11 +29,13 @@ describe('Plugin Test', () => {
     });
 
     beforeEach(() => {
-        mockArgs = [{
-            jobId,
-            buildId,
-            blockedBy: '111,222,777'
-        }];
+        mockArgs = [
+            {
+                jobId,
+                buildId,
+                blockedBy: '111,222,777'
+            }
+        ];
 
         buildConfig = {
             apiUri: 'foo.bar',
@@ -70,7 +72,14 @@ describe('Plugin Test', () => {
         // eslint-disable-next-line global-require
         Filter = require('../../../../plugins/worker/lib/Filter.js').Filter;
 
-        filter = new Filter(mockWorker, mockFunc, mockQueue, mockJob, mockArgs, {});
+        filter = new Filter(
+            mockWorker,
+            mockFunc,
+            mockQueue,
+            mockJob,
+            mockArgs,
+            {}
+        );
     });
 
     afterEach(() => {
@@ -94,7 +103,7 @@ describe('Plugin Test', () => {
                 assert.isTrue(proceed);
             });
 
-            it('doesn\'t proceed if build without buildConfig landed on worker', async () => {
+            it("doesn't proceed if build without buildConfig landed on worker", async () => {
                 mockRedis.hget.resolves(JSON.stringify(null));
 
                 const proceed = await filter.beforePerform();
@@ -108,8 +117,13 @@ describe('Plugin Test', () => {
 
                 await filter.beforePerform();
 
-                assert.calledWith(mockWorker.queueObject.enqueueIn,
-                    1000, mockQueue, mockFunc, mockArgs);
+                assert.calledWith(
+                    mockWorker.queueObject.enqueueIn,
+                    1000,
+                    mockQueue,
+                    mockFunc,
+                    mockArgs
+                );
             });
 
             it('proceeds if build with buildClusterName landed on scheduler', async () => {
@@ -123,7 +137,7 @@ describe('Plugin Test', () => {
                 assert.isTrue(proceed);
             });
 
-            it('doesn\'t proceed if build without buildConfig landed on scheduler', async () => {
+            it("doesn't proceed if build without buildConfig landed on scheduler", async () => {
                 mockRabbitmqConfigObj.schedulerMode = true;
                 mockRabbitmqConfig.getConfig.returns(mockRabbitmqConfigObj);
                 mockRedis.hget.resolves(JSON.stringify(null));
@@ -139,8 +153,13 @@ describe('Plugin Test', () => {
 
                 await filter.beforePerform();
 
-                assert.calledWith(mockWorker.queueObject.enqueueIn,
-                    1000, mockQueue, mockFunc, mockArgs);
+                assert.calledWith(
+                    mockWorker.queueObject.enqueueIn,
+                    1000,
+                    mockQueue,
+                    mockFunc,
+                    mockArgs
+                );
             });
         });
     });

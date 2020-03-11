@@ -12,7 +12,7 @@ const stringHash = require('string-hash');
  * @param  {String} max   Maximum evaluated value
  * @return {Number}       Evaluated hash
  */
-const evaluateHash = (hash, min, max) => (hash % ((max + 1) - min)) + min;
+const evaluateHash = (hash, min, max) => (hash % (max + 1 - min)) + min;
 
 /**
  * Transform a cron value containing a valid 'H' symbol into a valid cron value
@@ -46,12 +46,18 @@ const transformValue = (cronValue, min, max, hashValue) => {
         // e.g. H(0-5) -> #
         if (value.match(/H\(\d+-\d+\)/)) {
             const newMin = Number(value.substring(2, value.lastIndexOf('-')));
-            const newMax = Number(value.substring(value.lastIndexOf('-') + 1,
-                value.lastIndexOf(')')));
+            const newMax = Number(
+                value.substring(
+                    value.lastIndexOf('-') + 1,
+                    value.lastIndexOf(')')
+                )
+            );
 
             // Range is invalid, throw an error
             if (newMin < min || newMax > max || newMin > newMax) {
-                throw new Error(`${value} has an invalid range, expected range ${min}-${max}`);
+                throw new Error(
+                    `${value} has an invalid range, expected range ${min}-${max}`
+                );
             }
 
             values[i] = evaluateHash(hashValue, newMin, newMax);
@@ -107,7 +113,7 @@ const transformCron = (cronExp, jobId) => {
  * @param  {String} cronExp Cron expression to calculate next execution time
  * @return {Number}         Epoch timestamp (time of next execution).
  */
-const nextExecution = (cronExp) => {
+const nextExecution = cronExp => {
     const interval = parseExpression(cronExp);
 
     return interval.next().getTime();

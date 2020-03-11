@@ -1,6 +1,6 @@
 'use strict';
 
-const assert = require('chai').assert;
+const { assert } = require('chai');
 const mockery = require('mockery');
 const sinon = require('sinon');
 
@@ -12,9 +12,7 @@ describe('Register Plugins', () => {
         '../plugins/queue',
         '../plugins/status'
     ];
-    const defaultPlugin = [
-        'blipp'
-    ];
+    const defaultPlugin = ['blipp'];
     const pluginLength = resourcePlugins.length + defaultPlugin.length;
     const mocks = {};
     const config = {};
@@ -33,7 +31,7 @@ describe('Register Plugins', () => {
             register: sinon.stub(),
             on: sinon.stub()
         };
-        resourcePlugins.forEach((plugin) => {
+        resourcePlugins.forEach(plugin => {
             mocks[plugin] = sinon.stub();
             mockery.registerMock(plugin, mocks[plugin]);
         });
@@ -58,7 +56,7 @@ describe('Register Plugins', () => {
 
         assert.equal(serverMock.register.callCount, pluginLength);
 
-        resourcePlugins.forEach((plugin) => {
+        resourcePlugins.forEach(plugin => {
             assert.calledWith(serverMock.register, {
                 plugin: mocks[plugin],
                 options: {

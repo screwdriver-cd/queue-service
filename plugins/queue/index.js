@@ -7,11 +7,7 @@ const statsRoute = require('./stats');
 const queuePlugin = {
     name: 'queue',
     async register(server) {
-        server.route([
-            putRoute(),
-            deleteRoute(),
-            statsRoute()
-        ]);
+        server.route([putRoute(), deleteRoute(), statsRoute()]);
     }
 };
 

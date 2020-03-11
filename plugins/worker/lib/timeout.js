@@ -1,8 +1,12 @@
 'use strict';
 
-const helper = require('../../helper.js');
-const { waitingJobsPrefix, runningJobsPrefix, queuePrefix } = require('../../../config/redis');
 const logger = require('screwdriver-logger');
+const helper = require('../../helper.js');
+const {
+    waitingJobsPrefix,
+    runningJobsPrefix,
+    queuePrefix
+} = require('../../../config/redis');
 const TIMEOUT_CODE = 3;
 const TIMEOUT_BUFFER = 1;
 
@@ -16,13 +20,13 @@ const TIMEOUT_BUFFER = 1;
  */
 async function process(timeoutConfig, buildId, redis) {
     try {
-        const jobId = timeoutConfig.jobId;
+        const { jobId } = timeoutConfig;
         const runningKey = `${runningJobsPrefix}${jobId}`;
         const lastRunningKey = `last_${runningJobsPrefix}${jobId}`;
         const waitingKey = `${waitingJobsPrefix}${jobId}`;
         const deleteKey = `deleted_${jobId}_${buildId}`;
         const timeout = parseInt(timeoutConfig.timeout, 10) + TIMEOUT_BUFFER; // set timeout 1 min more than the launcher
-        const startTime = timeoutConfig.startTime;
+        const { startTime } = timeoutConfig;
 
         if (!startTime) {
             // there is no startTime set for the build
@@ -31,7 +35,7 @@ async function process(timeoutConfig, buildId, redis) {
             return;
         }
 
-        const diffMs = (new Date()).getTime() - new Date(startTime).getTime();
+        const diffMs = new Date().getTime() - new Date(startTime).getTime();
         const diffMins = Math.round(diffMs / 60000);
 
         // check if build has timed out, if yes abort build
@@ -58,12 +62,15 @@ async function process(timeoutConfig, buildId, redis) {
                 });
             }
 
-            await helper.updateBuildStatus({
-                redisInstance: redis,
-                buildId,
-                status: 'FAILURE',
-                statusMessage: 'Build failed due to timeout'
-            }, () => { });
+            await helper.updateBuildStatus(
+                {
+                    redisInstance: redis,
+                    buildId,
+                    status: 'FAILURE',
+                    statusMessage: 'Build failed due to timeout'
+                },
+                () => {}
+            );
 
             await redis.hdel(`${queuePrefix}buildConfigs`, buildId);
 
@@ -94,19 +101,24 @@ async function check(redis) {
 
     if (!keys || keys.length === 0) return;
 
-    await Promise.all(keys.map(async (buildId) => {
-        const json = await redis.hget(`${queuePrefix}timeoutConfigs`, buildId);
+    await Promise.all(
+        keys.map(async buildId => {
+            const json = await redis.hget(
+                `${queuePrefix}timeoutConfigs`,
+                buildId
+            );
 
-        if (!json) return;
-        const timeoutConfig = JSON.parse(json);
+            if (!json) return;
+            const timeoutConfig = JSON.parse(json);
 
-        if (!timeoutConfig) {
-            // this build or pipeline has already been deleted
-            return;
-        }
+            if (!timeoutConfig) {
+                // this build or pipeline has already been deleted
+                return;
+            }
 
-        await process(timeoutConfig, buildId, redis);
-    }));
+            await process(timeoutConfig, buildId, redis);
+        })
+    );
 }
 
 module.exports.check = check;

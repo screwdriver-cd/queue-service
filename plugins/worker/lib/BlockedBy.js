@@ -1,10 +1,14 @@
 'use strict';
 
 const NodeResque = require('node-resque');
-const helper = require('../../helper.js');
 const hoek = require('@hapi/hoek');
-const { runningJobsPrefix, waitingJobsPrefix, queuePrefix } = require('../../../config/redis');
 const logger = require('screwdriver-logger');
+const helper = require('../../helper.js');
+const {
+    runningJobsPrefix,
+    waitingJobsPrefix,
+    queuePrefix
+} = require('../../../config/redis');
 const BLOCK_TIMEOUT_BUFFER = 30;
 
 /**
@@ -15,7 +19,11 @@ const BLOCK_TIMEOUT_BUFFER = 30;
  * @param  {Array}   blockingBuildIds     List of build Ids that are blocking this current build
  */
 async function collapseBuilds({ waitingKey, buildId, blockingBuildIds }) {
-    let waitingBuilds = await this.queueObject.connection.redis.lrange(waitingKey, 0, -1);
+    let waitingBuilds = await this.queueObject.connection.redis.lrange(
+        waitingKey,
+        0,
+        -1
+    );
 
     if (waitingBuilds.length > 0) {
         waitingBuilds = waitingBuilds.map(bId => parseInt(bId, 10));
@@ -36,18 +44,28 @@ async function collapseBuilds({ waitingKey, buildId, blockingBuildIds }) {
 
         logger.info('buildsToCollapse:', buildsToCollapse);
 
-        const rmBuilds = buildsToCollapse.map(async (bId) => {
-            const count = await this.queueObject.connection.redis.lrem(waitingKey, 0, bId);
+        const rmBuilds = buildsToCollapse.map(async bId => {
+            const count = await this.queueObject.connection.redis.lrem(
+                waitingKey,
+                0,
+                bId
+            );
 
             // if the build is no longer in the waiting queue, don't collapse it
             if (count > 0) {
-                await helper.updateBuildStatus({
-                    redisInstance: this.queueObject.connection.redis,
-                    buildId: bId,
-                    status: 'COLLAPSED',
-                    statusMessage: `Collapsed to build: ${buildId}`
-                }, () => { });
-                await this.queueObject.connection.redis.hdel(`${queuePrefix}buildConfigs`, bId);
+                await helper.updateBuildStatus(
+                    {
+                        redisInstance: this.queueObject.connection.redis,
+                        buildId: bId,
+                        status: 'COLLAPSED',
+                        statusMessage: `Collapsed to build: ${buildId}`
+                    },
+                    () => {}
+                );
+                await this.queueObject.connection.redis.hdel(
+                    `${queuePrefix}buildConfigs`,
+                    bId
+                );
             }
         });
 
@@ -66,7 +84,11 @@ async function collapseBuilds({ waitingKey, buildId, blockingBuildIds }) {
  * @return {Boolean}                    Whether this build is blocked
  */
 async function blockedBySelf({ waitingKey, buildId, collapse }) {
-    let waitingBuilds = await this.queueObject.connection.redis.lrange(waitingKey, 0, -1);
+    let waitingBuilds = await this.queueObject.connection.redis.lrange(
+        waitingKey,
+        0,
+        -1
+    );
 
     // Only need to do this if there are waiting builds.
     // If it's not the first build waiting, then re-enqueue
@@ -87,13 +109,18 @@ async function blockedBySelf({ waitingKey, buildId, collapse }) {
 
         // If is the built to start, remove it and proceed
         const count = await this.queueObject.connection.redis.lrem(
-            waitingKey, 0, buildToStart);
+            waitingKey,
+            0,
+            buildToStart
+        );
 
         // Build has been removed from the waiting queue by other process, do not proceed
         if (count < 1) return true;
 
         // Get the waiting jobs again - to prevent race condition where this value is changed in between
-        const sameJobWaiting = await this.queueObject.connection.redis.llen(waitingKey);
+        const sameJobWaiting = await this.queueObject.connection.redis.llen(
+            waitingKey
+        );
 
         // Remove the waiting key
         if (sameJobWaiting === 0) {
@@ -111,7 +138,12 @@ async function blockedBySelf({ waitingKey, buildId, collapse }) {
  * @param {String} buildId
  * @param {Object} redisConn
  */
-async function checkMultipleBuildsInSameEvent(buildConfig, blockingBuildIds, buildId, redisConn) {
+async function checkMultipleBuildsInSameEvent(
+    buildConfig,
+    blockingBuildIds,
+    buildId,
+    redisConn
+) {
     if (!buildConfig) return false;
 
     const currentBuild = JSON.parse(buildConfig);
@@ -120,30 +152,35 @@ async function checkMultipleBuildsInSameEvent(buildConfig, blockingBuildIds, bui
         return false;
     }
 
-    const isSameBuild = await Promise.race(blockingBuildIds.map(async (id) => {
-        const blockedBuild = JSON.parse(await redisConn.hget(
-            `${queuePrefix}buildConfigs`, id
-        ));
-        const hasEventId = blockedBuild && blockedBuild.eventId && blockedBuild.jobId;
-        const isSameJob = hasEventId && (currentBuild.eventId === blockedBuild.eventId)
-            && (currentBuild.jobId === blockedBuild.jobId);
+    const isSameBuild = await Promise.race(
+        blockingBuildIds.map(async id => {
+            const blockedBuild = JSON.parse(
+                await redisConn.hget(`${queuePrefix}buildConfigs`, id)
+            );
+            const hasEventId =
+                blockedBuild && blockedBuild.eventId && blockedBuild.jobId;
+            const isSameJob =
+                hasEventId &&
+                currentBuild.eventId === blockedBuild.eventId &&
+                currentBuild.jobId === blockedBuild.jobId;
 
-        if (isSameJob) {
-            logger.error(`Builds ${id} & ${buildId} have the same event 
+            if (isSameJob) {
+                logger.error(`Builds ${id} & ${buildId} have the same event 
                 ${currentBuild.eventId} & same job ${currentBuild.jobId}`);
-        }
+            }
 
-        return isSameJob;
-    }));
+            return isSameJob;
+        })
+    );
 
     return isSameBuild;
 }
 
 class BlockedBy extends NodeResque.Plugin {
     /**
-   * Construct a new BlockedBy plugin
-   * @method constructor
-   */
+     * Construct a new BlockedBy plugin
+     * @method constructor
+     */
     constructor(worker, func, queue, job, args, options) {
         super(worker, func, queue, job, args, options);
 
@@ -163,18 +200,36 @@ class BlockedBy extends NodeResque.Plugin {
         const lastRunningKey = `last_${runningJobsPrefix}${jobId}`;
         const waitingKey = `${waitingJobsPrefix}${jobId}`;
         const deleteKey = `deleted_${jobId}_${buildId}`;
-        const enforceBlockedBySelf = String(this.options.blockedBySelf) === 'true'; // because kubernetes value is a string
-        const shouldDelete = await this.queueObject.connection.redis.get(deleteKey);
-        const runningBuildId = await this.queueObject.connection.redis.get(runningKey);
-        const lastRunningBuildId = await this.queueObject.connection.redis.get(lastRunningKey);
+        const enforceBlockedBySelf =
+            String(this.options.blockedBySelf) === 'true'; // because kubernetes value is a string
+        const shouldDelete = await this.queueObject.connection.redis.get(
+            deleteKey
+        );
+        const runningBuildId = await this.queueObject.connection.redis.get(
+            runningKey
+        );
+        const lastRunningBuildId = await this.queueObject.connection.redis.get(
+            lastRunningKey
+        );
         const enableCollapse = String(this.options.collapse) === 'true'; // because kubernetes value is a string
         const buildConfig = await this.queueObject.connection.redis.hget(
-            `${queuePrefix}buildConfigs`, buildId);
-        const annotations = hoek.reach(JSON.parse(buildConfig), 'annotations', { default: {} });
-        const collapse = hoek.reach(annotations, 'screwdriver.cd/collapseBuilds', {
-            default: enableCollapse, separator: '>'
+            `${queuePrefix}buildConfigs`,
+            buildId
+        );
+        const annotations = hoek.reach(JSON.parse(buildConfig), 'annotations', {
+            default: {}
         });
-        const timeout = hoek.reach(annotations, 'screwdriver.cd/timeout', { separator: '>' });
+        const collapse = hoek.reach(
+            annotations,
+            'screwdriver.cd/collapseBuilds',
+            {
+                default: enableCollapse,
+                separator: '>'
+            }
+        );
+        const timeout = hoek.reach(annotations, 'screwdriver.cd/timeout', {
+            separator: '>'
+        });
 
         // For retry logic: failed to create pod, so it will retry
         // Current buildId is already set as runningKey. Should proceed
@@ -184,14 +239,24 @@ class BlockedBy extends NodeResque.Plugin {
 
         // Current build is older than last running build for the same job, discard the build
         if (collapse && buildId < parseInt(lastRunningBuildId, 10)) {
-            await this.queueObject.connection.redis.lrem(waitingKey, 0, buildId);
-            await helper.updateBuildStatus({
-                redisInstance: this.queueObject.connection.redis,
-                buildId,
-                status: 'COLLAPSED',
-                statusMessage: `Collapsed to build: ${lastRunningBuildId}`
-            }, () => { });
-            await this.queueObject.connection.redis.hdel(`${queuePrefix}buildConfigs`, buildId);
+            await this.queueObject.connection.redis.lrem(
+                waitingKey,
+                0,
+                buildId
+            );
+            await helper.updateBuildStatus(
+                {
+                    redisInstance: this.queueObject.connection.redis,
+                    buildId,
+                    status: 'COLLAPSED',
+                    statusMessage: `Collapsed to build: ${lastRunningBuildId}`
+                },
+                () => {}
+            );
+            await this.queueObject.connection.redis.hdel(
+                `${queuePrefix}buildConfigs`,
+                buildId
+            );
 
             return false;
         }
@@ -203,7 +268,11 @@ class BlockedBy extends NodeResque.Plugin {
             //  Clean up to prevent race condition: stop and beforePerform happen at the same time
             //  stop deletes key runningKey and waitingKey
             //  beforePerform either proceeds or reEnqueue (which adds the key back)
-            await this.queueObject.connection.redis.lrem(waitingKey, 0, buildId);
+            await this.queueObject.connection.redis.lrem(
+                waitingKey,
+                0,
+                buildId
+            );
 
             if (parseInt(runningBuildId, 10) === buildId) {
                 await this.queueObject.connection.redis.del(runningKey);
@@ -213,24 +282,31 @@ class BlockedBy extends NodeResque.Plugin {
             return false;
         }
 
-        let blockedBy = this.args[0].blockedBy.split(',').map(jid =>
-            `${runningJobsPrefix}${jid}`);
+        let blockedBy = this.args[0].blockedBy
+            .split(',')
+            .map(jid => `${runningJobsPrefix}${jid}`);
 
         if (!enforceBlockedBySelf) {
-            blockedBy = blockedBy.filter(key => key !== `${runningJobsPrefix}${jobId}`); // remove itself from blocking list
+            blockedBy = blockedBy.filter(
+                key => key !== `${runningJobsPrefix}${jobId}`
+            ); // remove itself from blocking list
         }
 
         if (blockedBy.length > 0) {
             const blockingBuildIds = [];
 
             // Get the blocking job
-            await Promise.all(blockedBy.map(async (key) => {
-                const val = await this.queueObject.connection.redis.get(key);
+            await Promise.all(
+                blockedBy.map(async key => {
+                    const val = await this.queueObject.connection.redis.get(
+                        key
+                    );
 
-                if (val !== null) {
-                    blockingBuildIds.push(val);
-                }
-            }));
+                    if (val !== null) {
+                        blockingBuildIds.push(val);
+                    }
+                })
+            );
 
             // If any blocking job is running, then re-enqueue
             if (blockingBuildIds.length > 0) {
@@ -244,7 +320,8 @@ class BlockedBy extends NodeResque.Plugin {
 
                 if (isSameBuild) {
                     return false;
-                } else if (enforceBlockedBySelf && collapse) {
+                }
+                if (enforceBlockedBySelf && collapse) {
                     await collapseBuilds.call(this, {
                         waitingKey,
                         buildId,
@@ -258,16 +335,21 @@ class BlockedBy extends NodeResque.Plugin {
             }
         }
 
-        if (enforceBlockedBySelf) { // only check this if feature is on
-            const blocked = await blockedBySelf.call(this, { // pass in this context
+        if (enforceBlockedBySelf) {
+            // only check this if feature is on
+            const blocked = await blockedBySelf.call(this, {
+                // pass in this context
                 waitingKey,
                 buildId,
                 runningBuildId,
                 collapse
             });
 
-            if (blocked) { return false; } // if blocked then cannot proceed
-        } else { // clean up waitingKey
+            if (blocked) {
+                return false;
+            } // if blocked then cannot proceed
+        } else {
+            // clean up waitingKey
             await this.queueObject.connection.redis.del(waitingKey);
         }
 
@@ -278,10 +360,14 @@ class BlockedBy extends NodeResque.Plugin {
 
         // Set expire time to take care of the case where
         // afterPerform failed to call and blocked jobs will be stuck forever
-        await this.queueObject.connection.redis.expire(runningKey,
-            this.blockTimeout(timeout) * 60);
-        await this.queueObject.connection.redis.expire(lastRunningKey,
-            this.blockTimeout(timeout) * 60);
+        await this.queueObject.connection.redis.expire(
+            runningKey,
+            this.blockTimeout(timeout) * 60
+        );
+        await this.queueObject.connection.redis.expire(
+            lastRunningKey,
+            this.blockTimeout(timeout) * 60
+        );
 
         // Proceed
         return true;
@@ -305,13 +391,24 @@ class BlockedBy extends NodeResque.Plugin {
      * @return {Promise}
      */
     async reEnqueue(waitingKey, buildId, blockingBuildIds) {
-        const buildsWaiting = await this.queueObject.connection.redis.lrange(waitingKey, 0, -1);
-        const keyExist = buildsWaiting.some(key => parseInt(key, 10) === buildId);
+        const buildsWaiting = await this.queueObject.connection.redis.lrange(
+            waitingKey,
+            0,
+            -1
+        );
+        const keyExist = buildsWaiting.some(
+            key => parseInt(key, 10) === buildId
+        );
 
         let statusMessage = 'Blocked by these running build(s): ';
 
         // eslint-disable-next-line max-len
-        statusMessage += blockingBuildIds.map(blockingBuildId => `<a href="/builds/${blockingBuildId}">${blockingBuildId}</a>`).join(', ');
+        statusMessage += blockingBuildIds
+            .map(
+                blockingBuildId =>
+                    `<a href="/builds/${blockingBuildId}">${blockingBuildId}</a>`
+            )
+            .join(', ');
 
         // Add the current buildId to the waiting list of this job
         // Looks like jobID: buildID buildID buildID
@@ -320,14 +417,21 @@ class BlockedBy extends NodeResque.Plugin {
         }
         // enqueueIn uses milliseconds
         await this.queueObject.enqueueIn(
-            this.reenqueueWaitTime() * 1000 * 60, this.queue, this.func, this.args);
+            this.reenqueueWaitTime() * 1000 * 60,
+            this.queue,
+            this.func,
+            this.args
+        );
 
-        await helper.updateBuildStatus({
-            redisInstance: this.queueObject.connection.redis,
-            buildId,
-            status: 'BLOCKED',
-            statusMessage
-        }, () => { });
+        await helper.updateBuildStatus(
+            {
+                redisInstance: this.queueObject.connection.redis,
+                buildId,
+                status: 'BLOCKED',
+                statusMessage
+            },
+            () => {}
+        );
     }
 
     blockTimeout(buildTimeout) {

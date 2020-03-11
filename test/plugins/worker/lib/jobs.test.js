@@ -1,6 +1,6 @@
 'use strict';
 
-const assert = require('chai').assert;
+const { assert } = require('chai');
 const mockery = require('mockery');
 const sinon = require('sinon');
 const fullConfig = {
@@ -98,7 +98,9 @@ describe('Jobs Unit Test', () => {
             getConfig: sinon.stub().returns(mockRabbitmqConfigObj)
         };
 
-        mockExecutorRouter = function () { return mockExecutor; };
+        mockExecutorRouter = function() {
+            return mockExecutor;
+        };
         mockery.registerMock('screwdriver-executor-router', mockExecutorRouter);
 
         mockery.registerMock('amqp-connection-manager', mockAmqp);
@@ -141,7 +143,12 @@ describe('Jobs Unit Test', () => {
                 tls: false
             };
 
-            assert.calledWith(mockRedis, expectedPort, expectedHost, expectedOptions);
+            assert.calledWith(
+                mockRedis,
+                expectedPort,
+                expectedHost,
+                expectedOptions
+            );
         });
     });
 
@@ -162,20 +169,22 @@ describe('Jobs Unit Test', () => {
                     }
                 },
                 perform: jobs.start.perform
-            })
-        );
+            }));
 
         it('starts a job', () => {
             mockExecutor.start.resolves(null);
             mockRedisObj.hget.resolves(JSON.stringify(fullConfig));
 
-            return jobs.start.perform(partialConfig)
-                .then((result) => {
-                    assert.isNull(result);
+            return jobs.start.perform(partialConfig).then(result => {
+                assert.isNull(result);
 
-                    assert.calledWith(mockExecutor.start, fullConfig);
-                    assert.calledWith(mockRedisObj.hget, 'buildConfigs', fullConfig.buildId);
-                });
+                assert.calledWith(mockExecutor.start, fullConfig);
+                assert.calledWith(
+                    mockRedisObj.hget,
+                    'buildConfigs',
+                    fullConfig.buildId
+                );
+            });
         });
 
         it('enqueus a start job with scheduler mode', () => {
@@ -185,24 +194,28 @@ describe('Jobs Unit Test', () => {
             mockRedisObj.hget.resolves(JSON.stringify(fullConfig));
             const { amqpURI, exchange } = mockRabbitmqConfigObj;
 
-            return jobs.start.perform(partialConfig)
-                .then((result) => {
-                    delete fullConfig.buildClusterName;
-                    const msg = {
-                        job: 'start',
-                        buildConfig: fullConfig
-                    };
+            return jobs.start.perform(partialConfig).then(result => {
+                delete fullConfig.buildClusterName;
+                const msg = {
+                    job: 'start',
+                    buildConfig: fullConfig
+                };
 
-                    assert.isNull(result);
-                    assert.calledWith(mockRedisObj.hget, 'buildConfigs', fullConfig.buildId);
-                    assert.calledWith(mockAmqp.connect, [amqpURI]);
-                    assert.calledOnce(mockRabbitmqConnection.createChannel);
-                    assert.calledWith(mockRabbitmqCh.publish, exchange, 'sd', msg, {
-                        contentType: 'application/json', persistent: true
-                    });
-                    assert.calledOnce(mockRabbitmqCh.close);
-                    assert.notCalled(mockExecutor.start);
+                assert.isNull(result);
+                assert.calledWith(
+                    mockRedisObj.hget,
+                    'buildConfigs',
+                    fullConfig.buildId
+                );
+                assert.calledWith(mockAmqp.connect, [amqpURI]);
+                assert.calledOnce(mockRabbitmqConnection.createChannel);
+                assert.calledWith(mockRabbitmqCh.publish, exchange, 'sd', msg, {
+                    contentType: 'application/json',
+                    persistent: true
                 });
+                assert.calledOnce(mockRabbitmqCh.close);
+                assert.notCalled(mockExecutor.start);
+            });
         });
 
         it('close the channel when fail to publish the msg', () => {
@@ -214,12 +227,15 @@ describe('Jobs Unit Test', () => {
             fullConfig.buildClusterName = 'sd';
             mockRabbitmqCh.publish.rejects(expectedError);
 
-            return jobs.start.perform({}).then(() => {
-                assert.fail('Should not get here');
-            }, (err) => {
-                assert.calledOnce(mockRabbitmqCh.close);
-                assert.deepEqual(err, expectedError);
-            });
+            return jobs.start.perform({}).then(
+                () => {
+                    assert.fail('Should not get here');
+                },
+                err => {
+                    assert.calledOnce(mockRabbitmqCh.close);
+                    assert.deepEqual(err, expectedError);
+                }
+            );
         });
 
         it('returns an error from executor', () => {
@@ -230,11 +246,14 @@ describe('Jobs Unit Test', () => {
 
             mockExecutor.start.rejects(expectedError);
 
-            return jobs.start.perform({}).then(() => {
-                assert.fail('Should not get here');
-            }, (err) => {
-                assert.deepEqual(err, expectedError);
-            });
+            return jobs.start.perform({}).then(
+                () => {
+                    assert.fail('Should not get here');
+                },
+                err => {
+                    assert.deepEqual(err, expectedError);
+                }
+            );
         });
 
         it('returns an error when redis fails to get a config', () => {
@@ -242,11 +261,14 @@ describe('Jobs Unit Test', () => {
 
             mockRedisObj.hget.rejects(expectedError);
 
-            return jobs.start.perform({}).then(() => {
-                assert.fail('Should not get here');
-            }, (err) => {
-                assert.deepEqual(err, expectedError);
-            });
+            return jobs.start.perform({}).then(
+                () => {
+                    assert.fail('Should not get here');
+                },
+                err => {
+                    assert.deepEqual(err, expectedError);
+                }
+            );
         });
     });
 
@@ -261,11 +283,10 @@ describe('Jobs Unit Test', () => {
                     }
                 },
                 perform: jobs.stop.perform
-            })
-        );
+            }));
 
         it('do not call executor stop if job has not started', () => {
-            const stopConfig = Object.assign({ started: false }, partialConfig);
+            const stopConfig = { started: false, ...partialConfig };
 
             mockExecutor.stop.resolves(null);
             mockRedisObj.hget.resolves(JSON.stringify(fullConfig));
@@ -273,12 +294,25 @@ describe('Jobs Unit Test', () => {
             mockRedisObj.del.resolves(null);
             mockRedisObj.get.withArgs('running_job_777').resolves('1000');
 
-            return jobs.stop.perform(stopConfig).then((result) => {
+            return jobs.stop.perform(stopConfig).then(result => {
                 assert.isNull(result);
-                assert.calledWith(mockRedisObj.hget, 'buildConfigs', fullConfig.buildId);
-                assert.calledWith(mockRedisObj.hdel, 'buildConfigs', fullConfig.buildId);
+                assert.calledWith(
+                    mockRedisObj.hget,
+                    'buildConfigs',
+                    fullConfig.buildId
+                );
+                assert.calledWith(
+                    mockRedisObj.hdel,
+                    'buildConfigs',
+                    fullConfig.buildId
+                );
                 assert.notCalled(mockRedisObj.del);
-                assert.calledWith(mockRedisObj.lrem, 'waiting_job_777', 0, fullConfig.buildId);
+                assert.calledWith(
+                    mockRedisObj.lrem,
+                    'waiting_job_777',
+                    0,
+                    fullConfig.buildId
+                );
                 assert.notCalled(mockExecutor.stop);
             });
         });
@@ -288,14 +322,29 @@ describe('Jobs Unit Test', () => {
             mockRedisObj.hget.resolves(JSON.stringify(fullConfig));
             mockRedisObj.hdel.resolves(1);
             mockRedisObj.del.resolves(null);
-            mockRedisObj.get.withArgs('running_job_777').resolves(fullConfig.buildId);
+            mockRedisObj.get
+                .withArgs('running_job_777')
+                .resolves(fullConfig.buildId);
 
-            return jobs.stop.perform(partialConfig).then((result) => {
+            return jobs.stop.perform(partialConfig).then(result => {
                 assert.isNull(result);
-                assert.calledWith(mockRedisObj.hget, 'buildConfigs', fullConfig.buildId);
-                assert.calledWith(mockRedisObj.hdel, 'buildConfigs', fullConfig.buildId);
+                assert.calledWith(
+                    mockRedisObj.hget,
+                    'buildConfigs',
+                    fullConfig.buildId
+                );
+                assert.calledWith(
+                    mockRedisObj.hdel,
+                    'buildConfigs',
+                    fullConfig.buildId
+                );
                 assert.calledWith(mockRedisObj.del, 'running_job_777');
-                assert.calledWith(mockRedisObj.lrem, 'waiting_job_777', 0, fullConfig.buildId);
+                assert.calledWith(
+                    mockRedisObj.lrem,
+                    'waiting_job_777',
+                    0,
+                    fullConfig.buildId
+                );
                 assert.calledWith(mockExecutor.stop, {
                     annotations: fullConfig.annotations,
                     buildId: fullConfig.buildId
@@ -309,12 +358,14 @@ describe('Jobs Unit Test', () => {
             mockRedisObj.hget.resolves(JSON.stringify(fullConfig));
             mockRedisObj.hdel.resolves(1);
             mockRedisObj.del.resolves(null);
-            mockRedisObj.get.withArgs('running_job_777').resolves(fullConfig.buildId);
+            mockRedisObj.get
+                .withArgs('running_job_777')
+                .resolves(fullConfig.buildId);
             mockRabbitmqConfigObj.schedulerMode = true;
             mockRabbitmqConfig.getConfig.returns(mockRabbitmqConfigObj);
             const { amqpURI, exchange } = mockRabbitmqConfigObj;
 
-            return jobs.stop.perform(partialConfig).then((result) => {
+            return jobs.stop.perform(partialConfig).then(result => {
                 delete fullConfig.buildClusterName;
                 const msg = {
                     job: 'stop',
@@ -326,15 +377,33 @@ describe('Jobs Unit Test', () => {
                 };
 
                 assert.isNull(result);
-                assert.calledWith(mockRedisObj.hget, 'buildConfigs', fullConfig.buildId);
-                assert.calledWith(mockRedisObj.hdel, 'buildConfigs', fullConfig.buildId);
+                assert.calledWith(
+                    mockRedisObj.hget,
+                    'buildConfigs',
+                    fullConfig.buildId
+                );
+                assert.calledWith(
+                    mockRedisObj.hdel,
+                    'buildConfigs',
+                    fullConfig.buildId
+                );
                 assert.calledWith(mockRedisObj.del, 'running_job_777');
-                assert.calledWith(mockRedisObj.lrem, 'waiting_job_777', 0, fullConfig.buildId);
-                assert.calledWith(mockRedisObj.hget, 'buildConfigs', fullConfig.buildId);
+                assert.calledWith(
+                    mockRedisObj.lrem,
+                    'waiting_job_777',
+                    0,
+                    fullConfig.buildId
+                );
+                assert.calledWith(
+                    mockRedisObj.hget,
+                    'buildConfigs',
+                    fullConfig.buildId
+                );
                 assert.calledWith(mockAmqp.connect, [amqpURI]);
                 assert.calledOnce(mockRabbitmqConnection.createChannel);
                 assert.calledWith(mockRabbitmqCh.publish, exchange, 'sd', msg, {
-                    contentType: 'application/json', persistent: true
+                    contentType: 'application/json',
+                    persistent: true
                 });
                 assert.calledOnce(mockRabbitmqCh.close);
                 assert.notCalled(mockExecutor.stop);
@@ -347,10 +416,16 @@ describe('Jobs Unit Test', () => {
             mockExecutor.stop.resolves(null);
             mockRedisObj.hget.rejects(expectedError);
 
-            return jobs.stop.perform(partialConfig).then((result) => {
+            return jobs.stop.perform(partialConfig).then(result => {
                 assert.isNull(result);
-                assert.calledWith(mockRedisObj.hget, 'buildConfigs', fullConfig.buildId);
-                assert.calledWith(mockExecutor.stop, { buildId: fullConfig.buildId });
+                assert.calledWith(
+                    mockRedisObj.hget,
+                    'buildConfigs',
+                    fullConfig.buildId
+                );
+                assert.calledWith(mockExecutor.stop, {
+                    buildId: fullConfig.buildId
+                });
             });
         });
 
@@ -361,11 +436,14 @@ describe('Jobs Unit Test', () => {
             mockRedisObj.hdel.resolves(1);
             mockExecutor.stop.rejects(expectedError);
 
-            return jobs.stop.perform({}).then(() => {
-                assert.fail('Should not get here');
-            }, (err) => {
-                assert.deepEqual(err, expectedError);
-            });
+            return jobs.stop.perform({}).then(
+                () => {
+                    assert.fail('Should not get here');
+                },
+                err => {
+                    assert.deepEqual(err, expectedError);
+                }
+            );
         });
 
         it('returns an error when redis fails to remove a config', () => {
@@ -374,11 +452,14 @@ describe('Jobs Unit Test', () => {
             mockRedisObj.hget.resolves('{}');
             mockRedisObj.hdel.rejects(expectedError);
 
-            return jobs.stop.perform({}).then(() => {
-                assert.fail('Should not get here');
-            }, (err) => {
-                assert.deepEqual(err, expectedError);
-            });
+            return jobs.stop.perform({}).then(
+                () => {
+                    assert.fail('Should not get here');
+                },
+                err => {
+                    assert.deepEqual(err, expectedError);
+                }
+            );
         });
     });
 });
