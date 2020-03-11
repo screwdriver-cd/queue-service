@@ -40,8 +40,8 @@ To start contributing to Screwdriver, have a look at our guidelines, as well as 
 
 Code licensed under the BSD 3-Clause license. See [LICENSE file](https://github.com/screwdriver-cd/screwdriver/blob/master/LICENSE) for terms.
 
-[npm-image]: https://img.shields.io/npm/v/queue-service.svg
-[npm-url]: https://npmjs.org/package/queue-service
+[npm-image]: https://img.shields.io/npm/v/screwdriver-queue-service.svg
+[npm-url]: https://npmjs.org/package/screwdriver-queue-service
 [cov-image]: https://coveralls.io/repos/github/screwdriver-cd/queue-service/badge.svg?branch=master
 [cov-url]: https://coveralls.io/github/screwdriver-cd/queue-service?branch=master
 [vul-image]: https://snyk.io/test/github/screwdriver-cd/queue-service.git/badge.svg
