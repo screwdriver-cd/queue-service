@@ -1,0 +1,173 @@
+---
+executor:
+  # Default executor
+  plugin: docker
+  docker:
+    enabled: true
+    options:
+      docker:
+        socketPath: "/var/run/docker.sock"
+  k8s:
+    options:
+      kubernetes:
+        # The host or IP of the kubernetes cluster
+        host: kubernetes.default
+        dockerFeatureEnabled: false
+        resources:
+          cpu:
+            # Number of cpu cores
+            micro: "0.5"
+            low: 2
+            high: 6
+            turbo: 12
+          memory:
+            # Memory in GB
+            micro: 1
+            low: 2
+            high: 12
+            turbo: 16
+        # Default build timeout for all builds in this cluster
+        buildTimeout: 90
+        # Default max build timeout
+        maxBuildTimeout: 120
+        # k8s node selectors for approprate pod scheduling
+        nodeSelectors: {}
+        preferredNodeSelectors: {}
+        annotations: {}
+      # Launcher image to use
+      launchImage: screwdrivercd/launcher
+      # Container tags to use
+      launchVersion: stable
+      # Circuit breaker config
+      fusebox:
+        breaker:
+          # in milliseconds
+          timeout: 10000
+      # requestretry configs
+      requestretry:
+        # in milliseconds
+        retryDelay: 3000
+        maxAttempts: 5
+  k8s-vm:
+    options:
+      # Configuration of Docker
+      kubernetes:
+        # The host or IP of the kubernetes cluster
+        host: kubernetes.default
+        # Resources for build pod
+        resources:
+          cpu:
+            # Number of cpu cores
+            micro: 1
+            low: 2
+            high: 6
+            turbo: 12
+            # upper bound for user custom cpu
+            max: 12
+          memory:
+            # Memory in GB
+            micro: 1
+            low: 2
+            high: 12
+            turbo: 16
+            # upper bound for user custom memory
+            max: 16
+        # Default build timeout for all builds in this cluster
+        buildTimeout: 90
+        # Default max build timeout
+        maxBuildTimeout: 120
+        # k8s node selectors for approprate pod scheduling
+        nodeSelectors: {}
+        preferredNodeSelectors: {}
+      # Launcher image to use
+      launchImage: screwdrivercd/launcher
+      # Launcher container tag to use
+      launchVersion: stable
+      # Circuit breaker config
+      fusebox:
+        breaker:
+          # in milliseconds
+          timeout: 10000
+      # requestretry configs
+      requestretry:
+        # in milliseconds
+        retryDelay: 3000
+        maxAttempts: 5
+
+httpd:
+  # Port to listen on
+  port: 9001
+  # Host to listen on (set to localhost to only accept connections from this machine)
+  host: 0.0.0.0
+  # Externally routable URI (usually your load balancer or CNAME)
+  # This requires to be a routable IP inside docker for executor, see
+  # https://github.com/screwdriver-cd/screwdriver/blob/095eaf03e053991443abcbde91c62cfe06a28cba/lib/server.js#L141
+  uri: http://IP_ADDRESS:PORT
+
+ecosystem:
+  # Externally routable URL for the User Interface
+  ui: http://IP_ADDRESS:PORT
+  # Externally routable URL for the API
+  api: http://IP_ADDRESS:PORT
+  # Externally routable URL for the Artifact Store
+  store: http://http://IP_ADDRESS:PORT
+  # build cache strategies: s3, disk, with s3 as default option to store cache
+  cache:
+    strategy: "s3"
+    path: "/"
+    compress: false
+    md5check: false
+    max_size_mb: 0
+
+queue:
+  redisConnection:
+    host: REDIS_HOST
+    port: REDIS_PORT
+    options:
+      password: a-secure-password
+      tls: false
+    database: 0
+  prefix: ''
+
+plugins:
+  blockedBy:
+    # re-enqueue in 1 mins if blocked
+    reenqueueWaitTime: 1
+    # job is blocking for maximum 120 mins = build timeout
+    blockTimeout: 120
+    # job blocked by itself
+    blockedBySelf: true
+    # by default collapse builds or not
+    collapse: true
+
+worker:
+  # https://github.com/taskrabbit/node-resque#multiworker-options
+  # minimum number of workers to spawn
+  minTaskProcessors: 1
+  # maximum number of workers to spawn
+  maxTaskProcessors: 10
+  # how often to check if the event loop is blocked (ms)
+  checkTimeout: 1000
+  # how long the event loop has to be delayed before considering it blocked (ms)
+  maxEventLoopDelay: 10
+
+# Run queue-worker as a scheduler, instead of calling executor to start/stop builds, push it to rabbitmq
+scheduler:
+  # Enabled schduler mode or not
+  enabled: false
+  # To enable schduler mode, you need rabbitmq server and consumer
+  rabbitmq:
+    # Host of rabbitmq cluster
+    host: RABBITMQ_HOST
+    # Port of rabbitmq cluster
+    port: RABBITMQ_PORT
+    # User to push to rabbitmq
+    username: sd-buidbot
+    # Password to connect to rabbitmq cluster
+    password: fakepassword
+    # Protocol for rabbitmq server, use amqps for ssl
+    protocol: amqp
+    # Exchange / router name for rabbitmq
+    exchange: build
+    # Virtual host to connect to
+    vhost: /screwdriver

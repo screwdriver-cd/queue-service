@@ -1,0 +1,100 @@
+shared:
+    image: node:12
+
+jobs:
+    main:
+        annotations:
+            screwdriver.cd/ram: TURBO
+            screwdriver.cd/cpu: TURBO
+        requires:
+            - ~pr
+            - ~commit
+            - ~sd@73:publish #artifact-bookend https://cd.screwdriver.cd/pipelines/73
+        steps:
+            - setup-ci: git clone https://github.com/screwdriver-cd/toolbox.git ci
+            - install: npm install
+            - duplicate: NPM_FILTER=screwdriver- ./ci/npm-dups.sh
+            - test: npm test
+            - coverage: ./ci/coverage.sh
+            - cp-coverage-to-artifacts: cp -r artifacts/coverage $SD_ARTIFACTS_DIR
+        environment:
+            NODE_OPTIONS: "--max_old_space_size=8192"
+        secrets:
+            # Uploading coverage information to coveralls
+            - COVERALLS_REPO_TOKEN
+
+    publish:
+        requires: [main]
+        steps:
+            - setup-ci: git clone https://github.com/screwdriver-cd/toolbox.git ci
+            - install-ci: npm install npm-auto-version
+            - publish-npm-and-git-tag: ./ci/publish.sh
+            - publish-docker: |
+                export DOCKER_TAG=`cat VERSION`
+                ./ci/docker-trigger.sh
+            - save-tag-to-meta: meta set docker_tag $DOCKER_TAG && meta get docker_tag
+        environment:
+            DOCKER_REPO: screwdrivercd/queue-service
+        secrets:
+            # Publishing to NPM
+            - NPM_TOKEN
+            # Pushing tags to Git
+            - GIT_KEY
+            # Trigger a Docker Hub build
+            - DOCKER_TRIGGER
+
+    # Deploy to our beta environment and run tests
+    beta:
+        requires: [publish]
+        steps:
+            - setup-ci: git clone https://github.com/screwdriver-cd/toolbox.git ci
+            - wait-docker: DOCKER_TAG=`meta get docker_tag` ./ci/docker-wait.sh
+            - deploy-k8s: K8S_TAG=`meta get docker_tag` ./ci/k8s-deploy.sh
+            - test: npm install && npm run functional
+        environment:
+            DOCKER_REPO: screwdrivercd/queue-service
+            K8S_CONTAINER: screwdriver-queue-service
+            K8S_IMAGE: screwdrivercd/screwdriver-queue-service
+            K8S_HOST: kubernetes
+            K8S_DEPLOYMENT: sdqueuesvc-beta
+            SD_QUEUE_SVC_HOST: beta.queue.screwdriver.cd
+            K8S_ENV_KEY: DATASTORE_DYNAMODB_PREFIX
+            K8S_ENV_VALUE: beta_rc2_
+            TEST_USERNAME: sd-buildbot
+            TEST_ORG: screwdriver-cd-test
+        secrets:
+            # Access key for functional tests
+            - SD_API_TOKEN
+            # Git access token
+            - GIT_TOKEN
+            # Talking to Kubernetes
+            - K8S_TOKEN
+
+    # Deploy to our prod environment and run tests
+    prod:
+        requires: [beta]
+        steps:
+            - setup-ci: git clone https://github.com/screwdriver-cd/toolbox.git ci
+            - wait-docker: DOCKER_TAG=`meta get docker_tag` ./ci/docker-wait.sh
+            - deploy-k8s: K8S_TAG=`meta get docker_tag` ./ci/k8s-deploy.sh
+            - test: |
+                npm install
+                GIT_TOKEN=${GIT_TOKEN_PROD} SD_API_TOKEN=${SD_API_TOKEN_PROD} npm run functional
+        environment:
+            DOCKER_REPO: screwdrivercd/screwdriver
+            K8S_CONTAINER: screwdriver-api
+            K8S_IMAGE: screwdrivercd/screwdriver
+            K8S_HOST: kubernetes
+            K8S_DEPLOYMENT: sdqueuesvc
+            SD_QUEUE_SVC_HOST: queue.screwdriver.cd
+            K8S_ENV_KEY: DATASTORE_DYNAMODB_PREFIX
+            K8S_ENV_VALUE: rc2_
+            TEST_USERNAME: sd-buildbot-functional
+            TEST_ORG: screwdriver-cd-test
+        secrets:
+            # Access key for functional tests
+            - SD_API_TOKEN_PROD
+            # Git access token
+            - GIT_TOKEN_PROD
+            # Talking to Kubernetes
+            - K8S_TOKEN

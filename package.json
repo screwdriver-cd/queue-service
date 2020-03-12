@@ -1,0 +1,75 @@
+{
+  "name": "screwdriver-queue-service",
+  "version": "1.0.0",
+  "description": "Screwdriver Queue Service API",
+  "main": "app.js",
+  "directories": {
+    "lib": "lib"
+  },
+  "dependencies": {
+    "@hapi/boom": "^9.0.0",
+    "@hapi/hapi": "^19.1.1",
+    "@hapi/hoek": "^9.0.3",
+    "@hapi/joi": "^17.1.0",
+    "amqp-connection-manager": "^2.3.0",
+    "amqplib": "^0.5.3",
+    "blipp": "^4.0.1",
+    "circuit-fuses": "^4.0.0",
+    "config": "^1.31.0",
+    "cron-parser": "^2.13.0",
+    "ioredis": "^3.2.2",
+    "js-yaml": "^3.13.1",
+    "laabr": "^6.0.1",
+    "node-resque": "^5.5.3",
+    "request": "^2.88.0",
+    "requestretry": "^3.1.0",
+    "screwdriver-data-schema": "^19.4.1",
+    "screwdriver-executor-docker": "^4.2.2",
+    "screwdriver-executor-jenkins": "^4.5.0",
+    "screwdriver-executor-k8s": "^13.6.1",
+    "screwdriver-executor-k8s-vm": "^3.2.2",
+    "screwdriver-executor-router": "^1.0.11",
+    "screwdriver-logger": "^1.0.0",
+    "string-hash": "^1.1.3"
+  },
+  "devDependencies": {
+    "chai": "^4.2.0",
+    "coveralls": "^3.0.9",
+    "eslint": "^6.8.0",
+    "eslint-config-screwdriver": "^5.0.2",
+    "mocha": "^7.0.1",
+    "mockery": "^2.1.0",
+    "nyc": "^15.0.0",
+    "sinon": "^9.0.0",
+    "snyk": "^1.298.1",
+    "util": "^0.12.2"
+  },
+  "scripts": {
+    "start": "node ./bin/server",
+    "pretest": "eslint .",
+    "test": "nyc --report-dir ./artifacts/coverage --reporter=lcov mocha --recursive --timeout 4000 --retries 1 --exit --color true",
+    "debug": "node --nolazy --inspect-brk=9229 ./bin/server"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/screwdriver-cd/screwdriver-queue-service.git"
+  },
+  "keywords": [
+    "screwdriver"
+  ],
+  "author": "Pritam Paul <pritamstyz4ever@gmail.com>",
+  "license": "BSD-3-Clause",
+  "contributors": [
+    "Pritam Paul <pritamstyz4ever@gmail.com>"
+  ],
+  "bugs": {
+    "url": "https://github.com/screwdriver-cd/screwdriver/issues"
+  },
+  "homepage": "https://github.com/screwdriver-cd/screwdriver-queue-service#readme",
+  "release": {
+    "debug": false,
+    "verifyConditions": {
+      "path": "./node_modules/semantic-release/src/lib/plugin-noop.js"
+    }
+  }
+}

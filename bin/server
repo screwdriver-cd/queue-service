@@ -1,0 +1,19 @@
+#!/usr/bin/env node
+
+'use strict';
+
+const config = require('config');
+const server = require('../app');
+
+// Setup HTTPd
+const httpdConfig = config.get('httpd');
+// Special urls for things like the UI
+const ecosystem = config.get('ecosystem');
+
+const queueConfig = config.get('queue');
+
+server({
+    httpd: httpdConfig,
+    ecosystem,
+    queueConfig
+});

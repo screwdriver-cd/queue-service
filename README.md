@@ -1,5 +1,3 @@
-# screwdriver-queue-service
-
 # Screwdriver Queue Service API
 [![Version][npm-image]][npm-url] [![Pulls][docker-pulls]][docker-url] [![Stars][docker-stars]][docker-url] [![Build Status][status-image]][status-url] [![Open Issues][issues-image]][issues-url] [![Dependency Status][daviddm-image]][daviddm-url] [![Coverage][cov-image]][cov-url] [![Vulnerabilities][vul-image]][vul-url] ![License][license-image] [![Slack][slack-image]][slack-url]
 
@@ -44,20 +42,20 @@ Code licensed under the BSD 3-Clause license. See [LICENSE file](https://github.
 
 [npm-image]: https://img.shields.io/npm/v/screwdriver-queue-service.svg
 [npm-url]: https://npmjs.org/package/screwdriver-queue-service
-[cov-image]: https://coveralls.io/repos/github/screwdriver-cd/screwdriver-queue-service/badge.svg?branch=master
-[cov-url]: https://coveralls.io/github/screwdriver-cd/screwdriver-queue-service?branch=master
-[vul-image]: https://snyk.io/test/github/screwdriver-cd/screwdriver-queue-service.git/badge.svg
-[vul-url]: https://snyk.io/test/github/screwdriver-cd/screwdriver-queue-service.git
-[docker-pulls]: https://img.shields.io/docker/pulls/screwdrivercd/screwdriver-queue-service.svg
-[docker-stars]: https://img.shields.io/docker/stars/screwdrivercd/screwdriver-queue-service.svg
-[docker-url]: https://hub.docker.com/r/screwdrivercd/screwdriver-queue-service/
-[license-image]: https://img.shields.io/npm/l/screwdriver-queue-service.svg
-[issues-image]: https://img.shields.io/github/issues/screwdriver-cd/screwdriver-queue-service.svg
-[issues-url]: https://github.com/screwdriver-cd/screwdriver-queue-service/issues
+[cov-image]: https://coveralls.io/repos/github/screwdriver-cd/queue-service/badge.svg?branch=master
+[cov-url]: https://coveralls.io/github/screwdriver-cd/queue-service?branch=master
+[vul-image]: https://snyk.io/test/github/screwdriver-cd/queue-service.git/badge.svg
+[vul-url]: https://snyk.io/test/github/screwdriver-cd/queue-service.git
+[docker-pulls]: https://img.shields.io/docker/pulls/screwdrivercd/queue-service.svg
+[docker-stars]: https://img.shields.io/docker/stars/screwdrivercd/queue-service.svg
+[docker-url]: https://hub.docker.com/r/screwdrivercd/queue-service/
+[license-image]: https://img.shields.io/npm/l/queue-service.svg
+[issues-image]: https://img.shields.io/github/issues/screwdriver-cd/queue-service.svg
+[issues-url]: https://github.com/screwdriver-cd/queue-service/issues
 [status-image]: https://cd.screwdriver.cd/pipelines/1/badge
 [status-url]: https://cd.screwdriver.cd/pipelines/1
-[daviddm-image]: https://david-dm.org/screwdriver-cd/screwdriver-queue-service.svg?theme=shields.io
-[daviddm-url]: https://david-dm.org/screwdriver-cd/screwdriver-queue-service
+[daviddm-image]: https://david-dm.org/screwdriver-cd/queue-service.svg?theme=shields.io
+[daviddm-url]: https://david-dm.org/screwdriver-cd/queue-service
 [slack-image]: http://slack.screwdriver.cd/badge.svg
 [slack-url]: http://slack.screwdriver.cd/
 [docker-compose]: https://www.docker.com/products/docker-compose
