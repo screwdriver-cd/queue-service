@@ -20,7 +20,8 @@ const RETRY_DELAY = 5;
  * @param {String} config.apiUri    Base URL of the Screwdriver API
  * @return {Promise}
  */
-async function postBuildEvent(executor, { pipeline, job, apiUri, eventId, buildId, causeMessage }) {
+async function postBuildEvent(executor, eventConfig) {
+    const { pipeline, job, apiUri, eventId, buildId, causeMessage } = eventConfig;
     const admin = await helper.getPipelineAdmin(
         { redisBreaker: executor.redisBreaker, buildId },
         apiUri,
@@ -127,20 +128,14 @@ async function stopPeriodic(executor, config) {
  * @param {Object}   config.pipeline     Pipeline of the job
  * @param {Object}   config.job          Job object to create periodic builds for
  * @param {String}   config.apiUri       Base URL of the Screwdriver API
- * @param {Function} config.tokenGen     Function to generate JWT from username, scope and scmContext
  * @param {Boolean}  config.isUpdate     Boolean to determine if updating existing periodic build
  * @param {Boolean}  config.triggerBuild Flag to post new build event
  * @return {Promise}
  */
 async function startPeriodic(executor, config) {
-    const { pipeline, job, tokenGen, isUpdate, triggerBuild } = config;
+    const { pipeline, job, isUpdate, triggerBuild } = config;
     // eslint-disable-next-line max-len
     const buildCron = reach(job, 'permutations>0>annotations>screwdriver.cd/buildPeriodically', { separator: '>' });
-
-    // Save tokenGen to current executor object so we can access it in postBuildEvent
-    if (!executor.userTokenGen) {
-        executor.userTokenGen = tokenGen;
-    }
 
     if (isUpdate) {
         // TODO: move this
@@ -152,7 +147,7 @@ async function startPeriodic(executor, config) {
 
         // Even if post event failed for this event after retry, we should still enqueue the next event
         try {
-            await postBuildEvent(config);
+            await postBuildEvent(executor, config);
         } catch (err) {
             logger.error(
                 `periodic builds: failed to post build event for job ${job.id} in pipeline ${pipeline.id}: ${err}`
@@ -242,10 +237,6 @@ async function start(executor, config) {
         apiUri
     } = config;
     const forceStart = /\[(force start)\]/.test(causeMessage);
-
-    if (!executor.tokenGen) {
-        executor.tokenGen = config.tokenGen;
-    }
 
     delete config.build;
     delete config.causeMessage;
@@ -366,6 +357,7 @@ async function init(executor) {
                     );
 
                     return await startPeriodic(
+                        executor,
                         Object.assign(JSON.parse(fullConfig), {
                             triggerBuild: true
                         })
@@ -386,7 +378,7 @@ async function init(executor) {
                         jobConfig.jobId
                     );
 
-                    return await startFrozen(JSON.parse(fullConfig));
+                    return await startFrozen(executor, JSON.parse(fullConfig));
                 } catch (err) {
                     logger.error(`err in startFrozen job: ${err}`);
                     throw err;
@@ -501,32 +493,38 @@ module.exports = () => ({
         notes: 'Should add a message to the queue',
         tags: ['api', 'queue'],
         handler: async (request, h) => {
-            const executor = request.server.app.executorQueue;
+            try {
+                const executor = request.server.app.executorQueue;
 
-            if (!executor.multiWorker) {
-                await init(executor);
+                if (!executor.multiWorker) {
+                    await init(executor);
+
+                    return h.response({}).code(200);
+                }
+
+                const { type } = request.query;
+
+                switch (type) {
+                    case 'periodic':
+                        await startPeriodic(executor, request.payload);
+                        break;
+                    case 'frozen':
+                        await startFrozen(executor, request.payload);
+                        break;
+                    case 'timer':
+                        await startTimer(executor, request.payload);
+                        break;
+                    default:
+                        await start(executor, request.payload);
+                        break;
+                }
 
                 return h.response({}).code(200);
+            } catch (err) {
+                logger.error('Error in removing message from queue', err);
+
+                throw err;
             }
-
-            const { type } = request.query;
-
-            switch (type) {
-                case 'periodic':
-                    await startPeriodic(executor, request.payload);
-                    break;
-                case 'frozen':
-                    await startFrozen(executor, request.payload);
-                    break;
-                case 'timer':
-                    await startTimer(executor, request.payload);
-                    break;
-                default:
-                    await start(executor, request.payload);
-                    break;
-            }
-
-            return h.response({}).code(200);
         }
     }
 });
