@@ -57,14 +57,10 @@ const timeOutOfWindow = (cronExp, timeToCheck) => {
     }
 
     if (fields[2] !== '?' && fields[4] !== '?') {
-        throw new Error(
-            `${cronExp} cannot contain both days of month and week`
-        );
+        throw new Error(`${cronExp} cannot contain both days of month and week`);
     }
 
-    const newCronExp = `${fields[0]} ${fields[1]} ${
-        fields[2] === '?' ? '*' : fields[2]
-    }
+    const newCronExp = `${fields[0]} ${fields[1]} ${fields[2] === '?' ? '*' : fields[2]}
  ${fields[3]} ${fields[4] === '?' ? '*' : fields[4]}`;
 
     // Perform final validation before returning
@@ -86,19 +82,13 @@ const timeOutOfWindow = (cronExp, timeToCheck) => {
 
     const includesMinute = minuteField.includes(utcMinutes);
     const includesHour = hourField.includes(utcHours);
-    const includesDayOfMonth =
-        fields[2] === '?' || dayOfMonthField.includes(utcDayOfMonth);
-    const includesDayOfWeek =
-        fields[4] === '?' || dayOfWeekField.includes(utcDayOfWeek);
+    const includesDayOfMonth = fields[2] === '?' || dayOfMonthField.includes(utcDayOfMonth);
+    const includesDayOfWeek = fields[4] === '?' || dayOfWeekField.includes(utcDayOfWeek);
     const includesMonth = monthField.includes(utcMonth);
 
-    const inWindow = [
-        includesMinute,
-        includesHour,
-        includesDayOfMonth,
-        includesDayOfWeek,
-        includesMonth
-    ].every(Boolean);
+    const inWindow = [includesMinute, includesHour, includesDayOfMonth, includesDayOfWeek, includesMonth].every(
+        Boolean
+    );
 
     if (!inWindow) {
         return timeToCheck;
@@ -131,11 +121,7 @@ const timeOutOfWindow = (cronExp, timeToCheck) => {
         return timeToCheck;
     }
 
-    if (
-        includesDayOfMonth &&
-        fields[2] !== '?' &&
-        dayOfMonthField.length !== 31
-    ) {
+    if (includesDayOfMonth && fields[2] !== '?' && dayOfMonthField.length !== 31) {
         latest = findLatestMissing(dayOfMonthField, utcDayOfMonth, 1, 31);
         timeToCheck.setUTCDate(latest);
         if (latest < utcDayOfMonth) {
@@ -146,30 +132,20 @@ const timeOutOfWindow = (cronExp, timeToCheck) => {
 
         return timeToCheck;
     }
-    if (
-        !includesDayOfMonth &&
-        fields[2] !== '?' &&
-        dayOfMonthField.length !== 31
-    ) {
+    if (!includesDayOfMonth && fields[2] !== '?' && dayOfMonthField.length !== 31) {
         return timeToCheck;
     }
 
     if (includesDayOfWeek && fields[4] !== '?' && dayOfWeekField.length !== 8) {
         latest = findLatestMissing(dayOfWeekField, utcDayOfWeek, 0, 6);
-        timeToCheck.setUTCDate(
-            timeToCheck.getUTCDate() + latest - utcDayOfWeek
-        );
+        timeToCheck.setUTCDate(timeToCheck.getUTCDate() + latest - utcDayOfWeek);
         if (latest < utcDayOfWeek) {
             timeToCheck.setUTCDate(timeToCheck.getUTCDate() + 7);
         }
 
         return timeToCheck;
     }
-    if (
-        !includesDayOfWeek &&
-        fields[4] !== '?' &&
-        dayOfWeekField.length !== 8
-    ) {
+    if (!includesDayOfWeek && fields[4] !== '?' && dayOfWeekField.length !== 8) {
         return timeToCheck;
     }
 

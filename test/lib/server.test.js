@@ -193,10 +193,7 @@ describe('server case', () => {
                 })
                 .then(response => {
                     assert.equal(response.statusCode, 500);
-                    assert.equal(
-                        JSON.parse(response.payload).message,
-                        'whatStackTrace'
-                    );
+                    assert.equal(JSON.parse(response.payload).message, 'whatStackTrace');
                 }));
 
         it('responds with error response data', () =>

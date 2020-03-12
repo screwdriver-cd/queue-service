@@ -2,11 +2,7 @@
 
 const logger = require('screwdriver-logger');
 const helper = require('../../helper.js');
-const {
-    waitingJobsPrefix,
-    runningJobsPrefix,
-    queuePrefix
-} = require('../../../config/redis');
+const { waitingJobsPrefix, runningJobsPrefix, queuePrefix } = require('../../../config/redis');
 const TIMEOUT_CODE = 3;
 const TIMEOUT_BUFFER = 1;
 
@@ -103,10 +99,7 @@ async function check(redis) {
 
     await Promise.all(
         keys.map(async buildId => {
-            const json = await redis.hget(
-                `${queuePrefix}timeoutConfigs`,
-                buildId
-            );
+            const json = await redis.hget(`${queuePrefix}timeoutConfigs`, buildId);
 
             if (!json) return;
             const timeoutConfig = JSON.parse(json);

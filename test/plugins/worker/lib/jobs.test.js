@@ -143,12 +143,7 @@ describe('Jobs Unit Test', () => {
                 tls: false
             };
 
-            assert.calledWith(
-                mockRedis,
-                expectedPort,
-                expectedHost,
-                expectedOptions
-            );
+            assert.calledWith(mockRedis, expectedPort, expectedHost, expectedOptions);
         });
     });
 
@@ -179,11 +174,7 @@ describe('Jobs Unit Test', () => {
                 assert.isNull(result);
 
                 assert.calledWith(mockExecutor.start, fullConfig);
-                assert.calledWith(
-                    mockRedisObj.hget,
-                    'buildConfigs',
-                    fullConfig.buildId
-                );
+                assert.calledWith(mockRedisObj.hget, 'buildConfigs', fullConfig.buildId);
             });
         });
 
@@ -202,11 +193,7 @@ describe('Jobs Unit Test', () => {
                 };
 
                 assert.isNull(result);
-                assert.calledWith(
-                    mockRedisObj.hget,
-                    'buildConfigs',
-                    fullConfig.buildId
-                );
+                assert.calledWith(mockRedisObj.hget, 'buildConfigs', fullConfig.buildId);
                 assert.calledWith(mockAmqp.connect, [amqpURI]);
                 assert.calledOnce(mockRabbitmqConnection.createChannel);
                 assert.calledWith(mockRabbitmqCh.publish, exchange, 'sd', msg, {
@@ -296,23 +283,10 @@ describe('Jobs Unit Test', () => {
 
             return jobs.stop.perform(stopConfig).then(result => {
                 assert.isNull(result);
-                assert.calledWith(
-                    mockRedisObj.hget,
-                    'buildConfigs',
-                    fullConfig.buildId
-                );
-                assert.calledWith(
-                    mockRedisObj.hdel,
-                    'buildConfigs',
-                    fullConfig.buildId
-                );
+                assert.calledWith(mockRedisObj.hget, 'buildConfigs', fullConfig.buildId);
+                assert.calledWith(mockRedisObj.hdel, 'buildConfigs', fullConfig.buildId);
                 assert.notCalled(mockRedisObj.del);
-                assert.calledWith(
-                    mockRedisObj.lrem,
-                    'waiting_job_777',
-                    0,
-                    fullConfig.buildId
-                );
+                assert.calledWith(mockRedisObj.lrem, 'waiting_job_777', 0, fullConfig.buildId);
                 assert.notCalled(mockExecutor.stop);
             });
         });
@@ -322,29 +296,14 @@ describe('Jobs Unit Test', () => {
             mockRedisObj.hget.resolves(JSON.stringify(fullConfig));
             mockRedisObj.hdel.resolves(1);
             mockRedisObj.del.resolves(null);
-            mockRedisObj.get
-                .withArgs('running_job_777')
-                .resolves(fullConfig.buildId);
+            mockRedisObj.get.withArgs('running_job_777').resolves(fullConfig.buildId);
 
             return jobs.stop.perform(partialConfig).then(result => {
                 assert.isNull(result);
-                assert.calledWith(
-                    mockRedisObj.hget,
-                    'buildConfigs',
-                    fullConfig.buildId
-                );
-                assert.calledWith(
-                    mockRedisObj.hdel,
-                    'buildConfigs',
-                    fullConfig.buildId
-                );
+                assert.calledWith(mockRedisObj.hget, 'buildConfigs', fullConfig.buildId);
+                assert.calledWith(mockRedisObj.hdel, 'buildConfigs', fullConfig.buildId);
                 assert.calledWith(mockRedisObj.del, 'running_job_777');
-                assert.calledWith(
-                    mockRedisObj.lrem,
-                    'waiting_job_777',
-                    0,
-                    fullConfig.buildId
-                );
+                assert.calledWith(mockRedisObj.lrem, 'waiting_job_777', 0, fullConfig.buildId);
                 assert.calledWith(mockExecutor.stop, {
                     annotations: fullConfig.annotations,
                     buildId: fullConfig.buildId
@@ -358,9 +317,7 @@ describe('Jobs Unit Test', () => {
             mockRedisObj.hget.resolves(JSON.stringify(fullConfig));
             mockRedisObj.hdel.resolves(1);
             mockRedisObj.del.resolves(null);
-            mockRedisObj.get
-                .withArgs('running_job_777')
-                .resolves(fullConfig.buildId);
+            mockRedisObj.get.withArgs('running_job_777').resolves(fullConfig.buildId);
             mockRabbitmqConfigObj.schedulerMode = true;
             mockRabbitmqConfig.getConfig.returns(mockRabbitmqConfigObj);
             const { amqpURI, exchange } = mockRabbitmqConfigObj;
@@ -377,28 +334,11 @@ describe('Jobs Unit Test', () => {
                 };
 
                 assert.isNull(result);
-                assert.calledWith(
-                    mockRedisObj.hget,
-                    'buildConfigs',
-                    fullConfig.buildId
-                );
-                assert.calledWith(
-                    mockRedisObj.hdel,
-                    'buildConfigs',
-                    fullConfig.buildId
-                );
+                assert.calledWith(mockRedisObj.hget, 'buildConfigs', fullConfig.buildId);
+                assert.calledWith(mockRedisObj.hdel, 'buildConfigs', fullConfig.buildId);
                 assert.calledWith(mockRedisObj.del, 'running_job_777');
-                assert.calledWith(
-                    mockRedisObj.lrem,
-                    'waiting_job_777',
-                    0,
-                    fullConfig.buildId
-                );
-                assert.calledWith(
-                    mockRedisObj.hget,
-                    'buildConfigs',
-                    fullConfig.buildId
-                );
+                assert.calledWith(mockRedisObj.lrem, 'waiting_job_777', 0, fullConfig.buildId);
+                assert.calledWith(mockRedisObj.hget, 'buildConfigs', fullConfig.buildId);
                 assert.calledWith(mockAmqp.connect, [amqpURI]);
                 assert.calledOnce(mockRabbitmqConnection.createChannel);
                 assert.calledWith(mockRabbitmqCh.publish, exchange, 'sd', msg, {
@@ -418,11 +358,7 @@ describe('Jobs Unit Test', () => {
 
             return jobs.stop.perform(partialConfig).then(result => {
                 assert.isNull(result);
-                assert.calledWith(
-                    mockRedisObj.hget,
-                    'buildConfigs',
-                    fullConfig.buildId
-                );
+                assert.calledWith(mockRedisObj.hget, 'buildConfigs', fullConfig.buildId);
                 assert.calledWith(mockExecutor.stop, {
                     buildId: fullConfig.buildId
                 });

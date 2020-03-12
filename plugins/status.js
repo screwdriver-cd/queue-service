@@ -10,7 +10,6 @@ const schema = require('screwdriver-data-schema');
  * @param  {Function} next
  */
 
-
 const statusPlugin = {
     name: 'status',
     async register(server) {

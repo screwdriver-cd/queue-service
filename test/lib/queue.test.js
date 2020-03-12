@@ -102,10 +102,7 @@ describe('index test', () => {
         });
 
         it('throws when not given a redis connection', () => {
-            assert.throws(
-                () => new Executor(),
-                'No redis connection passed in'
-            );
+            assert.throws(() => new Executor(), 'No redis connection passed in');
         });
     });
 

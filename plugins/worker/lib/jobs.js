@@ -9,40 +9,28 @@ const logger = require('screwdriver-logger');
 const { BlockedBy } = require('./BlockedBy');
 const { Filter } = require('./Filter');
 const blockedByConfig = config.get('plugins').blockedBy;
-const {
-    connectionDetails,
-    queuePrefix,
-    runningJobsPrefix,
-    waitingJobsPrefix
-} = require('../../../config/redis');
+const { connectionDetails, queuePrefix, runningJobsPrefix, waitingJobsPrefix } = require('../../../config/redis');
 const rabbitmqConf = require('../../../config/rabbitmq');
 const { amqpURI, exchange } = rabbitmqConf.getConfig();
 
 const RETRY_LIMIT = 3;
 // This is in milliseconds, reference: https://github.com/taskrabbit/node-resque/blob/master/lib/plugins/Retry.js#L12
 const RETRY_DELAY = 5 * 1000;
-const redis = new Redis(
-    connectionDetails.port,
-    connectionDetails.host,
-    connectionDetails.options
-);
+const redis = new Redis(connectionDetails.port, connectionDetails.host, connectionDetails.options);
 
 const ecosystem = config.get('ecosystem');
 const executorConfig = config.get('executor');
 
-const executorPlugins = Object.keys(executorConfig).reduce(
-    (aggregator, keyName) => {
-        if (keyName !== 'plugin') {
-            aggregator.push({
-                name: keyName,
-                ...executorConfig[keyName]
-            });
-        }
+const executorPlugins = Object.keys(executorConfig).reduce((aggregator, keyName) => {
+    if (keyName !== 'plugin') {
+        aggregator.push({
+            name: keyName,
+            ...executorConfig[keyName]
+        });
+    }
 
-        return aggregator;
-    },
-    []
-);
+    return aggregator;
+}, []);
 
 const executor = new ExecutorRouter({
     defaultPlugin: executorConfig.plugin,
@@ -83,9 +71,7 @@ function getRabbitmqConn() {
     logger.info('Creating new rabbitmq connection.');
 
     rabbitmqConn.on('connect', () => logger.info('Connected to rabbitmq!'));
-    rabbitmqConn.on('disconnect', params =>
-        logger.info('Disconnected from rabbitmq.', params.err.stack)
-    );
+    rabbitmqConn.on('disconnect', params => logger.info('Disconnected from rabbitmq.', params.err.stack));
 
     return rabbitmqConn;
 }
@@ -188,9 +174,7 @@ function stop(buildConfig) {
                 stopConfig.token = parsedConfig.token;
             })
             .catch(err => {
-                logger.error(
-                    `[Stop Build] failed to get config for build ${buildId}: ${err.message}`
-                );
+                logger.error(`[Stop Build] failed to get config for build ${buildId}: ${err.message}`);
             })
             .then(() => redis.hdel(`${queuePrefix}buildConfigs`, buildId))
             // If this is a running job

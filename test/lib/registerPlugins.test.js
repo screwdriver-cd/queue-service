@@ -7,11 +7,7 @@ const sinon = require('sinon');
 sinon.assert.expose(assert, { prefix: '' });
 
 describe('Register Plugins', () => {
-    const resourcePlugins = [
-        '../plugins/worker',
-        '../plugins/queue',
-        '../plugins/status'
-    ];
+    const resourcePlugins = ['../plugins/worker', '../plugins/queue', '../plugins/status'];
     const defaultPlugin = ['blipp'];
     const pluginLength = resourcePlugins.length + defaultPlugin.length;
     const mocks = {};

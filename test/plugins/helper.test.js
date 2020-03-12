@@ -40,9 +40,7 @@ describe('Helper Test', () => {
         mockRequest = sinon.stub();
         mockRequestRetry = sinon.stub();
         mockRedis = {
-            hget: sinon
-                .stub()
-                .resolves('{"apiUri": "foo.bar", "token": "fake"}')
+            hget: sinon.stub().resolves('{"apiUri": "foo.bar", "token": "fake"}')
         };
 
         mockRedisConfig = {
@@ -79,11 +77,7 @@ describe('Helper Test', () => {
         } catch (err) {
             assert.isNull(err);
         }
-        assert.calledWith(
-            mockRedis.hget,
-            'mockQueuePrefix_buildConfigs',
-            job.args[0].buildId
-        );
+        assert.calledWith(mockRedis.hget, 'mockQueuePrefix_buildConfigs', job.args[0].buildId);
         assert.calledWith(mockRequest, requestOptions);
     });
 
@@ -124,11 +118,7 @@ describe('Helper Test', () => {
             stepName
         });
 
-        assert.calledWith(
-            mockRedis.hget,
-            'mockQueuePrefix_buildConfigs',
-            job.args[0].buildId
-        );
+        assert.calledWith(mockRedis.hget, 'mockQueuePrefix_buildConfigs', job.args[0].buildId);
         assert.calledWith(mockRequest, {
             headers: {
                 Authorization: 'Bearer fake',
@@ -197,11 +187,7 @@ describe('Helper Test', () => {
             buildId: 1
         });
 
-        assert.calledWith(
-            mockRedis.hget,
-            'mockQueuePrefix_buildConfigs',
-            job.args[0].buildId
-        );
+        assert.calledWith(mockRedis.hget, 'mockQueuePrefix_buildConfigs', job.args[0].buildId);
         assert.calledWith(mockRequest, {
             headers: {
                 Authorization: 'Bearer fake',
@@ -229,11 +215,7 @@ describe('Helper Test', () => {
             assert.isNull(err);
         }
 
-        assert.calledWith(
-            mockRedis.hget,
-            'mockQueuePrefix_buildConfigs',
-            job.args[0].buildId
-        );
+        assert.calledWith(mockRedis.hget, 'mockQueuePrefix_buildConfigs', job.args[0].buildId);
         assert.calledWith(mockRequestRetry, {
             json: true,
             method: 'POST',
@@ -269,11 +251,7 @@ describe('Helper Test', () => {
             assert.isNull(err);
         }
 
-        assert.calledWith(
-            mockRedis.hget,
-            'mockQueuePrefix_buildConfigs',
-            job.args[0].buildId
-        );
+        assert.calledWith(mockRedis.hget, 'mockQueuePrefix_buildConfigs', job.args[0].buildId);
         assert.calledWith(mockRequestRetry, {
             json: true,
             method: 'GET',

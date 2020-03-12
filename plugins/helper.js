@@ -48,23 +48,16 @@ function formatOptions(method, uri, token, body, retryStrategyFn) {
 async function updateBuildStatus(updateConfig) {
     const { redisInstance, status, statusMessage, buildId } = updateConfig;
 
-    const buildConfig = await redisInstance
-        .hget(`${queuePrefix}buildConfigs`, buildId)
-        .then(JSON.parse);
+    const buildConfig = await redisInstance.hget(`${queuePrefix}buildConfigs`, buildId).then(JSON.parse);
 
     if (!buildConfig) return null;
 
     return new Promise((resolve, reject) => {
         request(
-            formatOptions(
-                'PUT',
-                `${buildConfig.apiUri}/v4/builds/${buildId}`,
-                buildConfig.token,
-                {
-                    status,
-                    statusMessage
-                }
-            ),
+            formatOptions('PUT', `${buildConfig.apiUri}/v4/builds/${buildId}`, buildConfig.token, {
+                status,
+                statusMessage
+            }),
             (err, res) => {
                 if (!err && res.statusCode === 200) {
                     return resolve(res.body);
@@ -88,24 +81,17 @@ async function updateBuildStatus(updateConfig) {
  */
 async function updateStepStop(stepConfig) {
     const { redisInstance, buildId, stepName, code } = stepConfig;
-    const buildConfig = await redisInstance
-        .hget(`${queuePrefix}buildConfigs`, buildId)
-        .then(JSON.parse);
+    const buildConfig = await redisInstance.hget(`${queuePrefix}buildConfigs`, buildId).then(JSON.parse);
 
     // if buildConfig got deleted already, do not update
     if (!buildConfig) return null;
 
     return new Promise((resolve, reject) => {
         request(
-            formatOptions(
-                'PUT',
-                `${buildConfig.apiUri}/v4/builds/${buildId}/steps/${stepName}`,
-                buildConfig.token,
-                {
-                    endTime: new Date().toISOString(),
-                    code
-                }
-            ),
+            formatOptions('PUT', `${buildConfig.apiUri}/v4/builds/${buildId}/steps/${stepName}`, buildConfig.token, {
+                endTime: new Date().toISOString(),
+                code
+            }),
             (err, res) => {
                 if (!err && res.statusCode === 200) {
                     return resolve(res.body);
@@ -127,20 +113,14 @@ async function updateStepStop(stepConfig) {
  */
 async function getCurrentStep(stepConfig) {
     const { redisInstance, buildId } = stepConfig;
-    const buildConfig = await redisInstance
-        .hget(`${queuePrefix}buildConfigs`, buildId)
-        .then(JSON.parse);
+    const buildConfig = await redisInstance.hget(`${queuePrefix}buildConfigs`, buildId).then(JSON.parse);
 
     // if buildConfig got deleted already, do not update
     if (!buildConfig) return null;
 
     return new Promise((resolve, reject) => {
         request(
-            formatOptions(
-                'GET',
-                `${buildConfig.apiUri}/v4/builds/${buildId}/steps?status=active`,
-                buildConfig.token
-            ),
+            formatOptions('GET', `${buildConfig.apiUri}/v4/builds/${buildId}/steps?status=active`, buildConfig.token),
             (err, res) => {
                 if (!err && res.statusCode === 200) {
                     if (res.body && res.body.length > 0) {
@@ -163,27 +143,14 @@ async function getCurrentStep(stepConfig) {
  * @param {Object} buildEvent
  * @param {Function} retryStrategyFn
  */
-async function createBuildEvent(
-    apiUri,
-    eventConfig,
-    buildEvent,
-    retryStrategyFn
-) {
+async function createBuildEvent(apiUri, eventConfig, buildEvent, retryStrategyFn) {
     const { redisInstance, buildId, eventId } = eventConfig;
-    const buildConfig = await redisInstance
-        .hget(`${queuePrefix}buildConfigs`, buildId)
-        .then(JSON.parse);
+    const buildConfig = await redisInstance.hget(`${queuePrefix}buildConfigs`, buildId).then(JSON.parse);
     const body = { ...buildEvent, buildId, parentEventId: eventId };
 
     return new Promise((resolve, reject) => {
         requestretry(
-            formatOptions(
-                'POST',
-                `${apiUri}/v4/events`,
-                buildConfig.token,
-                body,
-                retryStrategyFn
-            ),
+            formatOptions('POST', `${apiUri}/v4/events`, buildConfig.token, body, retryStrategyFn),
             (err, res) => {
                 if (!err) {
                     if (res.statusCode === 201) {
@@ -206,16 +173,9 @@ async function createBuildEvent(
  * @param {String} pipelineId
  * @param {Function} retryStrategyFn
  */
-async function getPipelineAdmin(
-    requestConfig,
-    apiUri,
-    pipelineId,
-    retryStrategyFn
-) {
+async function getPipelineAdmin(requestConfig, apiUri, pipelineId, retryStrategyFn) {
     const { redisInstance, buildId } = requestConfig;
-    const buildConfig = await redisInstance
-        .hget(`${queuePrefix}buildConfigs`, buildId)
-        .then(JSON.parse);
+    const buildConfig = await redisInstance.hget(`${queuePrefix}buildConfigs`, buildId).then(JSON.parse);
 
     return new Promise((resolve, reject) => {
         requestretry(
@@ -256,13 +216,7 @@ async function updateBuildStatusWithRetry(updateConfig, retryStrategyFn) {
 
     return new Promise((resolve, reject) => {
         requestretry(
-            formatOptions(
-                'PUT',
-                `${apiUri}/v4/builds/${buildId}`,
-                token,
-                { statusMessage, status },
-                retryStrategyFn
-            ),
+            formatOptions('PUT', `${apiUri}/v4/builds/${buildId}`, token, { statusMessage, status }, retryStrategyFn),
             (err, res) => {
                 if (!err) {
                     if (res.statusCode === 201) {

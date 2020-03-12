@@ -18,19 +18,11 @@ describe('cron', () => {
         // 6 fields
 
         cronExp = '1 2 3 4 5 6';
-        assert.throws(
-            () => cron.transform(cronExp, jobId),
-            Error,
-            '1 2 3 4 5 6 does not have exactly 5 fields'
-        );
+        assert.throws(() => cron.transform(cronExp, jobId), Error, '1 2 3 4 5 6 does not have exactly 5 fields');
 
         // 4 fields
         cronExp = '1 2 3 4';
-        assert.throws(
-            () => cron.transform(cronExp, jobId),
-            Error,
-            '1 2 3 4 does not have exactly 5 fields'
-        );
+        assert.throws(() => cron.transform(cronExp, jobId), Error, '1 2 3 4 does not have exactly 5 fields');
     });
 
     it('should transform a cron expression with valid H symbol(s)', () => {
@@ -38,31 +30,19 @@ describe('cron', () => {
 
         // H * * * *
         cronExp = 'H * * * *';
-        assert.deepEqual(
-            cron.transform(cronExp, jobId),
-            `${minutesHash} * * * *`
-        );
+        assert.deepEqual(cron.transform(cronExp, jobId), `${minutesHash} * * * *`);
 
         // * H/2 * * *
         cronExp = '* H/2 * * *';
-        assert.deepEqual(
-            cron.transform(cronExp, jobId),
-            `${minutesHash} ${hoursHash}/2 * * *`
-        );
+        assert.deepEqual(cron.transform(cronExp, jobId), `${minutesHash} ${hoursHash}/2 * * *`);
 
         // * H(0-5) * * *
         cronExp = '* H(0-5) * * *';
-        assert.deepEqual(
-            cron.transform(cronExp, jobId),
-            `${minutesHash} ${evaluateHash(jobId, 0, 5)} * * *`
-        );
+        assert.deepEqual(cron.transform(cronExp, jobId), `${minutesHash} ${evaluateHash(jobId, 0, 5)} * * *`);
 
         // H(0-5) * * * *
         cronExp = 'H(0-5) * * * *';
-        assert.deepEqual(
-            cron.transform(cronExp, jobId),
-            `${evaluateHash(jobId, 0, 5)} * * * *`
-        );
+        assert.deepEqual(cron.transform(cronExp, jobId), `${evaluateHash(jobId, 0, 5)} * * * *`);
     });
 
     it('should throw if the cron expression has an invalid range value', () => {

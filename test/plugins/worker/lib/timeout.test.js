@@ -71,9 +71,7 @@ describe('Timeout test', () => {
             expireKey = `${runningJobsPrefix}2`;
             waitingKey = `${waitingJobsPrefix}2`;
 
-            mockRedis.hkeys
-                .withArgs(`${queuePrefix}timeoutConfigs`)
-                .resolves(['222', '333', '444']);
+            mockRedis.hkeys.withArgs(`${queuePrefix}timeoutConfigs`).resolves(['222', '333', '444']);
         });
 
         it('Updates build status to FAILURE if time difference is greater than timeout', async () => {
@@ -101,9 +99,7 @@ describe('Timeout test', () => {
 
             deleteKey = `deleted_${buildConfig.jobId}_${buildId}`;
 
-            mockRedis.hget
-                .withArgs(`${queuePrefix}timeoutConfigs`, buildId)
-                .resolves(JSON.stringify(timeoutConfig));
+            mockRedis.hget.withArgs(`${queuePrefix}timeoutConfigs`, buildId).resolves(JSON.stringify(timeoutConfig));
 
             await timeout.check(mockRedis);
 
@@ -113,11 +109,7 @@ describe('Timeout test', () => {
                 status: 'FAILURE',
                 statusMessage: 'Build failed due to timeout'
             });
-            assert.calledWith(
-                mockRedis.hdel,
-                `${queuePrefix}buildConfigs`,
-                buildId
-            );
+            assert.calledWith(mockRedis.hdel, `${queuePrefix}buildConfigs`, buildId);
             assert.calledWith(mockRedis.expire, expireKey, 0);
             assert.calledWith(mockRedis.expire, expireKey, 0);
 
@@ -149,9 +141,7 @@ describe('Timeout test', () => {
 
             deleteKey = `deleted_${buildConfig.jobId}_${buildId}`;
 
-            mockRedis.hget
-                .withArgs(`${queuePrefix}timeoutConfigs`, buildId)
-                .resolves(JSON.stringify(timeoutConfig));
+            mockRedis.hget.withArgs(`${queuePrefix}timeoutConfigs`, buildId).resolves(JSON.stringify(timeoutConfig));
 
             await timeout.check(mockRedis);
 
@@ -175,9 +165,7 @@ describe('Timeout test', () => {
                 timeout: 50
             };
 
-            mockRedis.hget
-                .withArgs(`${queuePrefix}timeoutConfigs`, buildId)
-                .resolves(JSON.stringify(timeoutConfig));
+            mockRedis.hget.withArgs(`${queuePrefix}timeoutConfigs`, buildId).resolves(JSON.stringify(timeoutConfig));
 
             await timeout.check(mockRedis);
 
@@ -196,9 +184,7 @@ describe('Timeout test', () => {
                 timeout: 50
             };
 
-            mockRedis.hget
-                .withArgs(`${queuePrefix}timeoutConfigs`, buildId)
-                .resolves(JSON.stringify(timeoutConfig));
+            mockRedis.hget.withArgs(`${queuePrefix}timeoutConfigs`, buildId).resolves(JSON.stringify(timeoutConfig));
 
             await timeout.check(mockRedis);
 
@@ -222,9 +208,7 @@ describe('Timeout test', () => {
                 timeout: 50
             };
 
-            mockRedis.hget
-                .withArgs(`${queuePrefix}timeoutConfigs`, buildId)
-                .resolves(JSON.stringify(timeoutConfig));
+            mockRedis.hget.withArgs(`${queuePrefix}timeoutConfigs`, buildId).resolves(JSON.stringify(timeoutConfig));
             helperMock.getCurrentStep.resolves(null);
 
             await timeout.check(mockRedis);
@@ -236,11 +220,7 @@ describe('Timeout test', () => {
                 status: 'FAILURE',
                 statusMessage: 'Build failed due to timeout'
             });
-            assert.calledWith(
-                mockRedis.hdel,
-                `${queuePrefix}buildConfigs`,
-                buildId
-            );
+            assert.calledWith(mockRedis.hdel, `${queuePrefix}buildConfigs`, buildId);
             assert.calledWith(mockRedis.expire, expireKey, 0);
             assert.calledWith(mockRedis.expire, expireKey, 0);
 

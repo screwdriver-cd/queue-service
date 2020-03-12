@@ -46,18 +46,11 @@ const transformValue = (cronValue, min, max, hashValue) => {
         // e.g. H(0-5) -> #
         if (value.match(/H\(\d+-\d+\)/)) {
             const newMin = Number(value.substring(2, value.lastIndexOf('-')));
-            const newMax = Number(
-                value.substring(
-                    value.lastIndexOf('-') + 1,
-                    value.lastIndexOf(')')
-                )
-            );
+            const newMax = Number(value.substring(value.lastIndexOf('-') + 1, value.lastIndexOf(')')));
 
             // Range is invalid, throw an error
             if (newMin < min || newMax > max || newMin > newMax) {
-                throw new Error(
-                    `${value} has an invalid range, expected range ${min}-${max}`
-                );
+                throw new Error(`${value} has an invalid range, expected range ${min}-${max}`);
             }
 
             values[i] = evaluateHash(hashValue, newMin, newMax);

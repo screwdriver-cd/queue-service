@@ -58,12 +58,7 @@ class Filter extends NodeResque.Plugin {
      * @return {Promise}
      */
     async reEnqueue() {
-        await this.queueObject.enqueueIn(
-            this.reenqueueTimeout(),
-            this.queue,
-            this.func,
-            this.args
-        );
+        await this.queueObject.enqueueIn(this.reenqueueTimeout(), this.queue, this.func, this.args);
     }
 
     reenqueueTimeout() {

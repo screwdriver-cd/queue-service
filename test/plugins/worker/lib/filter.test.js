@@ -72,14 +72,7 @@ describe('Plugin Test', () => {
         // eslint-disable-next-line global-require
         Filter = require('../../../../plugins/worker/lib/Filter.js').Filter;
 
-        filter = new Filter(
-            mockWorker,
-            mockFunc,
-            mockQueue,
-            mockJob,
-            mockArgs,
-            {}
-        );
+        filter = new Filter(mockWorker, mockFunc, mockQueue, mockJob, mockArgs, {});
     });
 
     afterEach(() => {
@@ -117,13 +110,7 @@ describe('Plugin Test', () => {
 
                 await filter.beforePerform();
 
-                assert.calledWith(
-                    mockWorker.queueObject.enqueueIn,
-                    1000,
-                    mockQueue,
-                    mockFunc,
-                    mockArgs
-                );
+                assert.calledWith(mockWorker.queueObject.enqueueIn, 1000, mockQueue, mockFunc, mockArgs);
             });
 
             it('proceeds if build with buildClusterName landed on scheduler', async () => {
@@ -153,13 +140,7 @@ describe('Plugin Test', () => {
 
                 await filter.beforePerform();
 
-                assert.calledWith(
-                    mockWorker.queueObject.enqueueIn,
-                    1000,
-                    mockQueue,
-                    mockFunc,
-                    mockArgs
-                );
+                assert.calledWith(mockWorker.queueObject.enqueueIn, 1000, mockQueue, mockFunc, mockArgs);
             });
         });
     });
