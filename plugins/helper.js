@@ -143,14 +143,10 @@ async function getCurrentStep(stepConfig) {
  * @param {Object} buildEvent
  * @param {Function} retryStrategyFn
  */
-async function createBuildEvent(apiUri, eventConfig, buildEvent, retryStrategyFn) {
-    const { redisInstance, buildId, eventId } = eventConfig;
-    const buildConfig = await redisInstance.hget(`${queuePrefix}buildConfigs`, buildId).then(JSON.parse);
-    const body = { ...buildEvent, buildId, parentEventId: eventId };
-
+async function createBuildEvent(apiUri, token, buildEvent, retryStrategyFn) {
     return new Promise((resolve, reject) => {
         requestretry(
-            formatOptions('POST', `${apiUri}/v4/events`, buildConfig.token, body, retryStrategyFn),
+            formatOptions('POST', `${apiUri}/v4/events`, token, buildEvent, retryStrategyFn),
             (err, res) => {
                 if (!err) {
                     if (res.statusCode === 201) {
@@ -173,16 +169,13 @@ async function createBuildEvent(apiUri, eventConfig, buildEvent, retryStrategyFn
  * @param {String} pipelineId
  * @param {Function} retryStrategyFn
  */
-async function getPipelineAdmin(requestConfig, apiUri, pipelineId, retryStrategyFn) {
-    const { redisInstance, buildId } = requestConfig;
-    const buildConfig = await redisInstance.hget(`${queuePrefix}buildConfigs`, buildId).then(JSON.parse);
-
+async function getPipelineAdmin(token, apiUri, pipelineId, retryStrategyFn) {
     return new Promise((resolve, reject) => {
         requestretry(
             formatOptions(
                 'GET',
-                `${apiUri}/pipelines/${pipelineId}/admin`,
-                buildConfig.token,
+                `${apiUri}/v4/pipelines/${pipelineId}/admin`,
+                token,
                 undefined,
                 retryStrategyFn
             ),

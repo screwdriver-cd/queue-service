@@ -1,4 +1,26 @@
 ---
+auth:
+  # A private key used for signing jwt tokens
+  # Easily generate one by running
+  # $ openssl genrsa -out jwt.pem 2048
+  jwtPrivateKey: |
+    -----BEGIN RSA PRIVATE KEY-----
+    YOUR-KEY-HERE
+    -----END RSA PRIVATE KEY-----
+  # The public key used for verifying the signature
+  # Generate one by running
+  # $ openssl rsa -in jwt.pem -pubout -out jwt.pub
+  jwtPublicKey: |
+    -----BEGIN PUBLIC KEY-----
+    YOUR-KEY-HERE
+    -----END PUBLIC KEY-----
+  # The public key used for verifying the signature of token from SD api
+  jwtSDApiPublicKey: |
+    -----BEGIN PUBLIC KEY-----
+    YOUR-KEY-HERE
+    -----END PUBLIC KEY-----
+  admins: []
+
 executor:
   # Default executor
   plugin: docker

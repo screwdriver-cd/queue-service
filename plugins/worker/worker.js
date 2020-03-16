@@ -87,7 +87,7 @@ async function invoke() {
                 },
                 (err, response) => {
                     if (!err) {
-                        logger.error(
+                        logger.info(
                             `queueWorker->worker[${workerId}] ${JSON.stringify(job)} ` +
                                 `failure ${queue} ` +
                                 `${JSON.stringify(job)} >> successfully update build status: ${failure}`

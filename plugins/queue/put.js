@@ -21,18 +21,30 @@ const RETRY_DELAY = 5;
  * @return {Promise}
  */
 async function postBuildEvent(executor, eventConfig) {
-    const { pipeline, job, apiUri, eventId, buildId, causeMessage } = eventConfig;
+    const { pipeline, job, apiUri, eventId, causeMessage, buildId } = eventConfig;
+    const pipelineId = pipeline.id;
+
+    const token = executor.tokenGen({
+        pipelineId,
+        service: 'queue',
+        jobId: job.id,
+        scmContext: pipeline.scmContext,
+        scope: ['user']
+    });
+
     const admin = await helper.getPipelineAdmin(
-        { redisBreaker: executor.redisBreaker, buildId },
+        token,
         apiUri,
-        pipeline.id,
+        pipelineId,
         executor.requestRetryStrategy
     );
 
-    logger.info(`POST event for pipeline ${pipeline.id}:${job.name} using user ${admin.username}`);
+    logger.info(`POST event for pipeline ${pipelineId}:${job.name} using user ${admin.username}`);
+
+    const jwt = executor.userTokenGen(admin.username, {}, admin.scmContext);
 
     const buildEvent = {
-        pipelineId: pipeline.id,
+        pipelineId,
         startFrom: job.name,
         creator: {
             name: 'Screwdriver scheduler',
@@ -44,9 +56,13 @@ async function postBuildEvent(executor, eventConfig) {
     if (eventId) {
         buildEvent.parentEventId = eventId;
     }
+    if (buildId) {
+        buildEvent.buildId = buildId;
+    }
+
     await helper.createBuildEvent(
         apiUri,
-        { redisBreaker: executor.redisBreaker, buildId },
+        jwt,
         buildEvent,
         executor.requestRetryStrategy
     );
@@ -320,7 +336,6 @@ async function start(executor, config) {
         build.stats = merge(build.stats, {
             queueEnterTime: new Date().toISOString()
         });
-        await build.update();
     }
 
     return enq;
