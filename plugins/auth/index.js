@@ -85,8 +85,6 @@ const authPlugin = {
                 jwtid: uuid.v4()
             })
         );
-
-        server.route([tokenRoute()]);
     }
 };
 
