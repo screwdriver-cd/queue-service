@@ -1,26 +1,32 @@
+'use strict';
+
 const joi = require('@hapi/joi');
 const jwt = require('jsonwebtoken');
-const tokenRoute = require('./token');
 const uuid = require('uuid');
+const tokenRoute = require('./token');
 
 const DEFAULT_TIMEOUT = 60; // 1h in minutes
 const ALGORITHM = 'RS256';
 
-const validate = async function (decoded, request, h) {
-    // The decoded token signature is validated by jwt.veriry so we can return true
+const validate = async function() {
+    // The _decoded token signature is validated by jwt.veriry so we can return true
     return { isValid: true };
 };
 
 const authPlugin = {
     name: 'auth',
     async register(server, options) {
-        const pluginOptions = joi.attempt(options, joi.object().keys({
-            jwtEnvironment: joi.string().default(''),
-            jwtPrivateKey: joi.string().required(),
-            jwtPublicKey: joi.string().required(),
-            jwtSDApiPublicKey: joi.string().required(),
-            admins: joi.array().default([]),
-        }), 'Invalid config for plugin-auth');
+        const pluginOptions = joi.attempt(
+            options,
+            joi.object().keys({
+                jwtEnvironment: joi.string().default(''),
+                jwtPrivateKey: joi.string().required(),
+                jwtPublicKey: joi.string().required(),
+                jwtSDApiPublicKey: joi.string().required(),
+                admins: joi.array().default([])
+            }),
+            'Invalid config for plugin-auth'
+        );
 
         server.auth.strategy('token', 'jwt', {
             key: [pluginOptions.jwtPublicKey, pluginOptions.jwtSDApiPublicKey],
@@ -30,12 +36,12 @@ const authPlugin = {
             validate
         });
 
-        server.auth.scheme('custom', (server, options) => {
+        server.auth.scheme('custom', () => {
             return {
-                authenticate: (request, h) => {
+                authenticate: (_, h) => {
                     return h.authenticated();
                 }
-            }
+            };
         });
         server.auth.strategy('default', 'custom');
 
@@ -49,9 +55,7 @@ const authPlugin = {
          * @return {Object}                   The profile to be stored in jwt and/or cookie
          */
         server.expose('generateProfile', (username, scmContext, scope, metadata) => {
-            const profile = Object.assign({
-                username, scmContext, scope
-            }, metadata || {});
+            const profile = { username, scmContext, scope, ...(metadata || {}) };
 
             if (pluginOptions.jwtEnvironment) {
                 profile.environment = pluginOptions.jwtEnvironment;
@@ -59,8 +63,7 @@ const authPlugin = {
 
             if (scmContext) {
                 // Check admin
-                if (pluginOptions.admins.length > 0
-                    && pluginOptions.admins.includes(username)) {
+                if (pluginOptions.admins.length > 0 && pluginOptions.admins.includes(username)) {
                     profile.scope.push('admin');
                 }
             }

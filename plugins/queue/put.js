@@ -32,12 +32,7 @@ async function postBuildEvent(executor, eventConfig) {
         scope: ['user']
     });
 
-    const admin = await helper.getPipelineAdmin(
-        token,
-        apiUri,
-        pipelineId,
-        executor.requestRetryStrategy
-    );
+    const admin = await helper.getPipelineAdmin(token, apiUri, pipelineId, executor.requestRetryStrategy);
 
     logger.info(`POST event for pipeline ${pipelineId}:${job.name} using user ${admin.username}`);
 
@@ -60,12 +55,7 @@ async function postBuildEvent(executor, eventConfig) {
         buildEvent.buildId = buildId;
     }
 
-    await helper.createBuildEvent(
-        apiUri,
-        jwt,
-        buildEvent,
-        executor.requestRetryStrategy
-    );
+    await helper.createBuildEvent(apiUri, jwt, buildEvent, executor.requestRetryStrategy);
 }
 
 /**

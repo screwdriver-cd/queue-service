@@ -22,14 +22,14 @@ module.exports = () => ({
         handler: async (request, h) => {
             try {
                 let profile = request.auth.credentials;
-                const username = profile.username;
-                const scope = profile.scope;
-                const token = profile.token;
+                const { username } = profile;
+                const { scope } = profile;
+                const { token } = profile;
 
                 // Check Build ID impersonate
                 if (request.params.buildId) {
                     if (!scope.includes('temporal')) {
-                        return reply(boom.forbidden(`User ${username} cannot generate token`));
+                        return h.response(boom.forbidden(`User ${username} cannot generate token`));
                     }
                     profile = request.server.plugins.auth.generateProfile(
                         request.params.buildId,

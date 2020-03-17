@@ -145,21 +145,18 @@ async function getCurrentStep(stepConfig) {
  */
 async function createBuildEvent(apiUri, token, buildEvent, retryStrategyFn) {
     return new Promise((resolve, reject) => {
-        requestretry(
-            formatOptions('POST', `${apiUri}/v4/events`, token, buildEvent, retryStrategyFn),
-            (err, res) => {
-                if (!err) {
-                    if (res.statusCode === 201) {
-                        return resolve(res);
-                    }
-                    if (res.statusCode !== 201) {
-                        return reject(JSON.stringify(res.body));
-                    }
+        requestretry(formatOptions('POST', `${apiUri}/v4/events`, token, buildEvent, retryStrategyFn), (err, res) => {
+            if (!err) {
+                if (res.statusCode === 201) {
+                    return resolve(res);
                 }
-
-                return reject(err);
+                if (res.statusCode !== 201) {
+                    return reject(JSON.stringify(res.body));
+                }
             }
-        );
+
+            return reject(err);
+        });
     });
 }
 
@@ -172,13 +169,7 @@ async function createBuildEvent(apiUri, token, buildEvent, retryStrategyFn) {
 async function getPipelineAdmin(token, apiUri, pipelineId, retryStrategyFn) {
     return new Promise((resolve, reject) => {
         requestretry(
-            formatOptions(
-                'GET',
-                `${apiUri}/v4/pipelines/${pipelineId}/admin`,
-                token,
-                undefined,
-                retryStrategyFn
-            ),
+            formatOptions('GET', `${apiUri}/v4/pipelines/${pipelineId}/admin`, token, undefined, retryStrategyFn),
             (err, res) => {
                 if (!err) {
                     if (res.statusCode === 200) {

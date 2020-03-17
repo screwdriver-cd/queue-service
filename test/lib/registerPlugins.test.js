@@ -7,8 +7,8 @@ const sinon = require('sinon');
 sinon.assert.expose(assert, { prefix: '' });
 
 describe('Register Plugins', () => {
-    const resourcePlugins = ['../plugins/worker', '../plugins/queue', '../plugins/status'];
-    const defaultPlugin = ['blipp'];
+    const resourcePlugins = ['../plugins/worker', '../plugins/queue', '../plugins/status', '../plugins/auth'];
+    const defaultPlugin = ['blipp', 'hapi-auth-jwt2'];
     const pluginLength = resourcePlugins.length + defaultPlugin.length;
     const mocks = {};
     const config = {};
@@ -56,7 +56,7 @@ describe('Register Plugins', () => {
             assert.calledWith(serverMock.register, {
                 plugin: mocks[plugin],
                 options: {
-                    name: plugin.split('/')[2]
+                    ...(config[plugin.split('/')[2]] || {})
                 },
                 routes: {
                     prefix: '/v1'
@@ -85,8 +85,7 @@ describe('Register Plugins', () => {
         assert.calledWith(serverMock.register, {
             plugin: mocks['../plugins/queue'],
             options: {
-                foo: 'bar',
-                name: 'queue'
+                foo: 'bar'
             },
             routes: {
                 prefix: '/v1'
