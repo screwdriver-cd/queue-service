@@ -3,7 +3,6 @@
 const joi = require('@hapi/joi');
 const jwt = require('jsonwebtoken');
 const uuid = require('uuid');
-const tokenRoute = require('./token');
 
 const DEFAULT_TIMEOUT = 60; // 1h in minutes
 const ALGORITHM = 'RS256';
