@@ -70,6 +70,10 @@ describe('server case', () => {
             const svcConfig = { ...config, httpd: { port: 12347 } };
 
             server = await hapiEngine(svcConfig);
+            server.plugins.auth = {
+                generateToken: sinon.stub().returns('foo'),
+                generateProfile: sinon.stub().returns('bar')
+            };
         });
 
         afterEach(() => {
@@ -91,6 +95,11 @@ describe('server case', () => {
         it('populates server.app values', () => {
             assert.isObject(server.app);
             assert.isObject(server.app.executorQueue);
+            assert.isObject(server.app.executorQueue);
+            assert.isFunction(server.app.executorQueue.tokenGen);
+            assert.equal(server.app.executorQueue.tokenGen(), 'foo');
+            assert.isFunction(server.app.executorQueue.userTokenGen);
+            assert.equal(server.app.executorQueue.userTokenGen(), 'foo');
         });
     });
 
@@ -113,6 +122,17 @@ describe('server case', () => {
             return hapiEngine(svcConfig).catch(error => {
                 assert.strictEqual('registrationMan fail', error.message);
             });
+        });
+
+        it('logs err in case of unhandled rejection ', async () => {
+            registrationManMock.rejects(new Error('registrationMan fail'));
+            const svcConfig = { ...config, httpd: { port: 12347 } };
+
+            try {
+                await hapiEngine(svcConfig);
+            } catch (err) {
+                assert.isOk(err);
+            }
         });
     });
 
@@ -210,9 +230,4 @@ describe('server case', () => {
                     assert.deepEqual(data, { conflictOn: 1 });
                 }));
     });
-});
-
-process.on('unhandledRejection', e => {
-    console.log('=========>>12312', e);
-    throw e;
 });
