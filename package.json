@@ -37,6 +37,7 @@
   },
   "devDependencies": {
     "chai": "^4.2.0",
+    "chai-jwt": "^2.0.0",
     "coveralls": "^3.0.9",
     "eslint": "^6.8.0",
     "eslint-config-screwdriver": "^5.0.3",
@@ -49,7 +50,7 @@
   },
   "scripts": {
     "start": "node ./bin/server",
-    "pretest": "eslint .",
+    "pretest": "eslint . --quiet",
     "test": "nyc --report-dir ./artifacts/coverage --reporter=lcov mocha --recursive --timeout 4000 --retries 1 --exit --color true",
     "debug": "node --nolazy --inspect-brk=9229 ./bin/server"
   },
