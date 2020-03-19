@@ -205,17 +205,11 @@ describe('Helper Test', () => {
         const retryFn = sinon.stub();
 
         try {
-            await helper.createBuildEvent(
-                'foo.bar',
-                { redisInstance: mockRedis, buildId: 1, eventId: 321 },
-                { jobId: 123 },
-                retryFn
-            );
+            await helper.createBuildEvent('foo.bar', 'fake', { buildId: 1, eventId: 321, jobId: 123 }, retryFn);
         } catch (err) {
             assert.isNull(err);
         }
 
-        assert.calledWith(mockRedis.hget, 'mockQueuePrefix_buildConfigs', job.args[0].buildId);
         assert.calledWith(mockRequestRetry, {
             json: true,
             method: 'POST',
@@ -224,7 +218,7 @@ describe('Helper Test', () => {
                 Authorization: 'Bearer fake',
                 'Content-Type': 'application/json'
             },
-            body: { jobId: 123, buildId: 1, parentEventId: 321 },
+            body: { buildId: 1, eventId: 321, jobId: 123 },
             maxAttempts: 3,
             retryDelay: 5000,
             retryStrategy: retryFn
@@ -241,21 +235,15 @@ describe('Helper Test', () => {
         let result;
 
         try {
-            result = await helper.getPipelineAdmin(
-                { redisInstance: mockRedis, buildId: 1 },
-                'foo.bar',
-                pipelineId,
-                retryFn
-            );
+            result = await helper.getPipelineAdmin('fake', 'foo.bar', pipelineId, retryFn);
         } catch (err) {
             assert.isNull(err);
         }
 
-        assert.calledWith(mockRedis.hget, 'mockQueuePrefix_buildConfigs', job.args[0].buildId);
         assert.calledWith(mockRequestRetry, {
             json: true,
             method: 'GET',
-            uri: `foo.bar/pipelines/${pipelineId}/admin`,
+            uri: `foo.bar/v4/pipelines/${pipelineId}/admin`,
             headers: {
                 Authorization: 'Bearer fake',
                 'Content-Type': 'application/json'

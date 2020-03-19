@@ -253,7 +253,7 @@ describe('Schedule test', () => {
             testWorker.emit('failure', workerId, queue, job, failure);
             await sleep(100);
             assert.calledWith(helperMock.updateBuildStatus, updateConfig);
-            assert.calledWith(winstonMock.error, errMsg);
+            assert.calledWith(winstonMock.info, errMsg);
 
             // When updateBuildStatus fails
             const updateStatusError = new Error('failed');

@@ -1,6 +1,21 @@
 # All values in this document are the ENVIRONMENT variable names that can override the defaults
 # from `default.yaml`
 ---
+auth:
+  # A private key used for signing jwt tokens
+  # Easily generate one by running
+  # $ openssl genrsa -out jwt.pem 2048
+  jwtPrivateKey: SECRET_JWT_PRIVATE_KEY
+  # The public key used for verifying the signature
+  # Generate one by running
+  # $ openssl rsa -in jwt.pem -pubout -out jwt.pub
+  jwtPublicKey: SECRET_JWT_PUBLIC_KEY
+  # The public key used for verifying the signature of token from SD api
+  jwtSDApiPublicKey: SECRET_JWT_SD_API_PUBLIC_KEY
+  admins:
+    __name: SECRET_ADMINS
+    __format: json
+
 executor:
     plugin: EXECUTOR_PLUGIN
     # The NPM module object(s) for the executor plugin(s)

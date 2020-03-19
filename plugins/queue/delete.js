@@ -122,24 +122,31 @@ module.exports = () => ({
         notes: 'Should delete a message from the queue',
         tags: ['api', 'queue'],
         handler: async (request, h) => {
-            const { type } = request.query;
+            try {
+                const executor = request.server.app.executorQueue;
+                const { type } = request.query;
 
-            switch (type) {
-                case 'periodic':
-                    await stopPeriodic(request.server.app.executorQueue, request.payload);
-                    break;
-                case 'frozen':
-                    await stopFrozen(request.server.app.executorQueue, request.payload);
-                    break;
-                case 'timer':
-                    await stopTimer(request.server.app.executorQueue, request.payload);
-                    break;
-                default:
-                    await stop(request.server.app.executorQueue, request.payload);
-                    break;
+                switch (type) {
+                    case 'periodic':
+                        await stopPeriodic(executor, request.payload);
+                        break;
+                    case 'frozen':
+                        await stopFrozen(executor, request.payload);
+                        break;
+                    case 'timer':
+                        await stopTimer(executor, request.payload);
+                        break;
+                    default:
+                        await stop(executor, request.payload);
+                        break;
+                }
+
+                return h.response({}).code(200);
+            } catch (err) {
+                logger.error('Error in adding message from queue', err);
+
+                throw err;
             }
-
-            return h.response({}).code(200);
         }
     }
 });

@@ -12,8 +12,12 @@ const ecosystem = config.get('ecosystem');
 
 const queueConfig = config.get('queue');
 
+// Setup Authentication
+const authConfig = config.get('auth');
+
 server({
     httpd: httpdConfig,
     ecosystem,
-    queueConfig
+    queueConfig,
+    auth: authConfig
 });
