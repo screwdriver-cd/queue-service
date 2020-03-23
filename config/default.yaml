@@ -125,6 +125,7 @@ httpd:
   # This requires to be a routable IP inside docker for executor, see
   # https://github.com/screwdriver-cd/screwdriver/blob/095eaf03e053991443abcbde91c62cfe06a28cba/lib/server.js#L141
   uri: http://IP_ADDRESS:PORT
+  tls: false
 
 ecosystem:
   # Externally routable URL for the User Interface
@@ -132,7 +133,7 @@ ecosystem:
   # Externally routable URL for the API
   api: http://IP_ADDRESS:PORT
   # Externally routable URL for the Artifact Store
-  store: http://http://IP_ADDRESS:PORT
+  store: http://IP_ADDRESS:PORT
   # build cache strategies: s3, disk, with s3 as default option to store cache
   cache:
     strategy: "s3"
