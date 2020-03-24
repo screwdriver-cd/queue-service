@@ -12,7 +12,8 @@ RUN npm install screwdriver-queue-service@$VERSION
 WORKDIR /usr/src/app/node_modules/screwdriver-queue-service
 
 # Setup configuration folder
-RUN ln -s /usr/src/app/node_modules/screwdriver-queue-service/config /config
+# This layer is rebuilt when a file changes in the project directory
+RUN cp -r /usr/src/app/node_modules/screwdriver-queue-service/config /config
 
 # Expose the web service port
 EXPOSE 8080
