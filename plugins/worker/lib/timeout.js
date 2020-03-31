@@ -36,8 +36,6 @@ async function process(timeoutConfig, buildId, redis) {
 
         // check if build has timed out, if yes abort build
         if (diffMins > timeout) {
-            logger.info(`Build has timed out ${buildId}`);
-
             let step;
 
             try {
@@ -46,7 +44,7 @@ async function process(timeoutConfig, buildId, redis) {
                     buildId
                 });
             } catch (err) {
-                logger.error(`No active step found for  ${buildId}`);
+                logger.error(`No active step found for ${buildId}`);
             }
 
             if (step) {
@@ -58,15 +56,14 @@ async function process(timeoutConfig, buildId, redis) {
                 });
             }
 
-            await helper.updateBuildStatus(
-                {
-                    redisInstance: redis,
-                    buildId,
-                    status: 'FAILURE',
-                    statusMessage: 'Build failed due to timeout'
-                },
-                () => {}
-            );
+            await helper.updateBuildStatus({
+                redisInstance: redis,
+                buildId,
+                status: 'FAILURE',
+                statusMessage: 'Build failed due to timeout'
+            });
+
+            logger.info(`Build has timed out ${buildId}`);
 
             await redis.hdel(`${queuePrefix}buildConfigs`, buildId);
 

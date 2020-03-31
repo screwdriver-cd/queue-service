@@ -57,7 +57,6 @@ jobs:
             K8S_IMAGE: screwdrivercd/screwdriver-queue-service
             K8S_HOST: kubernetes
             K8S_DEPLOYMENT: sdqueuesvc-beta
-            SD_QUEUE_SVC_HOST: beta.queue.screwdriver.cd
             K8S_ENV_KEY: DATASTORE_DYNAMODB_PREFIX
             K8S_ENV_VALUE: beta_rc2_
             TEST_USERNAME: sd-buildbot
@@ -86,7 +85,6 @@ jobs:
             K8S_IMAGE: screwdrivercd/screwdriver
             K8S_HOST: kubernetes
             K8S_DEPLOYMENT: sdqueuesvc
-            SD_QUEUE_SVC_HOST: queue.screwdriver.cd
             K8S_ENV_KEY: DATASTORE_DYNAMODB_PREFIX
             K8S_ENV_VALUE: rc2_
             TEST_USERNAME: sd-buildbot-functional
