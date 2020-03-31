@@ -209,7 +209,7 @@ describe('Plugin Test', () => {
 
             it('re-enqueue if blocked', async () => {
                 mockRedis.get.withArgs(`${runningJobsPrefix}111`).resolves('123');
-                helperMock.updateBuildStatus.yieldsAsync(null, {});
+                helperMock.updateBuildStatus.resolves();
                 await blockedBy.beforePerform();
                 assert.equal(mockRedis.get.getCall(0).args[0], deleteKey);
                 assert.equal(mockRedis.get.getCall(1).args[0], runningKey);
@@ -238,7 +238,7 @@ describe('Plugin Test', () => {
                 mockRedis.get.withArgs(`${runningJobsPrefix}111`).resolves('123');
                 mockRedis.get.withArgs(`${runningJobsPrefix}222`).resolves('456');
 
-                helperMock.updateBuildStatus.yieldsAsync(null, {});
+                helperMock.updateBuildStatus.resolves();
                 await blockedBy.beforePerform();
                 assert.equal(mockRedis.get.getCall(0).args[0], deleteKey);
                 assert.equal(mockRedis.get.getCall(1).args[0], runningKey);
@@ -274,7 +274,7 @@ describe('Plugin Test', () => {
                 mockRedis.get.withArgs(`${runningJobsPrefix}111`).resolves('123');
                 mockRedis.lrange.resolves(['2', '1']);
                 mockRedis.lrem.resolves(1);
-                helperMock.updateBuildStatus.yieldsAsync(null, {});
+                helperMock.updateBuildStatus.resolves();
                 await blockedBy.beforePerform();
                 assert.equal(mockRedis.get.getCall(0).args[0], deleteKey);
                 assert.equal(mockRedis.get.getCall(1).args[0], runningKey);
@@ -318,7 +318,7 @@ describe('Plugin Test', () => {
                 });
                 mockRedis.get.withArgs(`${runningJobsPrefix}111`).resolves('123');
                 mockRedis.lrange.resolves(['2', '1']);
-                helperMock.updateBuildStatus.yieldsAsync(null, {});
+                helperMock.updateBuildStatus.resolves();
                 await blockedBy.beforePerform();
                 assert.equal(mockRedis.get.getCall(0).args[0], deleteKey);
                 assert.equal(mockRedis.get.getCall(1).args[0], runningKey);
@@ -353,7 +353,7 @@ describe('Plugin Test', () => {
                 mockRedis.get.withArgs(`${runningJobsPrefix}111`).resolves('123');
                 mockRedis.lrange.resolves(['2']);
                 mockRedis.lrem.resolves(0);
-                helperMock.updateBuildStatus.yieldsAsync(null, {});
+                helperMock.updateBuildStatus.resolves();
                 await blockedBy.beforePerform();
                 assert.equal(mockRedis.get.getCall(0).args[0], deleteKey);
                 assert.equal(mockRedis.get.getCall(1).args[0], runningKey);
@@ -386,7 +386,7 @@ describe('Plugin Test', () => {
                 });
                 mockRedis.get.withArgs(`${runningJobsPrefix}111`).resolves('123');
                 mockRedis.lrange.resolves([]);
-                helperMock.updateBuildStatus.yieldsAsync(null, {});
+                helperMock.updateBuildStatus.resolves();
                 await blockedBy.beforePerform();
                 assert.equal(mockRedis.get.getCall(0).args[0], deleteKey);
                 assert.equal(mockRedis.get.getCall(1).args[0], runningKey);
@@ -462,7 +462,7 @@ describe('Plugin Test', () => {
                 mockRedis.hget.withArgs(`${queuePrefix}buildConfigs`, '5').resolves(JSON.stringify(buildConfig3));
                 mockRedis.get.withArgs(`${runningJobsPrefix}3`).resolves('4');
                 mockRedis.lrange.resolves(['3']);
-                helperMock.updateBuildStatus.yieldsAsync(null, {});
+                helperMock.updateBuildStatus.resolves();
                 await blockedBy.beforePerform();
                 assert.equal(mockRedis.get.getCall(0).args[0], deleteKey);
                 assert.equal(mockRedis.get.getCall(1).args[0], runningKey);
@@ -482,7 +482,7 @@ describe('Plugin Test', () => {
                 });
                 mockRedis.get.withArgs(`${runningJobsPrefix}111`).resolves('123');
                 mockRedis.lrange.resolves(['3']);
-                helperMock.updateBuildStatus.yieldsAsync(null, {});
+                helperMock.updateBuildStatus.resolves();
                 await blockedBy.beforePerform();
                 assert.equal(mockRedis.get.getCall(0).args[0], deleteKey);
                 assert.equal(mockRedis.get.getCall(1).args[0], runningKey);
@@ -514,7 +514,7 @@ describe('Plugin Test', () => {
                 });
                 mockRedis.get.withArgs(`${runningJobsPrefix}111`).resolves('123');
                 mockRedis.get.withArgs(`last_${runningKey}`).resolves('4');
-                helperMock.updateBuildStatus.yieldsAsync(null, {});
+                helperMock.updateBuildStatus.resolves();
                 await blockedBy.beforePerform();
                 assert.equal(mockRedis.get.getCall(0).args[0], deleteKey);
                 assert.equal(mockRedis.get.getCall(1).args[0], runningKey);
@@ -548,7 +548,7 @@ describe('Plugin Test', () => {
                 mockRedis.hget.resolves(JSON.stringify(buildConfig));
                 mockRedis.get.withArgs(`${runningJobsPrefix}111`).resolves('123');
                 mockRedis.get.withArgs(`last_${runningKey}`).resolves('4');
-                helperMock.updateBuildStatus.yieldsAsync(null, {});
+                helperMock.updateBuildStatus.resolves();
                 await blockedBy.beforePerform();
                 assert.equal(mockRedis.get.getCall(0).args[0], deleteKey);
                 assert.equal(mockRedis.get.getCall(1).args[0], runningKey);
@@ -579,7 +579,7 @@ describe('Plugin Test', () => {
                 });
                 mockRedis.get.withArgs(`${runningJobsPrefix}111`).resolves('123');
                 mockRedis.lrange.resolves(['4']);
-                helperMock.updateBuildStatus.yieldsAsync(null, {});
+                helperMock.updateBuildStatus.resolves();
                 await blockedBy.beforePerform();
                 assert.equal(mockRedis.get.getCall(0).args[0], deleteKey);
                 assert.equal(mockRedis.get.getCall(1).args[0], runningKey);

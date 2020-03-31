@@ -41,15 +41,12 @@ async function collapseBuilds({ waitingKey, buildId, blockingBuildIds }) {
 
             // if the build is no longer in the waiting queue, don't collapse it
             if (count > 0) {
-                await helper.updateBuildStatus(
-                    {
-                        redisInstance: this.queueObject.connection.redis,
-                        buildId: bId,
-                        status: 'COLLAPSED',
-                        statusMessage: `Collapsed to build: ${buildId}`
-                    },
-                    () => {}
-                );
+                await helper.updateBuildStatus({
+                    redisInstance: this.queueObject.connection.redis,
+                    buildId: bId,
+                    status: 'COLLAPSED',
+                    statusMessage: `Collapsed to build: ${buildId}`
+                });
                 await this.queueObject.connection.redis.hdel(`${queuePrefix}buildConfigs`, bId);
             }
         });
@@ -193,15 +190,12 @@ class BlockedBy extends NodeResque.Plugin {
         // Current build is older than last running build for the same job, discard the build
         if (collapse && buildId < parseInt(lastRunningBuildId, 10)) {
             await this.queueObject.connection.redis.lrem(waitingKey, 0, buildId);
-            await helper.updateBuildStatus(
-                {
-                    redisInstance: this.queueObject.connection.redis,
-                    buildId,
-                    status: 'COLLAPSED',
-                    statusMessage: `Collapsed to build: ${lastRunningBuildId}`
-                },
-                () => {}
-            );
+            await helper.updateBuildStatus({
+                redisInstance: this.queueObject.connection.redis,
+                buildId,
+                status: 'COLLAPSED',
+                statusMessage: `Collapsed to build: ${lastRunningBuildId}`
+            });
             await this.queueObject.connection.redis.hdel(`${queuePrefix}buildConfigs`, buildId);
 
             return false;
@@ -339,15 +333,12 @@ class BlockedBy extends NodeResque.Plugin {
         // enqueueIn uses milliseconds
         await this.queueObject.enqueueIn(this.reenqueueWaitTime() * 1000 * 60, this.queue, this.func, this.args);
 
-        await helper.updateBuildStatus(
-            {
-                redisInstance: this.queueObject.connection.redis,
-                buildId,
-                status: 'BLOCKED',
-                statusMessage
-            },
-            () => {}
-        );
+        await helper.updateBuildStatus({
+            redisInstance: this.queueObject.connection.redis,
+            buildId,
+            status: 'BLOCKED',
+            statusMessage
+        });
     }
 
     blockTimeout(buildTimeout) {

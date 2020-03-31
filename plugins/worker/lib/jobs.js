@@ -84,41 +84,46 @@ function getRabbitmqConn() {
  * @return {Promise}
  */
 function schedule(job, buildConfig) {
-    const buildCluster = buildConfig.buildClusterName;
+    try {
+        const buildCluster = buildConfig.buildClusterName;
 
-    delete buildConfig.buildClusterName;
+        delete buildConfig.buildClusterName;
 
-    if (rabbitmqConf.getConfig().schedulerMode) {
-        const msg = {
-            job,
-            buildConfig
-        };
-        const channelWrapper = getRabbitmqConn().createChannel({
-            json: true,
-            setup: channel => channel.checkExchange(exchange)
-        });
-
-        logger.info('publishing msg to rabbitmq:', buildConfig.buildId);
-
-        return channelWrapper
-            .publish(exchange, buildCluster, msg, {
-                contentType: 'application/json',
-                persistent: true
-            })
-            .then(() => channelWrapper.close())
-            .catch(err => {
-                channelWrapper.close();
-
-                return Promise.reject(err);
+        if (rabbitmqConf.getConfig().schedulerMode) {
+            const msg = {
+                job,
+                buildConfig
+            };
+            const channelWrapper = getRabbitmqConn().createChannel({
+                json: true,
+                setup: channel => channel.checkExchange(exchange)
             });
-    }
 
-    // token is not allowed in executor.stop
-    if (job === 'stop') {
-        delete buildConfig.token;
-    }
+            logger.info('publishing msg to rabbitmq:', buildConfig.buildId);
 
-    return executor[job](buildConfig);
+            return channelWrapper
+                .publish(exchange, buildCluster, msg, {
+                    contentType: 'application/json',
+                    persistent: true
+                })
+                .then(() => channelWrapper.close())
+                .catch(err => {
+                    channelWrapper.close();
+
+                    return Promise.reject(err);
+                });
+        }
+
+        // token is not allowed in executor.stop
+        if (job === 'stop') {
+            delete buildConfig.token;
+        }
+
+        return executor[job](buildConfig);
+    } catch (err) {
+        logger.error('publishing failed to rabbitmq:', err);
+        throw err;
+    }
 }
 
 /**
