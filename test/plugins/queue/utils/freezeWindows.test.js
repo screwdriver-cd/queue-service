@@ -23,4 +23,48 @@ describe('freeze windows', () => {
 
         assert.equal(currentDate.getTime(), expectedDate.getTime());
     });
+
+    it('should return the same date if outside the freeze windows for correct days of week', () => {
+        const currentDate = new Date(Date.UTC(2020, 2, 13, 21, 6));
+
+        timeOutOfWindows(
+            [
+                '* 0-14,21-23 ? * 1-4',
+                '* * ? * 0,5-6',
+                '* * 01 01 ?',
+                '* * 20 01 ?',
+                '* * 25 05 ?',
+                '* * 03 07 ?',
+                '* * 04 07 ?',
+                '* * 07 09 ?',
+                '* * 28,29 11 ?',
+                '* * 26,27 11 ?',
+                '* * 25 12 ?'
+            ],
+            currentDate
+        );
+        const expectedDate = new Date('2020-03-16T15:00:00.000Z');
+
+        assert.equal(currentDate.toUTCString(), expectedDate.toUTCString());
+    });
+
+    it('should be equal to first date after freeze windows when day of week is specified', () => {
+        const currentDate = new Date(Date.UTC(2020, 2, 13, 21, 6));
+
+        timeOutOfWindows(['* * ? * 0,5-6', '* 0-17,19-23 ? * 1-4'], currentDate);
+
+        const expectedDate = new Date('2020-03-16T18:00:00.000Z');
+
+        assert.equal(currentDate.toUTCString(), expectedDate.toUTCString());
+    });
+
+    it('should be equal to first date after freeze windows when day of month is specified', () => {
+        const currentDate = new Date(Date.UTC(2020, 3, 1, 15, 57));
+
+        timeOutOfWindows(['* * 6 4 ?', '* * ? * 0,4-6', '* 0-13,15-23 ? * 1-3'], currentDate);
+
+        const expectedDate = new Date('2020-04-07T14:00:00.000Z');
+
+        assert.equal(currentDate.toUTCString(), expectedDate.toUTCString());
+    });
 });

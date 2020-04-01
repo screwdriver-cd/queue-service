@@ -80,8 +80,8 @@ jobs:
                 npm install
                 GIT_TOKEN=${GIT_TOKEN_PROD} SD_API_TOKEN=${SD_API_TOKEN_PROD} npm run functional
         environment:
-            DOCKER_REPO: screwdrivercd/screwdriver
-            K8S_CONTAINER: screwdrivercd-queue-service
+            DOCKER_REPO: screwdrivercd/queue-service
+            K8S_CONTAINER: screwdriver-queue-service
             K8S_IMAGE: screwdrivercd/queue-service
             K8S_HOST: kubernetes
             K8S_DEPLOYMENT: sdqueuesvc

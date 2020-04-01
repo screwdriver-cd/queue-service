@@ -60,8 +60,9 @@ const timeOutOfWindow = (cronExp, timeToCheck) => {
         throw new Error(`${cronExp} cannot contain both days of month and week`);
     }
 
-    const newCronExp = `${fields[0]} ${fields[1]} ${fields[2] === '?' ? '*' : fields[2]}
- ${fields[3]} ${fields[4] === '?' ? '*' : fields[4]}`;
+    const newCronExp = `${fields[0]} ${fields[1]} ${fields[2] === '?' ? '*' : fields[2]} ${fields[3]} ${
+        fields[4] === '?' ? '*' : fields[4]
+    }`;
 
     // Perform final validation before returning
     const cronObj = parseExpression(newCronExp);
@@ -142,6 +143,9 @@ const timeOutOfWindow = (cronExp, timeToCheck) => {
         if (latest < utcDayOfWeek) {
             timeToCheck.setUTCDate(timeToCheck.getUTCDate() + 7);
         }
+        // reset time after changing date
+        timeToCheck.setUTCMinutes(0);
+        timeToCheck.setUTCHours(0);
 
         return timeToCheck;
     }
