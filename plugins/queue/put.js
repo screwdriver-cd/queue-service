@@ -267,13 +267,15 @@ async function start(executor, config) {
     // Check freeze window
     if (currentTime.getTime() > origTime.getTime() && !forceStart) {
         await helper
-            .updateBuildStatusWithRetry(
+            .updateBuild(
                 {
                     buildId,
                     token,
                     apiUri,
-                    status: 'FROZEN',
-                    statusMessage: `Blocked by freeze window, re-enqueued to ${currentTime}`
+                    payload: {
+                        status: 'FROZEN',
+                        statusMessage: `Blocked by freeze window, re-enqueued to ${currentTime}`
+                    }
                 },
                 executor.requestRetryStrategy
             )
@@ -326,6 +328,16 @@ async function start(executor, config) {
         build.stats = merge(build.stats, {
             queueEnterTime: new Date().toISOString()
         });
+
+        await helper.updateBuild(
+            {
+                buildId,
+                token,
+                apiUri,
+                payload: { stats: build.stats }
+            },
+            executor.requestRetryStrategy
+        );
     }
 
     return enq;
