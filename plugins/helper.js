@@ -43,7 +43,7 @@ function formatOptions(method, uri, token, body, retryStrategyFn) {
  * Update build status
  * @method updateBuildStatus
  * @param  {Object}  updateConfig build config of the job
- * @return {Object}  err Callback with err object
+ * @return {Promise}
  */
 async function updateBuildStatus(updateConfig) {
     const { redisInstance, status, statusMessage, buildId } = updateConfig;
@@ -176,7 +176,7 @@ async function getPipelineAdmin(token, apiUri, pipelineId, retryStrategyFn) {
                         return resolve(res.body);
                     }
                     if (res.statusCode !== 200) {
-                        return null;
+                        return resolve(null);
                     }
                 }
 
@@ -190,25 +190,24 @@ async function getPipelineAdmin(token, apiUri, pipelineId, retryStrategyFn) {
  *
  * @param {String} buildId
  * @param {String} token
- * @param {String} status
- * @param {String} statusMessage
+ * @param {Object} payload
  * @param {String} apiUri
  * @param {Object} updateConfig
  */
-async function updateBuildStatusWithRetry(updateConfig, retryStrategyFn) {
-    const { buildId, token, status, statusMessage, apiUri } = updateConfig;
+async function updateBuild(updateConfig, retryStrategyFn) {
+    const { buildId, token, payload, apiUri } = updateConfig;
 
     return new Promise((resolve, reject) => {
         requestretry(
-            formatOptions('PUT', `${apiUri}/v4/builds/${buildId}`, token, { statusMessage, status }, retryStrategyFn),
+            formatOptions('PUT', `${apiUri}/v4/builds/${buildId}`, token, payload, retryStrategyFn),
             (err, res) => {
                 if (!err) {
-                    if (res.statusCode === 201) {
+                    if (res.statusCode === 200) {
                         return resolve(res);
                     }
 
-                    if (res.statusCode !== 201) {
-                        return null;
+                    if (res.statusCode !== 200) {
+                        return resolve(null);
                     }
                 }
 
@@ -224,5 +223,5 @@ module.exports = {
     getCurrentStep,
     createBuildEvent,
     getPipelineAdmin,
-    updateBuildStatusWithRetry
+    updateBuild
 };

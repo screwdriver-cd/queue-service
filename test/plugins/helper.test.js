@@ -256,18 +256,20 @@ describe('Helper Test', () => {
     });
 
     it('Updates build status with retry', async () => {
-        mockRequestRetry.yieldsAsync(null, { statusCode: 201 });
+        mockRequestRetry.yieldsAsync(null, { statusCode: 200 });
         const retryFn = sinon.stub();
         const buildId = 1;
 
         try {
-            await helper.updateBuildStatusWithRetry(
+            await helper.updateBuild(
                 {
                     apiUri: 'foo.bar',
                     token: 'fake',
                     buildId,
-                    status,
-                    statusMessage
+                    payload: {
+                        status,
+                        statusMessage
+                    }
                 },
                 retryFn
             );
