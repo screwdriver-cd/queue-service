@@ -176,7 +176,7 @@ async function getPipelineAdmin(token, apiUri, pipelineId, retryStrategyFn) {
                         return resolve(res.body);
                     }
                     if (res.statusCode !== 200) {
-                        return null;
+                        return resolve(null);
                     }
                 }
 
@@ -207,7 +207,7 @@ async function updateBuild(updateConfig, retryStrategyFn) {
                     }
 
                     if (res.statusCode !== 200) {
-                        return null;
+                        return resolve(null);
                     }
                 }
 

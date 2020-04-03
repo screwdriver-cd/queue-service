@@ -55,7 +55,7 @@ async function postBuildEvent(executor, eventConfig) {
         buildEvent.buildId = buildId;
     }
 
-    await helper.createBuildEvent(apiUri, jwt, buildEvent, executor.requestRetryStrategy);
+    await helper.createBuildEvent(apiUri, jwt, buildEvent, executor.requestRetryStrategyPostEvent);
 }
 
 /**
