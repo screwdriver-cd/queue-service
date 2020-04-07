@@ -41,7 +41,7 @@ const shutdownPlugin = {
             try {
                 await Promise.all(
                     Object.keys(tasks).map(async key => {
-                        logger.info(`executing task ${key}`);
+                        logger.info(`shutdown-> executing task ${key}`);
                         const item = tasks[key];
 
                         await item.task();
@@ -57,20 +57,20 @@ const shutdownPlugin = {
 
         const gracefulStop = async () => {
             try {
-                logger.info('gracefully shutting down server');
+                logger.info('shutdown-> gracefully shutting down server');
                 await server.stop({
                     timeout: 5000
                 });
                 process.exit(0);
             } catch (err) {
-                logger.error(err);
+                logger.error('shutdown-> error in graceful shutdown %s', err);
                 process.exit(1);
             }
         };
 
         const onSigterm = async () => {
             try {
-                logger.info('got SIGTERM; running triggers before shutdown');
+                logger.info('shutdown-> got SIGTERM; running triggers before shutdown');
                 const res = await promiseTimeout(taskHandler(), terminationGracePeriod * 1000);
 
                 if (res) {
@@ -78,7 +78,7 @@ const shutdownPlugin = {
                 }
                 await gracefulStop();
             } catch (err) {
-                logger.error('Error in plugin', err);
+                logger.error('shutdown-> Error in plugin %s', err);
                 process.exit(1);
             }
         };
