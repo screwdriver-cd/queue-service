@@ -1,8 +1,7 @@
 'use strict';
 
 const chai = require('chai');
-const { assert } = chai;
-const { expect } = chai;
+const { assert, expect } = chai;
 const hapi = require('@hapi/hapi');
 const sinon = require('sinon');
 const chaiJWT = require('chai-jwt');

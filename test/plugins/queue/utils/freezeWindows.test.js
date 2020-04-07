@@ -67,4 +67,64 @@ describe('freeze windows', () => {
 
         assert.equal(currentDate.toUTCString(), expectedDate.toUTCString());
     });
+
+    it('should return the same date if outside the freeze windows for correct days of week', () => {
+        const currentDate = new Date(Date.UTC(2020, 3, 4, 14, 0));
+
+        timeOutOfWindows(
+            [
+                '* 0-13 * * ?',
+                '* * ? * 0,5-6',
+                '* * 1 2,3,5,6,8,9,11,12 ?',
+                '* * 31 1,5,7,8,10 ?',
+                '* * 30 4,11 ?',
+                '* * 28 2 ?',
+                '* * 29 2 ?',
+                '* * 30-31 3,12 ?',
+                '* * 29-30 6,9 ?',
+                '* * 1-2 1,4,7,10 ?',
+                '* * 01 01 ?',
+                '* * 20 01 ?',
+                '* * 22 05 ?',
+                '* * 03 07 ?',
+                '* * 07 09 ?',
+                '* * 26-27 11 ?',
+                '* * 25 12 ?'
+            ],
+            currentDate
+        );
+        const expectedDate = new Date('2020-04-06T14:00:00.000Z');
+
+        assert.equal(currentDate.toUTCString(), expectedDate.toUTCString());
+    });
+
+    it('should return the correct date in gmt', () => {
+        const currentDate = new Date(Date.UTC(2020, 3, 4, 14, 26));
+
+        timeOutOfWindows(
+            [
+                '* 1-13 * * ?',
+                '* * ? * 0,5-6',
+                '* * 1 2,3,5,6,8,9,11,12 ?',
+                '* * 31 1,5,7,8,10 ?',
+                '* * 30 4,11 ?',
+                '* * 28 2 ?',
+                '* * 29 2 ?',
+                '* * 30-31 3,12 ?',
+                '* * 29-30 6,9 ?',
+                '* * 1-2 1,4,7,10 ?',
+                '* * 01 01 ?',
+                '* * 20 01 ?',
+                '* * 22 05 ?',
+                '* * 03 07 ?',
+                '* * 07 09 ?',
+                '* * 26-27 11 ?',
+                '* * 25 12 ?'
+            ],
+            currentDate
+        );
+        const expectedDate = new Date('2020-04-06T00:00:00.000Z');
+
+        assert.equal(currentDate.toUTCString(), expectedDate.toUTCString());
+    });
 });

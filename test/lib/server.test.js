@@ -56,24 +56,35 @@ describe('server case', () => {
         let server;
 
         beforeEach(async () => {
-            registrationManMock = sinon.stub();
+            registrationManMock = async _server => {
+                _server.plugins = {
+                    queue: {
+                        init: sinon.stub().resolves()
+                    },
+                    worker: {
+                        init: sinon.stub().resolves()
+                    }
+                };
+            };
             executorQueueMock = sinon.stub();
             mockery.registerMock('./registerPlugins', registrationManMock);
-            mockery.registerMock('../lib/queue', executorQueueMock);
+            mockery.registerMock('./queue', executorQueueMock);
 
             /* eslint-disable global-require */
             hapiEngine = require('../../lib/server');
             /* eslint-enable global-require */
 
-            registrationManMock.resolves(null);
-
             const svcConfig = { ...config, httpd: { port: 12347 } };
 
-            server = await hapiEngine(svcConfig);
-            server.plugins.auth = {
-                generateToken: sinon.stub().returns('foo'),
-                generateProfile: sinon.stub().returns('bar')
-            };
+            try {
+                server = await hapiEngine(svcConfig);
+                server.plugins.auth = {
+                    generateToken: sinon.stub().returns('foo'),
+                    generateProfile: sinon.stub().returns('bar')
+                };
+            } catch (err) {
+                error = err;
+            }
         });
 
         afterEach(() => {
@@ -169,6 +180,15 @@ describe('server case', () => {
                         throw boom.conflict('conflict', { conflictOn: 1 });
                     }
                 });
+
+                server.plugins = {
+                    queue: {
+                        init: sinon.stub().resolves()
+                    },
+                    worker: {
+                        init: sinon.stub().resolves()
+                    }
+                };
 
                 return Promise.resolve();
             });

@@ -152,26 +152,30 @@ describe('Schedule test', () => {
             await workerObj.shutDownAll(testWorker, testScheduler);
             assert.calledWith(winstonMock.error, `failed to end the worker: ${expectedErr}`);
             assert.calledOnce(testScheduler.end);
-            assert.calledWith(processExitMock, 0);
         });
 
-        it('logs error and exit with 128 when it fails to end scheduler', async () => {
+        it('logs error when it fails to end scheduler', async () => {
             const expectedErr = new Error('failed');
 
             testWorker.end = sinon.stub().resolves(null);
             testScheduler.end = sinon.stub().rejects(expectedErr);
-
-            await workerObj.shutDownAll(testWorker, testScheduler);
+            try {
+                await workerObj.shutDownAll(testWorker, testScheduler);
+            } catch (err) {
+                assert.isNotNull(err);
+            }
             assert.calledWith(winstonMock.error, `failed to end the scheduler: ${expectedErr}`);
-            assert.calledWith(processExitMock, 128);
         });
 
-        it('exit with 0 when it successfully ends both scheduler and worker', async () => {
+        it('no error when it successfully ends both scheduler and worker', async () => {
             testWorker.end.resolves();
             testScheduler.end.resolves();
 
-            await workerObj.shutDownAll(testWorker, testScheduler);
-            assert.calledWith(processExitMock, 0);
+            try {
+                await workerObj.shutDownAll(testWorker, testScheduler);
+            } catch (err) {
+                assert.isNull(err);
+            }
         });
     });
 
@@ -303,7 +307,7 @@ describe('Schedule test', () => {
         });
     });
 
-    describe('multiWorker', () => {
+    describe('multiWorker and cleanup', () => {
         beforeEach(() => {
             clock = sinon.useFakeTimers();
         });
@@ -321,20 +325,16 @@ describe('Schedule test', () => {
             );
         });
 
-        it('shuts down worker and scheduler when received SIGTERM signal', async () => {
+        it('shuts down worker and scheduler when cleanUp called', async () => {
             testWorker.end = sinon.stub().resolves(null);
             testScheduler.end = sinon.stub().resolves(null);
 
-            process.once('SIGTERM', async () => {
-                await clock.runAllAsync();
+            await workerObj.cleanUp();
 
-                assert.calledOnce(testWorker.end);
-                assert.calledOnce(testScheduler.end);
-                assert.calledOnce(processExitMock);
-                assert.calledWith(processExitMock, 0);
-            });
+            await clock.runAllAsync();
 
-            process.kill(process.pid, 'SIGTERM');
+            assert.calledOnce(testWorker.end);
+            assert.calledOnce(testScheduler.end);
         });
     });
 
