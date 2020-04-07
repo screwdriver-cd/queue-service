@@ -10,7 +10,7 @@ const testConnection = require('../data/testConnection.json');
 
 sinon.assert.expose(chai.assert, { prefix: '' });
 
-describe('index test', () => {
+describe('queue test', () => {
     let Executor;
     let executor;
     let resqueMock;

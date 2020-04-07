@@ -26,10 +26,8 @@ async function shutDownAll(worker, scheduler) {
 
     try {
         await scheduler.end();
-        process.exit(0);
     } catch (err) {
         logger.error(`failed to end the scheduler: ${err}`);
-        process.exit(128);
     }
 }
 
@@ -130,9 +128,6 @@ async function invoke() {
         await scheduler.connect();
         scheduler.start();
 
-        // Shut down workers before exit the process
-        process.on('SIGTERM', async () => shutDownAll(multiWorker, scheduler));
-
         return 'Worker Started';
     } catch (err) {
         logger.error(`failed to start the worker: ${err}`);
@@ -140,9 +135,20 @@ async function invoke() {
     }
 }
 
+/**
+ * Cleanup worker and scheduler
+ * @method invoke
+ * @return {Promise}
+ */
+async function cleanUp() {
+    // Shut down workers before exit the process
+    await shutDownAll(multiWorker, scheduler);
+}
+
 module.exports = {
     invoke,
     multiWorker,
     scheduler,
-    shutDownAll
+    shutDownAll,
+    cleanUp
 };

@@ -7,7 +7,13 @@ const sinon = require('sinon');
 sinon.assert.expose(assert, { prefix: '' });
 
 describe('Register Plugins', () => {
-    const resourcePlugins = ['../plugins/worker', '../plugins/queue', '../plugins/status', '../plugins/auth'];
+    const resourcePlugins = [
+        '../plugins/worker',
+        '../plugins/queue',
+        '../plugins/status',
+        '../plugins/auth',
+        '../plugins/shutdown'
+    ];
     const defaultPlugin = ['blipp', 'hapi-auth-jwt2'];
     const pluginLength = resourcePlugins.length + defaultPlugin.length;
     const mocks = {};
