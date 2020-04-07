@@ -50,7 +50,7 @@ const shutdownPlugin = {
 
                 return Promise.resolve();
             } catch (err) {
-                logger.error(err);
+                logger.error('shutdown-> Error in taskHandler %s', err);
                 throw err;
             }
         };

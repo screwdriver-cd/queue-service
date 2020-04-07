@@ -61,6 +61,8 @@ async function postBuildEvent(executor, eventConfig) {
             await helper.createBuildEvent(apiUri, jwt, buildEvent, executor.requestRetryStrategyPostEvent);
         } else {
             logger.error(`POST event for pipeline failed as no admin found: ${pipelineId}:${job.name}:${job.id}`);
+
+            throw new Error('Pipelne admin not found, cannot process build');
         }
     } catch (err) {
         logger.err(`Error in post build event function ${err}`);
@@ -282,9 +284,9 @@ async function start(executor, config) {
                 executor.requestRetryStrategy
             )
             .catch(err => {
-                logger.error(`failed to update build status for build ${buildId}: ${err}`);
+                logger.error(`frozenBuilds: failed to update build status for build ${buildId}: ${err}`);
 
-                return Promise.resolve();
+                throw err;
             });
 
         // Remove old job from queue to collapse builds
@@ -352,7 +354,7 @@ async function start(executor, config) {
  * @return {Promise}
  */
 async function init(executor) {
-    if (executor.multiWorker) return;
+    if (executor.multiWorker) return Promise.resolve('Scheduler running');
 
     const { redisConnection } = executor;
     const retryOptions = {
@@ -462,6 +464,8 @@ async function init(executor) {
     await executor.multiWorker.start();
     await executor.scheduler.connect();
     await executor.scheduler.start();
+
+    return Promise.resolve('Scheduler started');
 }
 
 /**

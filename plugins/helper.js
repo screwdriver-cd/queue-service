@@ -176,7 +176,7 @@ async function getPipelineAdmin(token, apiUri, pipelineId, retryStrategyFn) {
                         return resolve(res.body);
                     }
                     if (res.statusCode !== 200) {
-                        return resolve(null);
+                        return reject(new Error(`No pipeline admin found with ${res.statusCode} code`));
                     }
                 }
 
@@ -207,7 +207,7 @@ async function updateBuild(updateConfig, retryStrategyFn) {
                     }
 
                     if (res.statusCode !== 200) {
-                        return resolve(null);
+                        return reject(new Error(`Build not updated with ${res.statusCode} code`));
                     }
                 }
 
