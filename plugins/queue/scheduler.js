@@ -354,7 +354,7 @@ async function start(executor, config) {
  * @return {Promise}
  */
 async function init(executor) {
-    if (executor.multiWorker) return Promise.resolve('Scheduler running');
+    if (executor.multiWorker) return 'Scheduler running';
 
     const { redisConnection } = executor;
     const retryOptions = {
@@ -465,7 +465,7 @@ async function init(executor) {
     await executor.scheduler.connect();
     await executor.scheduler.start();
 
-    return Promise.resolve('Scheduler started');
+    return 'Scheduler started';
 }
 
 /**

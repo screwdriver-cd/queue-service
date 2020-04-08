@@ -115,6 +115,7 @@ describe('Timeout test', () => {
 
             assert.calledWith(mockRedis.del, deleteKey);
             assert.calledWith(mockRedis.lrem, waitingKey, 0, buildId);
+            assert.calledWith(mockRedis.hdel, `${queuePrefix}timeoutConfigs`, buildId);
         });
 
         it('Updates step with exit code if time difference is greater than timeout', async () => {
@@ -177,6 +178,39 @@ describe('Timeout test', () => {
             assert.notCalled(mockRedis.lrem);
         });
 
+        it('Takes default timeout if value is NaN', async () => {
+            const now = new Date();
+
+            now.setMinutes(now.getMinutes() - 92);
+
+            const buildId = '333';
+            const timeoutConfig = {
+                jobId: 2,
+                startTime: now,
+                timeout: null
+            };
+
+            deleteKey = `deleted_${timeoutConfig.jobId}_${buildId}`;
+
+            mockRedis.hget.withArgs(`${queuePrefix}timeoutConfigs`, buildId).resolves(JSON.stringify(timeoutConfig));
+
+            await timeout.check(mockRedis);
+
+            assert.calledWith(helperMock.updateBuildStatus, {
+                redisInstance: mockRedis,
+                buildId,
+                status: 'FAILURE',
+                statusMessage: 'Build failed due to timeout'
+            });
+            assert.calledWith(mockRedis.hdel, `${queuePrefix}buildConfigs`, buildId);
+            assert.calledWith(mockRedis.expire, expireKey, 0);
+            assert.calledWith(mockRedis.expire, expireKey, 0);
+
+            assert.calledWith(mockRedis.del, deleteKey);
+            assert.calledWith(mockRedis.lrem, waitingKey, 0, buildId);
+            assert.calledWith(mockRedis.hdel, `${queuePrefix}timeoutConfigs`, buildId);
+        });
+
         it('No op if start time is not set in timeout config', async () => {
             const buildId = '222';
             const timeoutConfig = {
@@ -226,6 +260,7 @@ describe('Timeout test', () => {
 
             assert.calledWith(mockRedis.del, deleteKey);
             assert.calledWith(mockRedis.lrem, waitingKey, 0, buildId);
+            assert.calledWith(mockRedis.hdel, `${queuePrefix}timeoutConfigs`, buildId);
         });
     });
 });
