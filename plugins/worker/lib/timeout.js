@@ -5,6 +5,7 @@ const helper = require('../../helper.js');
 const { waitingJobsPrefix, runningJobsPrefix, queuePrefix } = require('../../../config/redis');
 const TIMEOUT_CODE = 3;
 const TIMEOUT_BUFFER = 1;
+const DEFAULT_TIMEOUT = 90;
 
 /**
  * Wrapper function to process timeout logic
@@ -21,7 +22,8 @@ async function process(timeoutConfig, buildId, redis) {
         const lastRunningKey = `last_${runningJobsPrefix}${jobId}`;
         const waitingKey = `${waitingJobsPrefix}${jobId}`;
         const deleteKey = `deleted_${jobId}_${buildId}`;
-        const timeout = parseInt(timeoutConfig.timeout, 10) + TIMEOUT_BUFFER; // set timeout 1 min more than the launcher
+        const timeoutValue = parseInt(timeoutConfig.timeout, 10);
+        const timeout = (Number.isNaN(timeoutValue) ? DEFAULT_TIMEOUT : timeoutValue) + TIMEOUT_BUFFER; // set timeout 1 min more than the launcher
         const { startTime } = timeoutConfig;
 
         if (!startTime) {
@@ -73,12 +75,15 @@ async function process(timeoutConfig, buildId, redis) {
 
             await redis.del(deleteKey);
             await redis.lrem(waitingKey, 0, buildId);
+
+            // remove from timeout configs after build is timed out
+            await redis.hdel(`${queuePrefix}timeoutConfigs`, buildId);
         }
     } catch (err) {
         // delete key from redis in case of error to prevent reprocessing
         await redis.hdel(`${queuePrefix}timeoutConfigs`, buildId);
 
-        logger.error(`Error occured while checking timeout ${err}`);
+        logger.error(`Error occurred while checking timeout for buildId : ${buildId} : ${err}`);
     }
 }
 
