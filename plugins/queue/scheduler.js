@@ -279,7 +279,7 @@ async function start(executor, config) {
 
     // Check freeze window
     if (currentTime.getTime() > origTime.getTime() && !forceStart) {
-        let payload = {
+        const payload = {
             status: 'FROZEN',
             statusMessage: `Blocked by freeze window, re-enqueued to ${currentTime}`
         };
