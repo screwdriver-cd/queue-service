@@ -194,3 +194,5 @@ scheduler:
     exchange: build
     # Virtual host to connect to
     vhost: /screwdriver
+    # Connect Options
+    connectOptions: { json: true, heartbeatIntervalInSeconds: 20, reconnectTimeInSeconds: 30 }
