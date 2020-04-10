@@ -11,7 +11,7 @@ const { Filter } = require('./Filter');
 const blockedByConfig = config.get('plugins').blockedBy;
 const { connectionDetails, queuePrefix, runningJobsPrefix, waitingJobsPrefix } = require('../../../config/redis');
 const rabbitmqConf = require('../../../config/rabbitmq');
-const { amqpURI, exchange } = rabbitmqConf.getConfig();
+const { amqpURI, exchange, connectOptions } = rabbitmqConf.getConfig();
 
 const RETRY_LIMIT = 3;
 // This is in milliseconds, reference: https://github.com/taskrabbit/node-resque/blob/master/lib/plugins/Retry.js#L12
@@ -67,7 +67,7 @@ function getRabbitmqConn() {
         return rabbitmqConn;
     }
 
-    rabbitmqConn = amqp.connect([amqpURI], { json: true });
+    rabbitmqConn = amqp.connect([amqpURI], connectOptions);
     logger.info('Creating new rabbitmq connection.');
 
     rabbitmqConn.on('connect', () => logger.info('Connected to rabbitmq!'));

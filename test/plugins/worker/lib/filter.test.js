@@ -58,8 +58,7 @@ describe('Plugin Test', () => {
         mockRabbitmqConfigObj = {
             schedulerMode: false,
             amqpURI: 'amqp://localhost:5672',
-            exchange: 'build',
-            exchangeType: 'topic'
+            exchange: 'build'
         };
 
         mockRabbitmqConfig = {

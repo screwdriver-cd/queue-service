@@ -261,3 +261,5 @@ scheduler:
         exchange: RABBITMQ_EXCHANGE
         # Virtual host to connect to
         vhost: RABBITMQ_VHOST
+        # Connection options
+        connectOptions: RABBITMQ_CONNECT_OPTIONS
