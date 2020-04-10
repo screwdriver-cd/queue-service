@@ -2,7 +2,9 @@
 
 const request = require('request');
 const requestretry = require('requestretry');
+const logger = require('screwdriver-logger');
 const { queuePrefix } = require('../config/redis');
+
 const RETRY_LIMIT = 3;
 const RETRY_DELAY = 5;
 
@@ -35,6 +37,8 @@ function formatOptions(method, uri, token, body, retryStrategyFn) {
             retryDelay: RETRY_DELAY * 1000 // in ms
         });
     }
+
+    logger.info(`${options.method} ${options.uri}`);
 
     return options;
 }
@@ -176,7 +180,11 @@ async function getPipelineAdmin(token, apiUri, pipelineId, retryStrategyFn) {
                         return resolve(res.body);
                     }
                     if (res.statusCode !== 200) {
-                        return reject(new Error(`No pipeline admin found with ${res.statusCode} code`));
+                        return reject(
+                            new Error(
+                                `No pipeline admin found with ${res.statusCode} code and ${JSON.stringify(res.body)}`
+                            )
+                        );
                     }
                 }
 
@@ -203,11 +211,13 @@ async function updateBuild(updateConfig, retryStrategyFn) {
             (err, res) => {
                 if (!err) {
                     if (res.statusCode === 200) {
-                        return resolve(res);
+                        return resolve(res.body);
                     }
 
                     if (res.statusCode !== 200) {
-                        return reject(new Error(`Build not updated with ${res.statusCode} code`));
+                        return reject(
+                            new Error(`Build not updated with ${res.statusCode}code and ${JSON.stringify(res.body)}`)
+                        );
                     }
                 }
 

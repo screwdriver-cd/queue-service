@@ -65,7 +65,7 @@ async function postBuildEvent(executor, eventConfig) {
             throw new Error('Pipelne admin not found, cannot process build');
         }
     } catch (err) {
-        logger.err(`Error in post build event function ${err}`);
+        logger.error(`Error in post build event function ${err}`);
         throw err;
     }
 }
@@ -267,19 +267,34 @@ async function start(executor, config) {
     timeOutOfWindows(freezeWindows, currentTime);
 
     let enq;
+    const buildStats = build && build.stats;
+
+    // for backward compatibility
+    if (buildStats) {
+        // need to reassign so the field can be dirty
+        build.stats = merge(build.stats, {
+            queueEnterTime: new Date().toISOString()
+        });
+    }
 
     // Check freeze window
     if (currentTime.getTime() > origTime.getTime() && !forceStart) {
+        const payload = {
+            status: 'FROZEN',
+            statusMessage: `Blocked by freeze window, re-enqueued to ${currentTime}`
+        };
+
+        if (buildStats) {
+            payload.stats = build.stats;
+        }
+
         await helper
             .updateBuild(
                 {
                     buildId,
                     token,
                     apiUri,
-                    payload: {
-                        status: 'FROZEN',
-                        statusMessage: `Blocked by freeze window, re-enqueued to ${currentTime}`
-                    }
+                    payload
                 },
                 executor.requestRetryStrategy
             )
@@ -324,24 +339,17 @@ async function start(executor, config) {
                 blockedBy: blockedBy.toString()
             }
         ]);
-    }
-
-    // for backward compatibility
-    if (build && build.stats) {
-        // need to reassign so the field can be dirty
-        build.stats = merge(build.stats, {
-            queueEnterTime: new Date().toISOString()
-        });
-
-        await helper.updateBuild(
-            {
-                buildId,
-                token,
-                apiUri,
-                payload: { stats: build.stats }
-            },
-            executor.requestRetryStrategy
-        );
+        if (buildStats) {
+            await helper.updateBuild(
+                {
+                    buildId,
+                    token,
+                    apiUri,
+                    payload: { stats: build.stats }
+                },
+                executor.requestRetryStrategy
+            );
+        }
     }
 
     return enq;
