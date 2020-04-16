@@ -18,6 +18,8 @@ describe('Timeout test', () => {
     let mockRedisConfig;
     let helperMock;
     let timeout;
+    let mockRedlock;
+    let mockLockObj;
 
     before(() => {
         mockery.enable({
@@ -35,6 +37,14 @@ describe('Timeout test', () => {
             del: sinon.stub().resolves(),
             lrem: sinon.stub().resolves(),
             hkeys: sinon.stub().resolves()
+        };
+
+        mockRedlock = {
+            lock: sinon.stub().resolves()
+        };
+
+        mockLockObj = {
+            unlock: sinon.stub().resolves()
         };
 
         mockRedisConfig = {
@@ -72,6 +82,8 @@ describe('Timeout test', () => {
             waitingKey = `${waitingJobsPrefix}2`;
 
             mockRedis.hkeys.withArgs(`${queuePrefix}timeoutConfigs`).resolves(['222', '333', '444']);
+            mockRedlock.lock.withArgs('333', 1000).resolves(mockLockObj);
+            mockRedlock.lock.withArgs('222', 1000).resolves(mockLockObj);
         });
 
         it('Updates build status to FAILURE if time difference is greater than timeout', async () => {
@@ -101,7 +113,7 @@ describe('Timeout test', () => {
 
             mockRedis.hget.withArgs(`${queuePrefix}timeoutConfigs`, buildId).resolves(JSON.stringify(timeoutConfig));
 
-            await timeout.check(mockRedis);
+            await timeout.checkWithBackOff(mockRedis, mockRedlock, 1, 0);
 
             assert.calledWith(helperMock.updateBuildStatus, {
                 redisInstance: mockRedis,
@@ -144,7 +156,7 @@ describe('Timeout test', () => {
 
             mockRedis.hget.withArgs(`${queuePrefix}timeoutConfigs`, buildId).resolves(JSON.stringify(timeoutConfig));
 
-            await timeout.check(mockRedis);
+            await timeout.checkWithBackOff(mockRedis, mockRedlock, 1, 0);
 
             assert.calledWith(helperMock.updateStepStop, {
                 redisInstance: mockRedis,
@@ -168,7 +180,7 @@ describe('Timeout test', () => {
 
             mockRedis.hget.withArgs(`${queuePrefix}timeoutConfigs`, buildId).resolves(JSON.stringify(timeoutConfig));
 
-            await timeout.check(mockRedis);
+            await timeout.checkWithBackOff(mockRedis, mockRedlock, 1, 0);
 
             assert.notCalled(helperMock.getCurrentStep);
             assert.notCalled(helperMock.updateStepStop);
@@ -194,7 +206,7 @@ describe('Timeout test', () => {
 
             mockRedis.hget.withArgs(`${queuePrefix}timeoutConfigs`, buildId).resolves(JSON.stringify(timeoutConfig));
 
-            await timeout.check(mockRedis);
+            await timeout.checkWithBackOff(mockRedis, mockRedlock, 1, 0);
 
             assert.calledWith(helperMock.updateBuildStatus, {
                 redisInstance: mockRedis,
@@ -220,7 +232,7 @@ describe('Timeout test', () => {
 
             mockRedis.hget.withArgs(`${queuePrefix}timeoutConfigs`, buildId).resolves(JSON.stringify(timeoutConfig));
 
-            await timeout.check(mockRedis);
+            await timeout.checkWithBackOff(mockRedis, mockRedlock, 1, 0);
 
             assert.notCalled(helperMock.getCurrentStep);
             assert.notCalled(helperMock.updateStepStop);
@@ -245,7 +257,7 @@ describe('Timeout test', () => {
             mockRedis.hget.withArgs(`${queuePrefix}timeoutConfigs`, buildId).resolves(JSON.stringify(timeoutConfig));
             helperMock.getCurrentStep.resolves(null);
 
-            await timeout.check(mockRedis);
+            await timeout.checkWithBackOff(mockRedis, mockRedlock, 1, 0);
 
             assert.notCalled(helperMock.updateStepStop);
             assert.calledWith(helperMock.updateBuildStatus, {
@@ -261,6 +273,25 @@ describe('Timeout test', () => {
             assert.calledWith(mockRedis.del, deleteKey);
             assert.calledWith(mockRedis.lrem, waitingKey, 0, buildId);
             assert.calledWith(mockRedis.hdel, `${queuePrefix}timeoutConfigs`, buildId);
+        });
+
+        it('Skip execution if polling interval is not reached', async () => {
+            const buildId = '222';
+            const timeoutConfig = {
+                jobId: 2,
+                timeout: 50
+            };
+
+            mockRedis.hget.withArgs(`${queuePrefix}timeoutConfigs`, buildId).resolves(JSON.stringify(timeoutConfig));
+
+            await timeout.checkWithBackOff(mockRedis, mockRedlock, 1, 5);
+
+            assert.notCalled(helperMock.getCurrentStep);
+            assert.notCalled(helperMock.updateStepStop);
+            assert.notCalled(helperMock.updateBuildStatus);
+            assert.notCalled(mockRedis.expire);
+            assert.notCalled(mockRedis.del);
+            assert.notCalled(mockRedis.lrem);
         });
     });
 });

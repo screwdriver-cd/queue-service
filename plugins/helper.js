@@ -151,6 +151,7 @@ async function createBuildEvent(apiUri, token, buildEvent, retryStrategyFn) {
     return new Promise((resolve, reject) => {
         requestretry(formatOptions('POST', `${apiUri}/v4/events`, token, buildEvent, retryStrategyFn), (err, res) => {
             if (!err) {
+                logger.info(res.statusCode)
                 if (res.statusCode === 201) {
                     return resolve(res);
                 }

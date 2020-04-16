@@ -6,6 +6,8 @@ const { waitingJobsPrefix, runningJobsPrefix, queuePrefix } = require('../../../
 const TIMEOUT_CODE = 3;
 const TIMEOUT_BUFFER = 1;
 const DEFAULT_TIMEOUT = 90;
+const hash = `${queuePrefix}timeoutConfigs`;
+const REDIS_LOCK_TTL = 1000; // in ms
 
 /**
  * Wrapper function to process timeout logic
@@ -13,9 +15,10 @@ const DEFAULT_TIMEOUT = 90;
  * @param {Object} timeoutConfig
  * @param {String} buildId
  * @param {Object} redis
+ * @param {String} workerId
  * @return {Promise}
  */
-async function process(timeoutConfig, buildId, redis) {
+async function process(timeoutConfig, buildId, redis, workerId) {
     try {
         const { jobId } = timeoutConfig;
         const runningKey = `${runningJobsPrefix}${jobId}`;
@@ -28,7 +31,7 @@ async function process(timeoutConfig, buildId, redis) {
 
         if (!startTime) {
             // there is no startTime set for the build
-            logger.warn(`startTime not set for buildId: ${buildId}`);
+            logger.warn(`worker[${workerId}] -> startTime not set for buildId: ${buildId}`);
 
             return;
         }
@@ -46,7 +49,7 @@ async function process(timeoutConfig, buildId, redis) {
                     buildId
                 });
             } catch (err) {
-                logger.error(`No active step found for ${buildId}`);
+                logger.error(`worker[${workerId}] -> No active step found for ${buildId}`);
             }
 
             if (step) {
@@ -65,7 +68,7 @@ async function process(timeoutConfig, buildId, redis) {
                 statusMessage: 'Build failed due to timeout'
             });
 
-            logger.info(`Build has timed out ${buildId}`);
+            logger.info(`worker[${workerId}] -> Build has timed out ${buildId}`);
 
             await redis.hdel(`${queuePrefix}buildConfigs`, buildId);
 
@@ -77,13 +80,13 @@ async function process(timeoutConfig, buildId, redis) {
             await redis.lrem(waitingKey, 0, buildId);
 
             // remove from timeout configs after build is timed out
-            await redis.hdel(`${queuePrefix}timeoutConfigs`, buildId);
+            await redis.hdel(hash, buildId);
         }
     } catch (err) {
         // delete key from redis in case of error to prevent reprocessing
-        await redis.hdel(`${queuePrefix}timeoutConfigs`, buildId);
+        await redis.hdel(hash, buildId);
 
-        logger.error(`Error occurred while checking timeout for buildId : ${buildId} : ${err}`);
+        logger.error(`worker[${workerId}] -> Error occurred while checking timeout for buildId : ${buildId} : ${err}`);
     }
 }
 
@@ -92,28 +95,58 @@ async function process(timeoutConfig, buildId, redis) {
  * If yes, abort build.
  * @method check
  * @param {Object} redis
+ * @param {Object} redlock
  * @return {Promise}
  */
-async function check(redis) {
-    const keys = await redis.hkeys(`${queuePrefix}timeoutConfigs`);
+async function check(redis, redlock, workerId) {
+    const keys = await redis.hkeys(hash);
 
     if (!keys || keys.length === 0) return;
 
     await Promise.all(
         keys.map(async buildId => {
-            const json = await redis.hget(`${queuePrefix}timeoutConfigs`, buildId);
+            try {
+                const lock = await redlock.lock(buildId, REDIS_LOCK_TTL);
+                const json = await redis.hget(hash, buildId);
 
-            if (!json) return;
-            const timeoutConfig = JSON.parse(json);
+                if (!json) return;
+                const timeoutConfig = JSON.parse(json);
 
-            if (!timeoutConfig) {
-                // this build or pipeline has already been deleted
-                return;
+                if (!timeoutConfig) {
+                    // this build or pipeline has already been deleted
+                    return;
+                }
+
+                await process(timeoutConfig, buildId, redis, workerId);
+
+                await lock.unlock();
+            } catch (err) {
+                logger.error(`worker[${workerId}] -> Redis locking error ${buildId}`, err.message);
             }
-
-            await process(timeoutConfig, buildId, redis);
         })
     );
 }
 
-module.exports.check = check;
+let lastAccessedTime;
+
+/**
+ *
+ * @param {Object} redis
+ * @param {Object} redlock
+ * @param {Number} workerId
+ * @param {Number} pollInterval
+ */
+async function checkWithBackOff(redis, redlock, workerId, pollInterval = 60) {
+    lastAccessedTime = lastAccessedTime || new Date();
+    const diffMs = new Date().getTime() - new Date(lastAccessedTime).getTime();
+    const diffSeconds = Math.round(diffMs / 1000);
+
+    // poll every 60 seconds
+    if (diffSeconds === pollInterval) {
+        logger.info('worker[%s] -> Processing timeout checks', workerId);
+        await check(redis, redlock, workerId);
+        lastAccessedTime = new Date();
+    }
+}
+
+module.exports.checkWithBackOff = checkWithBackOff;
