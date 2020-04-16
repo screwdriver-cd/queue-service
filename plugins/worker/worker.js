@@ -64,7 +64,7 @@ async function invoke() {
         multiWorker.on('start', workerId => logger.info(`queueWorker->worker[${workerId}] started`));
         multiWorker.on('end', workerId => logger.info(`queueWorker->worker[${workerId}] ended`));
         multiWorker.on('cleaning_worker', (workerId, worker, pid) =>
-            logger.info(`queueWorker->cleaning old worker ${worker} pid ${pid}`)
+            logger.info(`queueWorker->cleaning old worker ${worker}${workerId} pid ${pid}`)
         );
         multiWorker.on('poll', async (workerId, queue) => {
             logger.info(`queueWorker->worker[${workerId}] polling ${queue}`);

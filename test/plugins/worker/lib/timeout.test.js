@@ -293,5 +293,60 @@ describe('Timeout test', () => {
             assert.notCalled(mockRedis.del);
             assert.notCalled(mockRedis.lrem);
         });
+
+        it('Run timeoutcheck correctly when called with multiple workers', async () => {
+            const now = new Date();
+            const workerId1 = 1;
+            const workerId2 = 2;
+
+            now.setHours(now.getHours() - 1);
+
+            const buildId = '333';
+            const buildConfig = {
+                jobId: 2,
+                jobName: 'deploy',
+                annotations: {
+                    'screwdriver.cd/timeout': 50
+                },
+                apiUri: 'fake',
+                buildId,
+                eventId: 75
+            };
+
+            const timeoutConfig = {
+                jobId: 2,
+                startTime: now,
+                timeout: 50
+            };
+
+            deleteKey = `deleted_${buildConfig.jobId}_${buildId}`;
+
+            mockRedis.hget.withArgs(`${queuePrefix}timeoutConfigs`, buildId).resolves(JSON.stringify(timeoutConfig));
+
+            await timeout.checkWithBackOff(mockRedis, mockRedlock, workerId1, 10);
+
+            assert.notCalled(helperMock.getCurrentStep);
+            assert.notCalled(helperMock.updateStepStop);
+            assert.notCalled(helperMock.updateBuildStatus);
+            assert.notCalled(mockRedis.expire);
+            assert.notCalled(mockRedis.del);
+            assert.notCalled(mockRedis.lrem);
+
+            await timeout.checkWithBackOff(mockRedis, mockRedlock, workerId2, 0);
+
+            assert.calledWith(helperMock.updateBuildStatus, {
+                redisInstance: mockRedis,
+                buildId,
+                status: 'FAILURE',
+                statusMessage: 'Build failed due to timeout'
+            });
+            assert.calledWith(mockRedis.hdel, `${queuePrefix}buildConfigs`, buildId);
+            assert.calledWith(mockRedis.expire, expireKey, 0);
+            assert.calledWith(mockRedis.expire, expireKey, 0);
+
+            assert.calledWith(mockRedis.del, deleteKey);
+            assert.calledWith(mockRedis.lrem, waitingKey, 0, buildId);
+            assert.calledWith(mockRedis.hdel, `${queuePrefix}timeoutConfigs`, buildId);
+        });
     });
 });

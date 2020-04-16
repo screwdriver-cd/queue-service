@@ -127,7 +127,11 @@ async function check(redis, redlock, workerId) {
     );
 }
 
-let lastAccessedTime;
+/**
+ * Worker Map object storing
+ * last checked time for each worker
+ */
+const workerAccessMap = {};
 
 /**
  *
@@ -137,15 +141,15 @@ let lastAccessedTime;
  * @param {Number} pollInterval
  */
 async function checkWithBackOff(redis, redlock, workerId, pollInterval = 60) {
-    lastAccessedTime = lastAccessedTime || new Date();
-    const diffMs = new Date().getTime() - new Date(lastAccessedTime).getTime();
+    workerAccessMap[workerId] = workerAccessMap[workerId] || new Date();
+    const diffMs = new Date().getTime() - new Date(workerAccessMap[workerId]).getTime();
     const diffSeconds = Math.round(diffMs / 1000);
 
     // poll every 60 seconds
-    if (diffSeconds === pollInterval) {
+    if (diffSeconds >= pollInterval) {
         logger.info('worker[%s] -> Processing timeout checks', workerId);
         await check(redis, redlock, workerId);
-        lastAccessedTime = new Date();
+        workerAccessMap[workerId] = new Date();
     }
 }
 

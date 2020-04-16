@@ -195,7 +195,7 @@ describe('Schedule test', () => {
             assert.calledWith(winstonMock.info, `queueWorker->worker[${workerId}] ended`);
 
             testWorker.emit('cleaning_worker', workerId, worker, pid);
-            assert.calledWith(winstonMock.info, `queueWorker->cleaning old worker ${worker} pid ${pid}`);
+            assert.calledWith(winstonMock.info, `queueWorker->cleaning old worker ${worker}${workerId} pid ${pid}`);
 
             testWorker.emit('poll', workerId, queue);
             assert.calledWith(winstonMock.info, `queueWorker->worker[${workerId}] polling ${queue}`);

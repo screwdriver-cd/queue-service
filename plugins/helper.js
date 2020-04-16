@@ -151,11 +151,19 @@ async function createBuildEvent(apiUri, token, buildEvent, retryStrategyFn) {
     return new Promise((resolve, reject) => {
         requestretry(formatOptions('POST', `${apiUri}/v4/events`, token, buildEvent, retryStrategyFn), (err, res) => {
             if (!err) {
-                logger.info(res.statusCode)
+                logger.info(
+                    `POST /v4/events/${buildEvent.buildId} completed with attempts, ${res.statusCode}, ${res.attempts}`
+                );
                 if (res.statusCode === 201) {
                     return resolve(res);
                 }
                 if (res.statusCode !== 201) {
+                    logger.info(
+                        `POST /v4/events/${buildEvent.buildId} returned non 201, ${res.statusCode}, ${JSON.stringify(
+                            res.body
+                        )}`
+                    );
+
                     return reject(JSON.stringify(res.body));
                 }
             }
@@ -177,6 +185,9 @@ async function getPipelineAdmin(token, apiUri, pipelineId, retryStrategyFn) {
             formatOptions('GET', `${apiUri}/v4/pipelines/${pipelineId}/admin`, token, undefined, retryStrategyFn),
             (err, res) => {
                 if (!err) {
+                    logger.info(
+                        `POST /v4/pipelines/${pipelineId}/admin completed with attempts, ${res.statusCode}, ${res.attempts}`
+                    );
                     if (res.statusCode === 200) {
                         return resolve(res.body);
                     }
@@ -211,6 +222,9 @@ async function updateBuild(updateConfig, retryStrategyFn) {
             formatOptions('PUT', `${apiUri}/v4/builds/${buildId}`, token, payload, retryStrategyFn),
             (err, res) => {
                 if (!err) {
+                    logger.info(
+                        `PUT /v4/builds/${buildId} completed with attempts, ${res.statusCode}, ${res.attempts}`
+                    );
                     if (res.statusCode === 200) {
                         return resolve(res.body);
                     }
