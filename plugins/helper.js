@@ -157,15 +157,13 @@ async function createBuildEvent(apiUri, token, buildEvent, retryStrategyFn) {
                 if (res.statusCode === 201) {
                     return resolve(res);
                 }
-                if (res.statusCode !== 201) {
-                    logger.info(
-                        `POST /v4/events/${buildEvent.buildId} returned non 201, ${res.statusCode}, ${JSON.stringify(
-                            res.body
-                        )}`
-                    );
+                logger.info(
+                    `POST /v4/events/${buildEvent.buildId} returned non 201, ${res.statusCode}, ${JSON.stringify(
+                        res.body
+                    )}`
+                );
 
-                    return reject(JSON.stringify(res.body));
-                }
+                return res.statusCode === 200 ? resolve(JSON.stringify(res.body)) : reject(JSON.stringify(res.body));
             }
 
             return reject(err);

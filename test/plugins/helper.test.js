@@ -225,6 +225,31 @@ describe('Helper Test', () => {
         });
     });
 
+    it('Correctly creates build event with reponse code 200', async () => {
+        mockRequestRetry.yieldsAsync(null, { statusCode: 200 });
+        const retryFn = sinon.stub();
+
+        try {
+            await helper.createBuildEvent('foo.bar', 'fake', { buildId: 1, eventId: 321, jobId: 123 }, retryFn);
+        } catch (err) {
+            assert.isNull(err);
+        }
+
+        assert.calledWith(mockRequestRetry, {
+            json: true,
+            method: 'POST',
+            uri: 'foo.bar/v4/events',
+            headers: {
+                Authorization: 'Bearer fake',
+                'Content-Type': 'application/json'
+            },
+            body: { buildId: 1, eventId: 321, jobId: 123 },
+            maxAttempts: 3,
+            retryDelay: 5000,
+            retryStrategy: retryFn
+        });
+    });
+
     it('Gets the pipeline admin correctly', async () => {
         mockRequestRetry.yieldsAsync(null, {
             statusCode: 200,
