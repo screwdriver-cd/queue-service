@@ -86,7 +86,7 @@ async function process(timeoutConfig, buildId, redis, workerId) {
         // delete key from redis in case of error to prevent reprocessing
         await redis.hdel(hash, buildId);
 
-        logger.error(`worker[${workerId}] -> Error occurred while checking timeout for buildId : ${buildId} : ${err}`);
+        logger.error(`worker[${workerId}] -> Error occurred while checking timeout for buildId: ${buildId}, ${err}`);
     }
 }
 
@@ -139,7 +139,7 @@ const workerAccessMap = {};
  * @param {Object} redis
  * @param {Object} redlock
  * @param {Number} workerId
- * @param {Number} pollInterval
+ * @param {Number} [pollInterval]
  */
 async function checkWithBackOff(redis, redlock, workerId, pollInterval = 60) {
     workerAccessMap[workerId] = workerAccessMap[workerId] || new Date();
