@@ -138,7 +138,7 @@ const workerAccessMap = {};
  * @param {Object} redis
  * @param {Object} redlock
  * @param {Number} workerId
- * @param {Number} pollInterval
+ * @param {Number} [pollInterval]
  */
 async function checkWithBackOff(redis, redlock, workerId, pollInterval = 60) {
     workerAccessMap[workerId] = workerAccessMap[workerId] || new Date();
