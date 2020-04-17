@@ -309,7 +309,7 @@ describe('Schedule test', () => {
             testScheduler.emit('transferred_job', timestamp, job);
             assert.calledWith(
                 winstonMock.info,
-                `queueWorker->scheduler enqueuing job timestamp  >>  ${JSON.stringify(job)}`
+                `queueWorker->scheduler enqueuing job timestamp  >> ${timestamp} ${JSON.stringify(job)}`
             );
         });
     });

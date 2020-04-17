@@ -128,7 +128,7 @@ async function invoke() {
             logger.info(`queueWorker->scheduler working timestamp ${timestamp}`)
         );
         scheduler.on('transferred_job', (timestamp, job) =>
-            logger.info(`queueWorker->scheduler enqueuing job timestamp  >>  ${JSON.stringify(job)}`)
+            logger.info(`queueWorker->scheduler enqueuing job timestamp  >> ${timestamp} ${JSON.stringify(job)}`)
         );
 
         multiWorker.start();

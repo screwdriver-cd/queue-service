@@ -7,7 +7,7 @@ const TIMEOUT_CODE = 3;
 const TIMEOUT_BUFFER = 1;
 const DEFAULT_TIMEOUT = 90;
 const hash = `${queuePrefix}timeoutConfigs`;
-const REDIS_LOCK_TTL = 1000; // in ms
+const REDIS_LOCK_TTL = 10000; // in ms
 
 /**
  * Wrapper function to process timeout logic
@@ -96,6 +96,7 @@ async function process(timeoutConfig, buildId, redis, workerId) {
  * @method check
  * @param {Object} redis
  * @param {Object} redlock
+ * @param {String} workerId
  * @return {Promise}
  */
 async function check(redis, redlock, workerId) {
@@ -121,7 +122,7 @@ async function check(redis, redlock, workerId) {
 
                 await lock.unlock();
             } catch (err) {
-                logger.error(`worker[${workerId}] -> Redis locking error ${buildId}`, err.message);
+                logger.error(`worker[${workerId}] -> Redis locking error ${buildId}: ${err.message}`);
             }
         })
     );
