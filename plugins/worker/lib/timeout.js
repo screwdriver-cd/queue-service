@@ -86,7 +86,7 @@ async function process(timeoutConfig, buildId, redis, workerId) {
         // delete key from redis in case of error to prevent reprocessing
         await redis.hdel(hash, buildId);
 
-        logger.error(`worker[${workerId}] -> Error occurred while checking timeout for buildId : ${buildId} : ${err}`);
+        logger.error(`worker[${workerId}] -> Error occurred while checking timeout for buildId: ${buildId}, ${err}`);
     }
 }
 
