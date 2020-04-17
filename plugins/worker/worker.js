@@ -4,12 +4,20 @@ const NodeResque = require('node-resque');
 const config = require('config');
 const Redis = require('ioredis');
 const logger = require('screwdriver-logger');
+const Redlock = require('redlock');
 const jobs = require('./lib/jobs');
 const timeout = require('./lib/timeout');
 const helper = require('../helper');
 const workerConfig = config.get('worker');
 const { connectionDetails, queuePrefix } = require('../../config/redis');
 const redis = new Redis(connectionDetails.port, connectionDetails.host, connectionDetails.options);
+// https://github.com/mike-marcacci/node-redlock
+const redlock = new Redlock([redis], {
+    driftFactor: 0.01, // time in ms
+    retryCount: 5,
+    retryDelay: 200, // time in ms
+    retryJitter: 200 // time in ms
+});
 
 /**
  * Shutdown both worker and scheduler and then exit the process
@@ -56,11 +64,11 @@ async function invoke() {
         multiWorker.on('start', workerId => logger.info(`queueWorker->worker[${workerId}] started`));
         multiWorker.on('end', workerId => logger.info(`queueWorker->worker[${workerId}] ended`));
         multiWorker.on('cleaning_worker', (workerId, worker, pid) =>
-            logger.info(`queueWorker->cleaning old worker ${worker} pid ${pid}`)
+            logger.info(`queueWorker->cleaning old worker ${worker}${workerId} pid ${pid}`)
         );
         multiWorker.on('poll', async (workerId, queue) => {
             logger.info(`queueWorker->worker[${workerId}] polling ${queue}`);
-            await timeout.check(redis, queue);
+            await timeout.checkWithBackOff(redis, redlock, workerId);
         });
         multiWorker.on('job', (workerId, queue, job) =>
             logger.info(`queueWorker->worker[${workerId}] working job ${queue} ${JSON.stringify(job)}`)
@@ -120,7 +128,7 @@ async function invoke() {
             logger.info(`queueWorker->scheduler working timestamp ${timestamp}`)
         );
         scheduler.on('transferred_job', (timestamp, job) =>
-            logger.info(`queueWorker->scheduler enqueuing job timestamp  >>  ${JSON.stringify(job)}`)
+            logger.info(`queueWorker->scheduler enqueuing job timestamp  >> ${timestamp} ${JSON.stringify(job)}`)
         );
 
         multiWorker.start();

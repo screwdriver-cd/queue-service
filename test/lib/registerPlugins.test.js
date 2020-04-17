@@ -12,7 +12,8 @@ describe('Register Plugins', () => {
         '../plugins/queue',
         '../plugins/status',
         '../plugins/auth',
-        '../plugins/shutdown'
+        '../plugins/shutdown',
+        '../plugins/logging'
     ];
     const defaultPlugin = ['blipp', 'hapi-auth-jwt2'];
     const pluginLength = resourcePlugins.length + defaultPlugin.length;

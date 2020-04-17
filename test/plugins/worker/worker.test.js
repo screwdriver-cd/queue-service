@@ -55,6 +55,8 @@ describe('Schedule test', () => {
     let configMock;
     let timeoutMock;
     let clock;
+    let mockRedlockObj;
+    let mockRedlock;
 
     before(() => {
         mockery.enable({
@@ -91,7 +93,7 @@ describe('Schedule test', () => {
             updateBuildStatus: sinon.stub()
         };
         timeoutMock = {
-            check: sinon.stub()
+            checkWithBackOff: sinon.stub()
         };
         processExitMock = sinon.stub();
         process.exit = processExitMock;
@@ -110,6 +112,10 @@ describe('Schedule test', () => {
         mockRedisObj = {
             hget: sinon.stub().resolves('{"apiUri": "foo.bar", "token": "fake"}')
         };
+        mockRedlockObj = {
+            lock: sinon.stub().resolves()
+        };
+        mockRedlock = sinon.stub().returns(mockRedlockObj);
         mockRedis = sinon.stub().returns(mockRedisObj);
         configMock = {
             get: sinon.stub()
@@ -119,6 +125,7 @@ describe('Schedule test', () => {
         mockery.registerMock('request', requestMock);
         mockery.registerMock('../../config/redis', redisConfigMock);
         mockery.registerMock('ioredis', mockRedis);
+        mockery.registerMock('redlock', mockRedlock);
         mockery.registerMock('../helper', helperMock);
         mockery.registerMock('./lib/timeout', timeoutMock);
         mockery.registerMock('config', configMock);
@@ -188,11 +195,11 @@ describe('Schedule test', () => {
             assert.calledWith(winstonMock.info, `queueWorker->worker[${workerId}] ended`);
 
             testWorker.emit('cleaning_worker', workerId, worker, pid);
-            assert.calledWith(winstonMock.info, `queueWorker->cleaning old worker ${worker} pid ${pid}`);
+            assert.calledWith(winstonMock.info, `queueWorker->cleaning old worker ${worker}${workerId} pid ${pid}`);
 
             testWorker.emit('poll', workerId, queue);
             assert.calledWith(winstonMock.info, `queueWorker->worker[${workerId}] polling ${queue}`);
-            assert.calledWith(timeoutMock.check);
+            assert.calledWith(timeoutMock.checkWithBackOff, mockRedisObj, mockRedlockObj, workerId);
 
             testWorker.emit('job', workerId, queue, job);
             assert.calledWith(
@@ -302,7 +309,7 @@ describe('Schedule test', () => {
             testScheduler.emit('transferred_job', timestamp, job);
             assert.calledWith(
                 winstonMock.info,
-                `queueWorker->scheduler enqueuing job timestamp  >>  ${JSON.stringify(job)}`
+                `queueWorker->scheduler enqueuing job timestamp  >> ${timestamp} ${JSON.stringify(job)}`
             );
         });
     });

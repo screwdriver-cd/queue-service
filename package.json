@@ -8,6 +8,9 @@
   },
   "dependencies": {
     "@hapi/boom": "^9.1.0",
+    "@hapi/good": "^9.0.0",
+    "@hapi/good-console": "^9.0.0",
+    "@hapi/good-squeeze": "^6.0.0",
     "@hapi/hapi": "^19.1.1",
     "@hapi/hoek": "^9.0.4",
     "@hapi/joi": "^17.1.1",
@@ -23,6 +26,7 @@
     "jsonwebtoken": "^8.5.1",
     "laabr": "^6.0.1",
     "node-resque": "^5.5.3",
+    "redlock": "^4.1.0",
     "request": "^2.88.0",
     "requestretry": "^3.1.0",
     "screwdriver-data-schema": "^19.6.1",
