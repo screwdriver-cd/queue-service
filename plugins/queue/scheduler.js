@@ -66,7 +66,7 @@ async function postBuildEvent(executor, eventConfig) {
                 `POST event for pipeline failed as no admin found: ${pipelineId}:${job.name}:${job.id}:${buildId}`
             );
 
-            throw new Error(`Pipelne admin not found, cannot process build ${buildId}`);
+            throw new Error(`Pipeline admin not found, cannot process build ${buildId}`);
         }
     } catch (err) {
         logger.error(`Error in post build event function ${buildId} ${err}`);
