@@ -47,6 +47,9 @@ executor:
             buildTimeout: K8S_BUILD_TIMEOUT
             # Default max build timeout
             maxBuildTimeout: K8S_MAX_BUILD_TIMEOUT
+            lifecycleHooks:
+              __name: K8S_LIFECYCLE_HOOKS
+              __format: json
             # k8s node selectors for approprate build pod scheduling.
             # Value is Object of format { label: 'value' } See
             # https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#step-one-attach-label-to-the-node
