@@ -42,7 +42,7 @@ async function shutDownAll(worker, scheduler) {
 const multiWorker = new NodeResque.MultiWorker(
     {
         connection: connectionDetails,
-        queues: [`${queuePrefix}builds`],
+        queues: [`${queuePrefix}builds`, `${queuePrefix}cache`],
         minTaskProcessors: workerConfig.minTaskProcessors,
         maxTaskProcessors: workerConfig.maxTaskProcessors,
         checkTimeout: workerConfig.checkTimeout,

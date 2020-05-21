@@ -30,6 +30,7 @@ describe('Jobs Unit Test', () => {
     let mockRedisObj;
     let mockBlockedBy;
     let mockFilter;
+    let mockCacheFilter;
     let mockRabbitmqConfig;
     let mockRabbitmqConfigObj;
     let mockAmqp;
@@ -120,7 +121,11 @@ describe('Jobs Unit Test', () => {
         mockFilter = {
             Filter: sinon.stub().returns()
         };
+        mockCacheFilter = {
+            CacheFilter: sinon.stub().returns()
+        };
         mockery.registerMock('./Filter', mockFilter);
+        mockery.registerMock('./CacheFilter', mockCacheFilter);
 
         // eslint-disable-next-line global-require
         jobs = require('../../../../plugins/worker/lib/jobs');
@@ -397,6 +402,112 @@ describe('Jobs Unit Test', () => {
                     assert.deepEqual(err, expectedError);
                 }
             );
+        });
+    });
+
+    describe('clear', () => {
+        let amqpURI;
+        let exchange;
+        let connectOptions;
+
+        beforeEach(() => {
+            mockRabbitmqConfigObj.schedulerMode = true;
+            mockRabbitmqConfig.getConfig.returns(mockRabbitmqConfigObj);
+            ({ amqpURI, exchange, connectOptions } = mockRabbitmqConfigObj);
+            mockRedisObj.hget.resolves(null);
+        });
+        it('constructs clear job correctly', () =>
+            assert.deepEqual(jobs.clear, {
+                plugins: [mockCacheFilter.CacheFilter, 'Retry'],
+                pluginOptions: {
+                    Retry: {
+                        retryLimit: 3,
+                        retryDelay: 5000
+                    }
+                },
+                perform: jobs.clear.perform
+            }));
+        it('do not publish to rabbitmq if cache config is missing buildClusters', () => {
+            const cacheConfig = { id: 123 };
+
+            mockCacheFilter.CacheFilter.returns(false);
+
+            return jobs.clear.perform(cacheConfig).then(result => {
+                assert.isNull(result);
+                assert.notCalled(mockRabbitmqConnection.createChannel);
+                assert.notCalled(mockRabbitmqCh.publish);
+                assert.notCalled(mockRabbitmqCh.close);
+            });
+        });
+
+        it('publish to rabbitmq for valid cache config and scheduler enabled', () => {
+            const cacheConfig = {
+                id: 123,
+                resource: 'caches',
+                scope: 'builds',
+                buildClusters: [],
+                action: 'delete'
+            };
+
+            mockRedisObj.hget.resolves(JSON.stringify({ buildClusterName: 'sd1', pipelineId: 1234 }));
+
+            return jobs.clear.perform(cacheConfig).then(result => {
+                assert.isNull(result);
+                assert.calledWith(mockRedisObj.hget, 'buildConfigs', cacheConfig.id);
+                assert.calledWith(mockAmqp.connect, [amqpURI], connectOptions);
+                assert.calledOnce(mockRabbitmqConnection.createChannel);
+                assert.calledWith(
+                    mockRabbitmqCh.publish,
+                    exchange,
+                    'sd1',
+                    { cacheConfig, job: 'clear' },
+                    {
+                        contentType: 'application/json',
+                        persistent: true
+                    }
+                );
+                assert.calledOnce(mockRabbitmqCh.close);
+                assert.notCalled(mockExecutor.stop);
+            });
+        });
+
+        it('publish to all rabbitmq queues specified in buildCLuster', () => {
+            const cacheConfig = {
+                id: 123,
+                resource: 'caches',
+                scope: 'builds',
+                buildClusters: ['sd1', 'sd2'],
+                action: 'delete'
+            };
+
+            return jobs.clear.perform(cacheConfig).then(result => {
+                assert.deepEqual(result, [null, null]);
+                assert.calledWith(mockRedisObj.hget, 'buildConfigs', cacheConfig.id);
+                assert.calledWith(mockAmqp.connect, [amqpURI], connectOptions);
+                assert.calledTwice(mockRabbitmqConnection.createChannel);
+                assert.calledWith(
+                    mockRabbitmqCh.publish,
+                    exchange,
+                    'sd1',
+                    { cacheConfig, job: 'clear' },
+                    {
+                        contentType: 'application/json',
+                        persistent: true
+                    }
+                );
+                assert.calledWith(
+                    mockRabbitmqCh.publish,
+                    exchange,
+                    'sd2',
+                    { cacheConfig, job: 'clear' },
+                    {
+                        contentType: 'application/json',
+                        persistent: true
+                    }
+                );
+                assert.calledTwice(mockRabbitmqCh.close);
+                assert.notCalled(mockExecutor.stop);
+            });
         });
     });
 });

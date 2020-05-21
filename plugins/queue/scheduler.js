@@ -616,6 +616,31 @@ async function cleanUp(executor) {
     }
 }
 
+/**
+ * Pushes a message to cache queue to clear it
+ * @async  clearCache
+ * @param {Object} executor
+ * @param {Object} config
+ */
+async function clearCache(executor, config) {
+    try {
+        await executor.connect();
+
+        return await executor.queueBreaker.runCommand('enqueue', executor.cacheQueue, 'clear', [
+            {
+                resource: 'caches',
+                action: 'delete',
+                prefix: executor.prefix,
+                ...config
+            }
+        ]);
+    } catch (err) {
+        logger.error(`Error occurred while saving to cache queue ${err}`);
+
+        throw err;
+    }
+}
+
 module.exports = {
     init,
     start,
@@ -626,5 +651,6 @@ module.exports = {
     stopFrozen,
     startTimer,
     stopTimer,
-    cleanUp
+    cleanUp,
+    clearCache
 };

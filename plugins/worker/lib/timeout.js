@@ -149,8 +149,8 @@ async function checkWithBackOff(redis, redlock, workerId, pollInterval = 60) {
     // poll every 60 seconds
     if (diffSeconds >= pollInterval) {
         logger.info('worker[%s] -> Processing timeout checks', workerId);
-        await check(redis, redlock, workerId);
         workerAccessMap[workerId] = new Date();
+        await check(redis, redlock, workerId);
     }
 }
 

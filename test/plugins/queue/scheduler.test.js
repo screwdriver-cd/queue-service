@@ -764,4 +764,42 @@ describe('scheduler test', () => {
             assert.called(queueMock.end);
         });
     });
+
+    describe('clearCache', () => {
+        let cacheConfig;
+        let cacheConfigMsg;
+
+        beforeEach(() => {
+            cacheConfig = { id: 123, scope: 'pipelines', buildClusters: [] };
+            cacheConfigMsg = Object.assign(cacheConfig, { prefix: '', resource: 'caches', action: 'delete' });
+        });
+        it("rejects if it can't establish a connection", function() {
+            queueMock.connect.rejects(new Error("couldn't connect"));
+
+            return scheduler.clearCache(executor, { id: 123, scope: 'pipelines' }).then(
+                () => {
+                    assert.fail('Should not get here');
+                },
+                err => {
+                    assert.instanceOf(err, Error);
+                }
+            );
+        });
+
+        it('adds a clearCache event to the queue', () => {
+            return scheduler.clearCache(executor, cacheConfig).then(() => {
+                assert.calledOnce(queueMock.connect);
+                assert.calledWith(queueMock.enqueue, 'cache', 'clear', [cacheConfigMsg]);
+            });
+        });
+
+        it("doesn't call connect if there's already a connection", () => {
+            queueMock.connection.connected = true;
+
+            return scheduler.clearCache(executor, cacheConfig).then(() => {
+                assert.notCalled(queueMock.connect);
+                assert.calledWith(queueMock.enqueue, 'cache', 'clear', [cacheConfigMsg]);
+            });
+        });
+    });
 });

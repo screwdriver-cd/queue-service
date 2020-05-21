@@ -26,6 +26,9 @@ module.exports = () => ({
                     case 'timer':
                         await scheduler.startTimer(executor, request.payload);
                         break;
+                    case 'cache':
+                        await scheduler.clearCache(executor, request.payload);
+                        break;
                     default:
                         await scheduler.start(executor, request.payload);
                         break;

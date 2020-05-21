@@ -8,6 +8,7 @@ const ExecutorRouter = require('screwdriver-executor-router');
 const logger = require('screwdriver-logger');
 const { BlockedBy } = require('./BlockedBy');
 const { Filter } = require('./Filter');
+const { CacheFilter } = require('./CacheFilter');
 const blockedByConfig = config.get('plugins').blockedBy;
 const { connectionDetails, queuePrefix, runningJobsPrefix, waitingJobsPrefix } = require('../../../config/redis');
 const rabbitmqConf = require('../../../config/rabbitmq');
@@ -77,6 +78,41 @@ function getRabbitmqConn() {
 }
 
 /**
+ * Pushes a message to rabbitmq
+ * @param {Object} message
+ * @param {String} queue
+ * @param {String} messageId
+ */
+function pushToRabbitMq(message, queue, messageId) {
+    if (!rabbitmqConf.getConfig().schedulerMode) {
+        return Promise.resolve();
+    }
+    const channelWrapper = getRabbitmqConn().createChannel({
+        json: true,
+        setup: channel => channel.checkExchange(exchange)
+    });
+
+    logger.info('publishing msg to rabbitmq: %s', messageId);
+
+    return channelWrapper
+        .publish(exchange, queue, message, {
+            contentType: 'application/json',
+            persistent: true
+        })
+        .then(() => {
+            logger.info('sucessfully publishing msg id %s -> queue %s', messageId, queue);
+
+            return channelWrapper.close();
+        })
+        .catch(err => {
+            logger.error('publishing failed to rabbitmq:', err.message);
+            channelWrapper.close();
+
+            throw err;
+        });
+}
+
+/**
  * Schedule a job based on mode
  * @method schedule
  * @param  {String} job         job name, either start or stop
@@ -84,46 +120,25 @@ function getRabbitmqConn() {
  * @return {Promise}
  */
 function schedule(job, buildConfig) {
-    try {
-        const buildCluster = buildConfig.buildClusterName;
+    const buildCluster = buildConfig.buildClusterName;
 
-        delete buildConfig.buildClusterName;
+    delete buildConfig.buildClusterName;
 
-        if (rabbitmqConf.getConfig().schedulerMode) {
-            const msg = {
-                job,
-                buildConfig
-            };
-            const channelWrapper = getRabbitmqConn().createChannel({
-                json: true,
-                setup: channel => channel.checkExchange(exchange)
-            });
+    const msg = {
+        job,
+        buildConfig
+    };
 
-            logger.info('publishing msg to rabbitmq:', buildConfig.buildId);
-
-            return channelWrapper
-                .publish(exchange, buildCluster, msg, {
-                    contentType: 'application/json',
-                    persistent: true
-                })
-                .then(() => channelWrapper.close())
-                .catch(err => {
-                    channelWrapper.close();
-
-                    return Promise.reject(err);
-                });
-        }
-
-        // token is not allowed in executor.stop
-        if (job === 'stop') {
-            delete buildConfig.token;
-        }
-
-        return executor[job](buildConfig);
-    } catch (err) {
-        logger.error('publishing failed to rabbitmq:', err);
-        throw err;
+    if (rabbitmqConf.getConfig().schedulerMode) {
+        return pushToRabbitMq(msg, buildCluster, buildConfig.buildId);
     }
+
+    // token is not allowed in executor.stop
+    if (job === 'stop') {
+        delete buildConfig.token;
+    }
+
+    return executor[job](buildConfig);
 }
 
 /**
@@ -197,6 +212,38 @@ function stop(buildConfig) {
     );
 }
 
+/**
+ * Send message to clear cache from disk
+ * @param {Object} cacheConfig
+ */
+function clear(cacheConfig) {
+    const { id, buildClusters } = cacheConfig;
+    let queueName;
+
+    return redis
+        .hget(`${queuePrefix}buildConfigs`, id)
+        .then(data => {
+            if (data) {
+                const buildConfig = JSON.parse(data);
+
+                queueName = buildConfig.buildClusterName;
+            }
+        })
+        .then(() => {
+            if (queueName) {
+                return pushToRabbitMq({ job: 'clear', cacheConfig }, queueName, id);
+            }
+
+            if (buildClusters) {
+                return Promise.all(
+                    buildClusters.map(cluster => pushToRabbitMq({ job: 'clear', cacheConfig }, cluster, id))
+                );
+            }
+
+            return null;
+        });
+}
+
 module.exports = {
     start: {
         plugins: [Filter, 'Retry', BlockedBy],
@@ -212,5 +259,12 @@ module.exports = {
             Retry: retryOptions
         },
         perform: stop
+    },
+    clear: {
+        plugins: [CacheFilter, 'Retry'],
+        pluginOptions: {
+            Retry: retryOptions
+        },
+        perform: clear
     }
 };
