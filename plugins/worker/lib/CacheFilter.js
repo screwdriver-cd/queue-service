@@ -14,7 +14,7 @@ class CacheFilter extends NodeResque.Plugin {
     }
 
     /**
-     * Checks if the job belongs to this worker
+     * Checks if the job is a cache invalidation job
      * @method beforePerform
      * @return {Promise}
      */
