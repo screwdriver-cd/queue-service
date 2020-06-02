@@ -10,6 +10,10 @@ module.exports = () => ({
         description: 'Deletes a message to the queue',
         notes: 'Should delete a message from the queue',
         tags: ['api', 'queue'],
+        auth: {
+            strategies: ['token'],
+            scope: ['sdapi']
+        },
         handler: async (request, h) => {
             try {
                 const executor = request.server.app.executorQueue;

@@ -10,8 +10,14 @@ module.exports = () => ({
         description: 'Puts a message to the queue',
         notes: 'Should add a message to the queue',
         tags: ['api', 'queue'],
+        auth: {
+            strategies: ['token'],
+            scope: ['sdapi']
+        },
         handler: async (request, h) => {
             try {
+                console.log(request.server.app);
+
                 const executor = request.server.app.executorQueue;
 
                 const { type } = request.query;
