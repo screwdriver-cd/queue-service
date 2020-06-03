@@ -16,8 +16,6 @@ module.exports = () => ({
         },
         handler: async (request, h) => {
             try {
-                console.log(request.server.app);
-
                 const executor = request.server.app.executorQueue;
 
                 const { type } = request.query;
