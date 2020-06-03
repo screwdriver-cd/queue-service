@@ -44,8 +44,6 @@ const authPlugin = {
         });
         server.auth.strategy('default', 'custom');
 
-        server.auth.default('default');
-
         /**
          * Generates a profile for storage in cookie and jwt
          * @method generateProfile
