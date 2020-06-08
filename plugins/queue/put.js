@@ -10,6 +10,10 @@ module.exports = () => ({
         description: 'Puts a message to the queue',
         notes: 'Should add a message to the queue',
         tags: ['api', 'queue'],
+        auth: {
+            strategies: ['token'],
+            scope: ['sdapi']
+        },
         handler: async (request, h) => {
             try {
                 const executor = request.server.app.executorQueue;
@@ -25,6 +29,9 @@ module.exports = () => ({
                         break;
                     case 'timer':
                         await scheduler.startTimer(executor, request.payload);
+                        break;
+                    case 'cache':
+                        await scheduler.clearCache(executor, request.payload);
                         break;
                     default:
                         await scheduler.start(executor, request.payload);

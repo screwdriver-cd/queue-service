@@ -112,6 +112,7 @@ describe('scheduler test', () => {
             updateBuild: sinon.stub().resolves()
         };
         buildMock = {
+            eventId: 4566,
             update: sinon.stub().resolves({
                 id: buildId
             })
@@ -341,6 +342,9 @@ describe('scheduler test', () => {
     });
 
     describe('start', () => {
+        beforeEach(() => {
+            executor.tokenGen.returns('buildToken');
+        });
         it("rejects if it can't establish a connection", () => {
             queueMock.connect.rejects(new Error("couldn't connect"));
 
@@ -369,11 +373,12 @@ describe('scheduler test', () => {
                 assert.calledTwice(queueMock.connect);
                 assert.calledWith(redisMock.hset, 'buildConfigs', buildId, JSON.stringify(testConfig));
                 assert.calledWith(queueMock.enqueue, 'builds', 'start', [partialTestConfigToString]);
+                assert.calledTwice(executor.tokenGen);
                 assert.calledWith(
                     helperMock.updateBuild,
                     {
                         buildId,
-                        token: 'asdf',
+                        token: 'buildToken',
                         apiUri: 'http://api.com',
                         payload: { stats: buildMock.stats }
                     },
@@ -400,11 +405,12 @@ describe('scheduler test', () => {
                 assert.calledTwice(queueMock.connect);
                 assert.calledWith(redisMock.hset, 'buildConfigs', buildId, JSON.stringify(testConfig));
                 assert.calledWith(queueMock.enqueue, 'builds', 'start', [partialTestConfigToString]);
+                assert.calledTwice(executor.tokenGen);
                 assert.calledWith(
                     helperMock.updateBuild,
                     {
                         buildId,
-                        token: 'asdf',
+                        token: 'buildToken',
                         apiUri: 'http://api.com',
                         payload: { stats: buildMock.stats }
                     },
@@ -484,9 +490,11 @@ describe('scheduler test', () => {
 
             sandbox.useFakeTimers(dateNow.getTime());
 
+            executor.tokenGen.returns('buildToken');
+
             const options = {
                 buildId: testConfig.buildId,
-                token: 'asdf',
+                token: 'buildToken',
                 apiUri: 'http://api.com',
                 payload: {
                     status: 'FROZEN',
@@ -508,6 +516,7 @@ describe('scheduler test', () => {
                     }
                 ]);
                 assert.calledWith(helperMock.updateBuild, options, executor.requestRetryStrategy);
+                assert.calledOnce(executor.tokenGen);
                 sandbox.restore();
             });
         });
@@ -762,6 +771,44 @@ describe('scheduler test', () => {
             assert.called(spyMultiWorker);
             assert.called(spyScheduler);
             assert.called(queueMock.end);
+        });
+    });
+
+    describe('clearCache', () => {
+        let cacheConfig;
+        let cacheConfigMsg;
+
+        beforeEach(() => {
+            cacheConfig = { id: 123, scope: 'pipelines', buildClusters: [] };
+            cacheConfigMsg = Object.assign(cacheConfig, { prefix: '', resource: 'caches', action: 'delete' });
+        });
+        it("rejects if it can't establish a connection", function() {
+            queueMock.connect.rejects(new Error("couldn't connect"));
+
+            return scheduler.clearCache(executor, { id: 123, scope: 'pipelines' }).then(
+                () => {
+                    assert.fail('Should not get here');
+                },
+                err => {
+                    assert.instanceOf(err, Error);
+                }
+            );
+        });
+
+        it('adds a clearCache event to the queue', () => {
+            return scheduler.clearCache(executor, cacheConfig).then(() => {
+                assert.calledOnce(queueMock.connect);
+                assert.calledWith(queueMock.enqueue, 'cache', 'clear', [cacheConfigMsg]);
+            });
+        });
+
+        it("doesn't call connect if there's already a connection", () => {
+            queueMock.connection.connected = true;
+
+            return scheduler.clearCache(executor, cacheConfig).then(() => {
+                assert.notCalled(queueMock.connect);
+                assert.calledWith(queueMock.enqueue, 'cache', 'clear', [cacheConfigMsg]);
+            });
         });
     });
 });

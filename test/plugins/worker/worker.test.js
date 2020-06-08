@@ -20,6 +20,7 @@ describe('Schedule test', () => {
     const job = { args: [{ buildId: 1 }] };
     const queue = 'testbuilds';
     const workerConfig = {
+        queues: ['mockQueuePrefix_builds', 'mockQueuePrefix_cache'],
         minTaskProcessors: 123,
         maxTaskProcessors: 234,
         checkTimeout: 345,
@@ -67,7 +68,8 @@ describe('Schedule test', () => {
 
     beforeEach(() => {
         mockJobs = {
-            start: sinon.stub()
+            start: sinon.stub(),
+            clear: sinon.stub()
         };
         MultiWorker = sinon.stub();
         MultiWorker.prototype.start = () => {};
@@ -207,6 +209,14 @@ describe('Schedule test', () => {
                 `queueWorker->worker[${workerId}] working job ${queue} ${JSON.stringify(job)}`
             );
 
+            const cacheJob = { id: 123, resource: 'caches' };
+
+            testWorker.emit('job', workerId, 'cache', cacheJob);
+            assert.calledWith(
+                winstonMock.info,
+                `queueWorker->worker[${workerId}] working job cache ${JSON.stringify(cacheJob)}`
+            );
+
             testWorker.emit('reEnqueue', workerId, queue, job, plugin);
             assert.calledWith(
                 winstonMock.info,
@@ -327,7 +337,8 @@ describe('Schedule test', () => {
                 MultiWorker,
                 sinon.match(workerConfig),
                 sinon.match({
-                    start: mockJobs.start
+                    start: mockJobs.start,
+                    clear: mockJobs.clear
                 })
             );
         });

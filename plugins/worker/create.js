@@ -10,6 +10,10 @@ module.exports = () => ({
         description: 'Start worker to read and process messages from the queue',
         notes: 'Should start worker to process messages from the queue',
         tags: ['api', 'queue'],
+        auth: {
+            strategies: ['token'],
+            scope: ['sdapi']
+        },
         handler: async (request, h) => {
             try {
                 const result = await worker.invoke(request);

@@ -248,8 +248,8 @@ async function start(executor, config) {
         jobArchived,
         blockedBy,
         freezeWindows,
-        token,
-        apiUri
+        apiUri,
+        pipeline
     } = config;
     const forceStart = /\[(force start)\]/.test(causeMessage);
 
@@ -281,6 +281,16 @@ async function start(executor, config) {
         });
     }
 
+    const tokenConfig = {
+        username: buildId,
+        buildId,
+        jobId,
+        eventId: build && build.eventId,
+        pipelineId: pipeline && pipeline.id,
+        scmContext: pipeline && pipeline.scmContext
+    };
+    const buildToken = executor.tokenGen(Object.assign(tokenConfig, { scope: ['build'] }));
+
     // Check freeze window
     if (currentTime.getTime() > origTime.getTime() && !forceStart) {
         const payload = {
@@ -296,7 +306,7 @@ async function start(executor, config) {
             .updateBuild(
                 {
                     buildId,
-                    token,
+                    token: buildToken,
                     apiUri,
                     payload
                 },
@@ -330,6 +340,8 @@ async function start(executor, config) {
             ]
         );
     } else {
+        const token = executor.tokenGen(Object.assign(tokenConfig, { scope: ['temporal'] }));
+
         // set the start time in the queue
         Object.assign(config, { token });
         // Store the config in redis
@@ -347,7 +359,7 @@ async function start(executor, config) {
             await helper.updateBuild(
                 {
                     buildId,
-                    token,
+                    token: buildToken,
                     apiUri,
                     payload: { stats: build.stats }
                 },
@@ -616,6 +628,31 @@ async function cleanUp(executor) {
     }
 }
 
+/**
+ * Pushes a message to cache queue to clear it
+ * @async  clearCache
+ * @param {Object} executor
+ * @param {Object} config
+ */
+async function clearCache(executor, config) {
+    try {
+        await executor.connect();
+
+        return await executor.queueBreaker.runCommand('enqueue', executor.cacheQueue, 'clear', [
+            {
+                resource: 'caches',
+                action: 'delete',
+                prefix: executor.prefix,
+                ...config
+            }
+        ]);
+    } catch (err) {
+        logger.error(`Error occurred while saving to cache queue ${err}`);
+
+        throw err;
+    }
+}
+
 module.exports = {
     init,
     start,
@@ -626,5 +663,6 @@ module.exports = {
     stopFrozen,
     startTimer,
     stopTimer,
-    cleanUp
+    cleanUp,
+    clearCache
 };
