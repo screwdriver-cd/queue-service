@@ -1,6 +1,8 @@
 'use strict';
 
 const logger = require('screwdriver-logger');
+const configSchema = require('screwdriver-data-schema').config;
+const TOKEN_CONFIG_SCHEMA = configSchema.tokenConfig;
 const { merge, reach } = require('@hapi/hoek');
 const Resque = require('node-resque');
 const cron = require('./utils/cron');
@@ -249,7 +251,9 @@ async function start(executor, config) {
         blockedBy,
         freezeWindows,
         apiUri,
-        pipeline
+        pipeline,
+        isPR,
+        prParentJobId
     } = config;
     const forceStart = /\[(force start)\]/.test(causeMessage);
 
@@ -286,10 +290,21 @@ async function start(executor, config) {
         buildId,
         jobId,
         eventId: build && build.eventId,
-        pipelineId: pipeline && pipeline.id,
-        scmContext: pipeline && pipeline.scmContext
+        isPR
     };
-    const buildToken = executor.tokenGen(Object.assign(tokenConfig, { scope: ['build'] }));
+
+    if (pipeline) {
+        Object.assign(tokenConfig, {
+            pipelineId: pipeline.id,
+            scmContext: pipeline.scmContext,
+            configPipelineId: pipeline.configPipelineId
+        });
+    }
+    if (prParentJobId) {
+        tokenConfig.prParentJobId = prParentJobId;
+    }
+
+    const buildToken = executor.tokenGen({ ...tokenConfig, scope: ['build'] });
 
     // Check freeze window
     if (currentTime.getTime() > origTime.getTime() && !forceStart) {
@@ -340,6 +355,15 @@ async function start(executor, config) {
             ]
         );
     } else {
+        // validate schema for temporal token
+        const value = TOKEN_CONFIG_SCHEMA.validate(tokenConfig);
+
+        if (value.error) {
+            logger.error('Failed to validate token config schema %s %s', buildId, jobId);
+
+            throw value.error;
+        }
+
         const token = executor.tokenGen(Object.assign(tokenConfig, { scope: ['temporal'] }));
 
         // set the start time in the queue

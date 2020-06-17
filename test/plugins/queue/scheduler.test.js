@@ -389,6 +389,46 @@ describe('scheduler test', () => {
             });
         });
 
+        it('fails to enqueue a build with validation error for tokenConfig', () => {
+            const dateNow = Date.now();
+            const sandbox = sinon.createSandbox({
+                useFakeTimers: false
+            });
+
+            sandbox.useFakeTimers(dateNow);
+            buildMock.stats = {};
+            testConfig.build = buildMock;
+            const newConfig = Object.assign({}, testConfig);
+
+            delete newConfig.isPR;
+
+            return scheduler
+                .start(executor, newConfig)
+                .then(() => {
+                    assert.fail('Should not get here');
+                })
+                .catch(err => {
+                    assert.calledTwice(queueMock.connect);
+                    assert.notCalled(redisMock.hset);
+                    assert.notCalled(queueMock.enqueue);
+                    assert.calledWith(executor.tokenGen, {
+                        buildId: newConfig.buildId,
+                        configPipelineId: newConfig.pipeline.configPipelineId,
+                        eventId: buildMock.eventId,
+                        isPR: newConfig.isPR,
+                        jobId: newConfig.jobId,
+                        pipelineId: newConfig.pipeline.id,
+                        prParentJobId: newConfig.prParentJobId,
+                        scmContext: newConfig.pipeline.scmContext,
+                        scope: ['build'],
+                        username: newConfig.buildId
+                    });
+                    assert.calledOnce(executor.tokenGen);
+                    sandbox.restore();
+                    assert.isNotNull(err);
+                });
+        });
+
         it('enqueues a build and when force start is on', () => {
             const dateNow = Date.now();
             const isoTime = new Date(dateNow).toISOString();
