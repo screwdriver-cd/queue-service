@@ -12,6 +12,7 @@ const DEFAULT_BUILD_TIMEOUT = 90;
 const RETRY_LIMIT = 3;
 const RETRY_DELAY = 5;
 const EXPIRE_TIME = 1800; // 30 mins
+const TEMPORAL_TOKEN_TIMEOUT = 12 * 60; // 12 hours in minutes
 
 /**
  * Posts a new build event to the API
@@ -364,7 +365,7 @@ async function start(executor, config) {
             throw value.error;
         }
 
-        const token = executor.tokenGen(Object.assign(tokenConfig, { scope: ['temporal'] }));
+        const token = executor.tokenGen(Object.assign(tokenConfig, { scope: ['temporal'] }), TEMPORAL_TOKEN_TIMEOUT);
 
         // set the start time in the queue
         Object.assign(config, { token });

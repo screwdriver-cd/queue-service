@@ -67,8 +67,10 @@ async function invoke() {
             logger.info(`queueWorker->cleaning old worker ${worker}${workerId} pid ${pid}`)
         );
         multiWorker.on('poll', async (workerId, queue) => {
-            logger.info(`queueWorker->worker[${workerId}] polling ${queue}`);
-            await timeout.checkWithBackOff(redis, redlock, workerId);
+            if (queue === 'builds') {
+                logger.info(`queueWorker->worker[${workerId}] polling ${queue}`);
+                await timeout.checkWithBackOff(redis, redlock, workerId);
+            }
         });
         multiWorker.on('job', (workerId, queue, job) =>
             logger.info(`queueWorker->worker[${workerId}] working job ${queue} ${JSON.stringify(job)}`)

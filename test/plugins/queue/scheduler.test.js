@@ -24,6 +24,7 @@ const partialTestConfigToString = Object.assign({}, partialTestConfig, {
 const testAdmin = {
     username: 'admin'
 };
+const TEMPORAL_TOKEN_TIMEOUT = 12 * 60; // 12 hours in minutes
 
 sinon.assert.expose(chai.assert, { prefix: '' });
 
@@ -446,6 +447,34 @@ describe('scheduler test', () => {
                 assert.calledWith(redisMock.hset, 'buildConfigs', buildId, JSON.stringify(testConfig));
                 assert.calledWith(queueMock.enqueue, 'builds', 'start', [partialTestConfigToString]);
                 assert.calledTwice(executor.tokenGen);
+                assert.calledWith(executor.tokenGen, {
+                    buildId: testConfig.buildId,
+                    configPipelineId: testConfig.pipeline.configPipelineId,
+                    eventId: buildMock.eventId,
+                    isPR: testConfig.isPR,
+                    jobId: testConfig.jobId,
+                    pipelineId: testConfig.pipeline.id,
+                    prParentJobId: testConfig.prParentJobId,
+                    scmContext: testConfig.pipeline.scmContext,
+                    scope: ['build'],
+                    username: testConfig.buildId
+                });
+                assert.calledWith(
+                    executor.tokenGen,
+                    {
+                        buildId: testConfig.buildId,
+                        configPipelineId: testConfig.pipeline.configPipelineId,
+                        eventId: buildMock.eventId,
+                        isPR: testConfig.isPR,
+                        jobId: testConfig.jobId,
+                        pipelineId: testConfig.pipeline.id,
+                        prParentJobId: testConfig.prParentJobId,
+                        scmContext: testConfig.pipeline.scmContext,
+                        scope: ['temporal'],
+                        username: testConfig.buildId
+                    },
+                    TEMPORAL_TOKEN_TIMEOUT
+                );
                 assert.calledWith(
                     helperMock.updateBuild,
                     {
