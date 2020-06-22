@@ -200,7 +200,10 @@ describe('Schedule test', () => {
             assert.calledWith(winstonMock.info, `queueWorker->cleaning old worker ${worker}${workerId} pid ${pid}`);
 
             testWorker.emit('poll', workerId, queue);
-            assert.calledWith(winstonMock.info, `queueWorker->worker[${workerId}] polling ${queue}`);
+            assert.notCalled(timeoutMock.checkWithBackOff);
+
+            testWorker.emit('poll', workerId, 'builds');
+            assert.calledWith(winstonMock.info, `queueWorker->worker[${workerId}] polling builds`);
             assert.calledWith(timeoutMock.checkWithBackOff, mockRedisObj, mockRedlockObj, workerId);
 
             testWorker.emit('job', workerId, queue, job);

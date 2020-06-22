@@ -105,7 +105,7 @@ function pushToRabbitMq(message, queue, messageId) {
             return channelWrapper.close();
         })
         .catch(err => {
-            logger.error('publishing failed to rabbitmq:', err.message);
+            logger.error('publishing failed to rabbitmq: %s', err.message);
             channelWrapper.close();
 
             throw err;

@@ -23,8 +23,8 @@ async function collapseBuilds({ waitingKey, buildId, blockingBuildIds }) {
         const lastWaitingBuild = waitingBuilds.slice(-1)[0];
         let buildsToCollapse = waitingBuilds;
 
-        logger.info('current buildId:', buildId);
-        logger.info('lastWaitingBuild:', lastWaitingBuild);
+        logger.info('Checking collapsed build for %s', buildId);
+        logger.info('lastWaitingBuild: %s', lastWaitingBuild);
 
         // Current build is an older build, do not re-enqueued, return immediately
         if (buildId < lastWaitingBuild) return;
@@ -34,7 +34,7 @@ async function collapseBuilds({ waitingKey, buildId, blockingBuildIds }) {
             buildsToCollapse = buildsToCollapse.slice(0, -1);
         }
 
-        logger.info('buildsToCollapse:', buildsToCollapse);
+        logger.info('buildsToCollapse: %s', buildsToCollapse);
 
         const rmBuilds = buildsToCollapse.map(async bId => {
             const count = await this.queueObject.connection.redis.lrem(waitingKey, 0, bId);
@@ -66,11 +66,15 @@ async function collapseBuilds({ waitingKey, buildId, blockingBuildIds }) {
  * @return {Boolean}                    Whether this build is blocked
  */
 async function blockedBySelf({ waitingKey, buildId, collapse }) {
+    logger.info('%s | checking blocked by self', buildId);
+
     let waitingBuilds = await this.queueObject.connection.redis.lrange(waitingKey, 0, -1);
 
     // Only need to do this if there are waiting builds.
     // If it's not the first build waiting, then re-enqueue
     if (waitingBuilds.length > 0) {
+        logger.info('%s | waiting builds %s', buildId, waitingBuilds);
+
         waitingBuilds = waitingBuilds.map(bId => parseInt(bId, 10));
         waitingBuilds.sort((a, b) => a - b);
 
@@ -82,14 +86,20 @@ async function blockedBySelf({ waitingKey, buildId, collapse }) {
         if (buildToStart !== buildId) {
             await this.reEnqueue(waitingKey, buildId, [buildToStart]);
 
+            logger.info('%s | build block detected %s', buildId, buildToStart);
+
             return true; // blocked
         }
 
-        // If is the built to start, remove it and proceed
+        // If it is the build to start, remove it and proceed
         const count = await this.queueObject.connection.redis.lrem(waitingKey, 0, buildToStart);
 
         // Build has been removed from the waiting queue by other process, do not proceed
-        if (count < 1) return true;
+        if (count < 1) {
+            logger.info('%s | Build has been removed from the waiting queue %s', buildId, buildToStart);
+
+            return true;
+        }
 
         // Get the waiting jobs again - to prevent race condition where this value is changed in between
         const sameJobWaiting = await this.queueObject.connection.redis.llen(waitingKey);
@@ -160,6 +170,9 @@ class BlockedBy extends NodeResque.Plugin {
      */
     async beforePerform() {
         const { jobId, buildId } = this.args[0];
+
+        logger.info('%s | %s | Processing blocked-by filter', buildId, jobId);
+
         const runningKey = `${runningJobsPrefix}${jobId}`;
         const lastRunningKey = `last_${runningJobsPrefix}${jobId}`;
         const waitingKey = `${waitingJobsPrefix}${jobId}`;
@@ -198,6 +211,8 @@ class BlockedBy extends NodeResque.Plugin {
             });
             await this.queueObject.connection.redis.hdel(`${queuePrefix}buildConfigs`, buildId);
 
+            logger.info('%s | %s | Remove waiting key and collapse build', buildId, jobId);
+
             return false;
         }
 
@@ -214,6 +229,8 @@ class BlockedBy extends NodeResque.Plugin {
                 await this.queueObject.connection.redis.del(runningKey);
             }
 
+            logger.info('%s | %s | Delete runningKey and waitingKey', buildId, jobId);
+
             // Should not proceed since this build was previously aborted
             return false;
         }
@@ -225,6 +242,8 @@ class BlockedBy extends NodeResque.Plugin {
         }
 
         if (blockedBy.length > 0) {
+            logger.info('%s | %s | BlockedBy list:%s', buildId, jobId, blockedBy);
+
             const blockingBuildIds = [];
 
             // Get the blocking job
@@ -237,6 +256,8 @@ class BlockedBy extends NodeResque.Plugin {
                     }
                 })
             );
+
+            logger.info('%s | %s | blockingBuildIds:%s', buildId, jobId, blockingBuildIds);
 
             // If any blocking job is running, then re-enqueue
             if (blockingBuildIds.length > 0) {
