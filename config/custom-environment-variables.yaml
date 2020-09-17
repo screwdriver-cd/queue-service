@@ -24,6 +24,8 @@ executor:
         kubernetes:
             # The host or IP of the kubernetes cluster
             host: K8S_HOST
+            # Privileged mode, default restricted, set to true for trusted container runtime use-case
+            privileged: K8S_SECURITYCONTEXT_PRIVILEGED
             # The jwt token used for authenticating kubernetes requests
             token: K8S_TOKEN
             jobsNamespace: K8S_JOBS_NAMESPACE
@@ -70,6 +72,8 @@ executor:
             annotations:
               __name: K8S_ANNOTATIONS
               __format: json
+            # support for kata-containers-as-a-runtimeclass
+            runtimeClass: K8S_RUNTIME_CLASS
         # Launcher image to use
         launchImage: LAUNCH_IMAGE
         # Launcher container tag to use
@@ -91,6 +95,8 @@ executor:
         kubernetes:
             # The host or IP of the kubernetes cluster
             host: K8S_HOST
+            # Privileged mode, default restricted, set to true for trusted container runtime use-case
+            privileged: K8S_SECURITYCONTEXT_PRIVILEGED
             # The jwt token used for authenticating kubernetes requests
             token: K8S_TOKEN
             jobsNamespace: K8S_JOBS_NAMESPACE
