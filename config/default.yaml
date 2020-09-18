@@ -34,6 +34,8 @@ executor:
       kubernetes:
         # The host or IP of the kubernetes cluster
         host: kubernetes.default
+        # Privileged mode, default restricted, set to true for trusted container runtime use-case
+        privileged: false
         dockerFeatureEnabled: false
         resources:
           cpu:
@@ -56,6 +58,8 @@ executor:
         nodeSelectors: {}
         preferredNodeSelectors: {}
         annotations: {}
+        # support for kata-containers-as-a-runtimeclass
+        runtimeClass: ""
       # Launcher image to use
       launchImage: screwdrivercd/launcher
       # Container tags to use
@@ -76,6 +80,8 @@ executor:
       kubernetes:
         # The host or IP of the kubernetes cluster
         host: kubernetes.default
+        # Privileged mode, default restricted, set to true for trusted container runtime use-case
+        privileged: false
         # Resources for build pod
         resources:
           cpu:
