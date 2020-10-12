@@ -13,7 +13,7 @@ function convertToBool(value) {
         return value;
     }
 
-    return value === 'true';
+    return String(value).toLowerCase() === 'true';
 }
 
 const rabbitmqConfig = config.get('scheduler').rabbitmq;
