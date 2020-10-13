@@ -253,7 +253,9 @@ worker:
 # Run queue-worker as a scheduler, instead of calling executor to start/stop builds, push it to rabbitmq
 scheduler:
     # Enabled schduler mode or not
-    enabled: SCHEDULER_ENABLED
+    enabled:
+        __name: SCHEDULER_ENABLED
+	__format: boolean
     # To enable schduler mode, you need rabbitmq server and consumer
     rabbitmq:
         # Host of rabbitmq cluster
