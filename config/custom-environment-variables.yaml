@@ -255,7 +255,7 @@ scheduler:
     # Enabled schduler mode or not
     enabled:
         __name: SCHEDULER_ENABLED
-	__format: boolean
+        __format: boolean
     # To enable schduler mode, you need rabbitmq server and consumer
     rabbitmq:
         # Host of rabbitmq cluster
