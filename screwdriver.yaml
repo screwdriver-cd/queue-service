@@ -56,7 +56,7 @@ jobs:
             DOCKER_REPO: screwdrivercd/queue-service
             K8S_CONTAINER: screwdriver-queue-service
             K8S_IMAGE: screwdrivercd/queue-service
-            K8S_HOST: kubernetes
+            K8S_HOST: kubernetes.default.svc
             K8S_DEPLOYMENT: sdqueuesvc-beta
             K8S_ENV_KEY: DATASTORE_DYNAMODB_PREFIX
             K8S_ENV_VALUE: beta_rc2_
@@ -84,7 +84,7 @@ jobs:
             DOCKER_REPO: screwdrivercd/queue-service
             K8S_CONTAINER: screwdriver-queue-service
             K8S_IMAGE: screwdrivercd/queue-service
-            K8S_HOST: kubernetes
+            K8S_HOST: kubernetes.default.svc
             K8S_DEPLOYMENT: sdqueuesvc
             K8S_ENV_KEY: DATASTORE_DYNAMODB_PREFIX
             K8S_ENV_VALUE: rc2_
