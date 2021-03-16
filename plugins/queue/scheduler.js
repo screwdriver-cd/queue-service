@@ -180,18 +180,22 @@ async function startPeriodic(executor, config) {
 
         const next = cron.next(cron.transform(buildCron, job.id));
 
-        // Store the config in redis
-        await executor.redisBreaker.runCommand(
-            'hset',
-            executor.periodicBuildTable,
-            job.id,
-            JSON.stringify(
-                Object.assign(config, {
-                    isUpdate: false,
-                    triggerBuild: false
-                })
-            )
-        );
+        try {
+            // Store the config in redis
+            await executor.redisBreaker.runCommand(
+                'hset',
+                executor.periodicBuildTable,
+                job.id,
+                JSON.stringify(
+                    Object.assign(config, {
+                        isUpdate: false,
+                        triggerBuild: false
+                    })
+                )
+            );
+        } catch (err) {
+            logger.error(`failed to store the config in Redis for job ${job.id}: ${err}`);
+        }
 
         // Note: arguments to enqueueAt are [timestamp, queue name, job name, array of args]
         let shouldRetry = false;
@@ -203,9 +207,14 @@ async function startPeriodic(executor, config) {
             // eslint-disable-next-line max-len
             if (err && err.message !== 'Job already enqueued at this time with same arguments') {
                 shouldRetry = true;
+                logger.warn(`duplicate build: failed to enqueue for job ${job.id}: ${err}`);
+            } else {
+                logger.error(`failed to enqueue for job ${job.id}: ${err}`);
             }
         }
         if (!shouldRetry) {
+            logger.info(`successfully added to queue for job ${job.id}`);
+
             return Promise.resolve();
         }
         try {
@@ -214,6 +223,7 @@ async function startPeriodic(executor, config) {
             logger.error(`failed to add to delayed queue for job ${job.id}: ${err}`);
         }
     }
+    logger.info(`added to delayed queue for job ${job.id}`);
 
     return Promise.resolve();
 }

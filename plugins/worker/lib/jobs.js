@@ -100,7 +100,7 @@ function pushToRabbitMq(message, queue, messageId) {
             persistent: true
         })
         .then(() => {
-            logger.info('sucessfully publishing msg id %s -> queue %s', messageId, queue);
+            logger.info('successfully publishing msg id %s -> queue %s', messageId, queue);
 
             return channelWrapper.close();
         })
