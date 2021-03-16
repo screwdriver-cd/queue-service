@@ -155,17 +155,13 @@ describe('scheduler test', () => {
 
     describe('startPeriodic', () => {
         beforeEach(() => {});
-        it("rejects if it can't establish a connection", function() {
+        it("does not reject if it can't establish a connection", async () => {
             queueMock.connect.rejects(new Error("couldn't connect"));
-
-            return scheduler.startPeriodic(executor, testDelayedConfig).then(
-                () => {
-                    assert.fail('Should not get here');
-                },
-                err => {
-                    assert.instanceOf(err, Error);
-                }
-            );
+            try {
+                await scheduler.startPeriodic(executor, testDelayedConfig);
+            } catch (err) {
+                assert.fail('Should not get here');
+            }
         });
 
         it("doesn't call connect if there's already a connection", () => {

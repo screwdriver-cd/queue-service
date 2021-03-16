@@ -176,11 +176,13 @@ async function startPeriodic(executor, config) {
     }
 
     if (buildCron && job.state === 'ENABLED' && !job.archived) {
-        await executor.connect();
-
-        const next = cron.next(cron.transform(buildCron, job.id));
+        let next;
 
         try {
+            await executor.connect();
+
+            next = cron.next(cron.transform(buildCron, job.id));
+
             // Store the config in redis
             await executor.redisBreaker.runCommand(
                 'hset',
@@ -207,19 +209,23 @@ async function startPeriodic(executor, config) {
             // eslint-disable-next-line max-len
             if (err && err.message !== 'Job already enqueued at this time with same arguments') {
                 shouldRetry = true;
-                logger.error(`duplicate build: failed to enqueue for job ${job.id}: ${err}`);
+                logger.warn(`duplicate build: failed to enqueue for job ${job.id}: ${err}`);
+            } else {
+                logger.error(`failed to enqueue for job ${job.id}: ${err}`);
             }
         }
         if (!shouldRetry) {
+            logger.info(`successfully added to queue for job ${job.id}`);
+
             return Promise.resolve();
         }
         try {
             await executor.queue.enqueueAt(next, executor.periodicBuildQueue, 'startDelayed', [{ jobId: job.id }]);
-            logger.info(`added to delayed queue for job ${job.id}`);
         } catch (err) {
             logger.error(`failed to add to delayed queue for job ${job.id}: ${err}`);
         }
     }
+    logger.info(`added to delayed queue for job ${job.id}`);
 
     return Promise.resolve();
 }
