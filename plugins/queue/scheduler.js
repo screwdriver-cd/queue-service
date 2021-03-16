@@ -176,13 +176,11 @@ async function startPeriodic(executor, config) {
     }
 
     if (buildCron && job.state === 'ENABLED' && !job.archived) {
-        let next;
+        await executor.connect();
+
+        const next = cron.next(cron.transform(buildCron, job.id));
 
         try {
-            await executor.connect();
-
-            next = cron.next(cron.transform(buildCron, job.id));
-
             // Store the config in redis
             await executor.redisBreaker.runCommand(
                 'hset',
