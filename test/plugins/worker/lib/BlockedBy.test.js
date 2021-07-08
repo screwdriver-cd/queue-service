@@ -716,6 +716,57 @@ describe('Plugin Test', () => {
                 await blockedBy.beforePerform();
                 assert.calledWith(mockWorker.queueObject.enqueueIn, 300000, mockQueue, mockFunc, mockArgs);
             });
+
+            it('handle error when collapse build process', async () => {
+                blockedBy = new BlockedBy(mockWorker, mockFunc, mockQueue, mockJob, mockArgs, {
+                    blockedBySelf: true,
+                    collapse: true
+                });
+                mockRedis.get.withArgs(`${runningJobsPrefix}111`).resolves('123');
+                mockRedis.get.withArgs(`last_${runningKey}`).resolves('4');
+                helperMock.updateBuildStatus.rejects();
+                await blockedBy.beforePerform();
+                assert.equal(mockRedis.get.getCall(0).args[0], deleteKey);
+                assert.equal(mockRedis.get.getCall(1).args[0], runningKey);
+                assert.equal(mockRedis.get.getCall(2).args[0], `last_${runningKey}`);
+                assert.notCalled(mockRedis.set);
+                assert.notCalled(mockRedis.expire);
+                assert.notCalled(mockWorker.queueObject.enqueueIn);
+                assert.calledOnce(mockRedis.lrem);
+                assert.calledWith(helperMock.updateBuildStatus, {
+                    buildId: 3,
+                    redisInstance: mockRedis,
+                    status: 'COLLAPSED',
+                    statusMessage: 'Collapsed to build: 4'
+                });
+            });
+
+            it('handle error when re-enqueue process', async () => {
+                mockRedis.get.withArgs(`${runningJobsPrefix}111`).resolves('123');
+                helperMock.updateBuildStatus.rejects();
+                await blockedBy.beforePerform();
+                assert.equal(mockRedis.get.getCall(0).args[0], deleteKey);
+                assert.equal(mockRedis.get.getCall(1).args[0], runningKey);
+                assert.equal(mockRedis.get.getCall(2).args[0], `last_${runningKey}`);
+                assert.equal(mockRedis.get.getCall(3).args[0], `${runningJobsPrefix}111`);
+                assert.equal(mockRedis.get.getCall(4).args[0], `${runningJobsPrefix}222`);
+                assert.notCalled(mockRedis.set);
+                assert.notCalled(mockRedis.expire);
+                assert.calledWith(mockRedis.rpush, `${waitingJobsPrefix}${jobId}`, buildId);
+                assert.calledWith(
+                    mockWorker.queueObject.enqueueIn,
+                    DEFAULT_ENQUEUETIME * 1000 * 60,
+                    mockQueue,
+                    mockFunc,
+                    mockArgs
+                );
+                assert.calledWith(helperMock.updateBuildStatus, {
+                    buildId: 3,
+                    redisInstance: mockRedis,
+                    status: 'BLOCKED',
+                    statusMessage: 'Blocked by these running build(s): <a href="/builds/123">123</a>'
+                });
+            });
         });
 
         describe('afterPerform', () => {
