@@ -52,7 +52,7 @@ describe('Helper Test', () => {
         mockery.registerMock('../config/redis', mockRedisConfig);
 
         // eslint-disable-next-line global-require
-        helper = require('../../plugins/helper.js');
+        helper = require('../../plugins/helper');
     });
 
     afterEach(() => {

@@ -3,7 +3,7 @@
 const NodeResque = require('node-resque');
 const hoek = require('@hapi/hoek');
 const logger = require('screwdriver-logger');
-const helper = require('../../helper.js');
+const helper = require('../../helper');
 const { runningJobsPrefix, waitingJobsPrefix, queuePrefix } = require('../../../config/redis');
 const BLOCK_TIMEOUT_BUFFER = 30;
 

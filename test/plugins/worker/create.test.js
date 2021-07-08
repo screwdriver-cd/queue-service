@@ -55,7 +55,7 @@ describe('POST /queue/worker', () => {
         generateTokenMock = sinon.stub();
 
         /* eslint-disable global-require */
-        const plugin = require('../../../plugins/worker/index.js');
+        const plugin = require('../../../plugins/worker/index');
         /* eslint-enable global-require */
 
         server.auth.scheme('custom', () => ({

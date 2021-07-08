@@ -77,7 +77,7 @@ describe('Plugin Test', () => {
 
         mockery.registerMock('ioredis', mockRedis);
         mockery.registerMock('../../../config/redis', mockRedisConfig);
-        mockery.registerMock('../../helper.js', helperMock);
+        mockery.registerMock('../../helper', helperMock);
 
         // eslint-disable-next-line global-require
         BlockedBy = require('../../../../plugins/worker/lib/BlockedBy').BlockedBy;

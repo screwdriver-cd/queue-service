@@ -60,10 +60,10 @@ describe('Timeout test', () => {
         };
 
         mockery.registerMock('../../../config/redis', mockRedisConfig);
-        mockery.registerMock('../../helper.js', helperMock);
+        mockery.registerMock('../../helper', helperMock);
 
         // eslint-disable-next-line global-require
-        timeout = require('../../../../plugins/worker/lib/timeout.js');
+        timeout = require('../../../../plugins/worker/lib/timeout');
     });
 
     afterEach(() => {
