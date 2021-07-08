@@ -595,6 +595,7 @@ describe('Plugin Test', () => {
             it('re-enqueue if blocked and not push to list if duplicate', async () => {
                 mockRedis.get.withArgs(`${runningJobsPrefix}111`).resolves('123');
                 mockRedis.lrange.resolves([buildIdStr]);
+                helperMock.updateBuildStatus.resolves();
                 await blockedBy.beforePerform();
                 assert.equal(mockRedis.get.getCall(0).args[0], deleteKey);
                 assert.equal(mockRedis.get.getCall(1).args[0], runningKey);
@@ -636,6 +637,7 @@ describe('Plugin Test', () => {
             it('re-enqueue if there is the same job waiting but not the same buildId', async () => {
                 mockRedis.lrange.resolves(['2']);
                 mockRedis.llen.resolves(1);
+                helperMock.updateBuildStatus.resolves();
                 await blockedBy.beforePerform();
                 assert.equal(mockRedis.get.getCall(0).args[0], deleteKey);
                 assert.equal(mockRedis.get.getCall(1).args[0], runningKey);
@@ -706,6 +708,7 @@ describe('Plugin Test', () => {
                 const reenqueueWaitTime = 5;
 
                 mockRedis.get.withArgs(`${runningJobsPrefix}111`).resolves('123');
+                helperMock.updateBuildStatus.resolves();
                 blockedBy = new BlockedBy(mockWorker, mockFunc, mockQueue, mockJob, mockArgs, {
                     reenqueueWaitTime
                 });
