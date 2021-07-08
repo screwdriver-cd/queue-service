@@ -717,7 +717,7 @@ describe('Plugin Test', () => {
                 assert.calledWith(mockWorker.queueObject.enqueueIn, 300000, mockQueue, mockFunc, mockArgs);
             });
 
-            it('anyway collapse waiting builds to latest one and re-enqueue if blocked when updateBuildStatus error', async () => {
+            it('always collapse waiting builds to latest one and re-enqueue if blocked when updateBuildStatus error', async () => {
                 blockedBy = new BlockedBy(mockWorker, mockFunc, mockQueue, mockJob, mockArgs, {
                     blockedBySelf: true,
                     collapse: true
