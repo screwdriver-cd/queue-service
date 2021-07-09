@@ -1,7 +1,7 @@
 'use strict';
 
 const { assert } = require('chai');
-const { timeOutOfWindows } = require('../../../../plugins/queue/utils/freezeWindows.js');
+const { timeOutOfWindows } = require('../../../../plugins/queue/utils/freezeWindows');
 
 describe('freeze windows', () => {
     it('should return the correct date outside the freeze windows', () => {

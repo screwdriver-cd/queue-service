@@ -69,7 +69,7 @@ describe('Plugin Test', () => {
         mockery.registerMock('ioredis', mockRedis);
 
         // eslint-disable-next-line global-require
-        Filter = require('../../../../plugins/worker/lib/Filter.js').Filter;
+        Filter = require('../../../../plugins/worker/lib/Filter').Filter;
 
         filter = new Filter(mockWorker, mockFunc, mockQueue, mockJob, mockArgs, {});
     });

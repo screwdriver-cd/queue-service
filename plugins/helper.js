@@ -63,8 +63,13 @@ async function updateBuildStatus(updateConfig) {
                 statusMessage
             }),
             (err, res) => {
-                if (!err && res.statusCode === 200) {
-                    return resolve(res.body);
+                if (!err) {
+                    if (res.statusCode === 200) {
+                        return resolve(res.body);
+                    }
+                    logger.error(`PUT /v4/builds/${buildId} returned non 200, ${res.statusCode}, ${res.body}`);
+
+                    return reject(new Error(`Failed to updateBuildStatus with ${res.statusCode} code and ${res.body}`));
                 }
 
                 return reject(err);

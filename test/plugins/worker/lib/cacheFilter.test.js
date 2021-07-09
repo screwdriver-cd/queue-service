@@ -69,7 +69,7 @@ describe('CacheFilter Plugin Test', () => {
         mockery.registerMock('ioredis', mockRedis);
 
         // eslint-disable-next-line global-require
-        CacheFilter = require('../../../../plugins/worker/lib/CacheFilter.js').CacheFilter;
+        CacheFilter = require('../../../../plugins/worker/lib/CacheFilter').CacheFilter;
 
         filter = new CacheFilter(mockWorker, mockFunc, mockQueue, mockJob, mockArgs, {});
     });

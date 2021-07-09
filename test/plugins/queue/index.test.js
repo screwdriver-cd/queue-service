@@ -46,7 +46,7 @@ describe('queue plugin test', () => {
         generateTokenMock = sinon.stub();
 
         /* eslint-disable global-require */
-        plugin = require('../../../plugins/queue/index.js');
+        plugin = require('../../../plugins/queue/index');
         /* eslint-enable global-require */
         server = new hapi.Server({
             port: 1234

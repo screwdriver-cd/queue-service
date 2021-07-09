@@ -2,7 +2,7 @@
 
 const { assert } = require('chai');
 const hash = require('string-hash');
-const cron = require('../../../../plugins/queue/utils/cron.js');
+const cron = require('../../../../plugins/queue/utils/cron');
 
 const evaluateHash = (jobId, min, max) => (hash(jobId) % (max + 1 - min)) + min;
 

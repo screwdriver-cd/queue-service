@@ -135,7 +135,7 @@ describe('Schedule test', () => {
         configMock.get.withArgs('worker').returns(workerConfig);
 
         // eslint-disable-next-line global-require
-        workerObj = require('../../../plugins/worker/worker.js');
+        workerObj = require('../../../plugins/worker/worker');
         testWorker = workerObj.multiWorker;
         testScheduler = workerObj.scheduler;
         workerObj.invoke();

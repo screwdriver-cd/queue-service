@@ -3,7 +3,7 @@
 const NodeResque = require('node-resque');
 const hoek = require('@hapi/hoek');
 const logger = require('screwdriver-logger');
-const helper = require('../../helper.js');
+const helper = require('../../helper');
 const { runningJobsPrefix, waitingJobsPrefix, queuePrefix } = require('../../../config/redis');
 const BLOCK_TIMEOUT_BUFFER = 30;
 
@@ -41,12 +41,16 @@ async function collapseBuilds({ waitingKey, buildId, blockingBuildIds }) {
 
             // if the build is no longer in the waiting queue, don't collapse it
             if (count > 0) {
-                await helper.updateBuildStatus({
-                    redisInstance: this.queueObject.connection.redis,
-                    buildId: bId,
-                    status: 'COLLAPSED',
-                    statusMessage: `Collapsed to build: ${buildId}`
-                });
+                await helper
+                    .updateBuildStatus({
+                        redisInstance: this.queueObject.connection.redis,
+                        buildId: bId,
+                        status: 'COLLAPSED',
+                        statusMessage: `Collapsed to build: ${buildId}`
+                    })
+                    .catch(err => {
+                        logger.error(`Failed to update build status to COLLAPSED for build:${bId}:${err}`);
+                    });
                 await this.queueObject.connection.redis.hdel(`${queuePrefix}buildConfigs`, bId);
             }
         });
@@ -203,12 +207,16 @@ class BlockedBy extends NodeResque.Plugin {
         // Current build is older than last running build for the same job, discard the build
         if (collapse && buildId < parseInt(lastRunningBuildId, 10)) {
             await this.queueObject.connection.redis.lrem(waitingKey, 0, buildId);
-            await helper.updateBuildStatus({
-                redisInstance: this.queueObject.connection.redis,
-                buildId,
-                status: 'COLLAPSED',
-                statusMessage: `Collapsed to build: ${lastRunningBuildId}`
-            });
+            await helper
+                .updateBuildStatus({
+                    redisInstance: this.queueObject.connection.redis,
+                    buildId,
+                    status: 'COLLAPSED',
+                    statusMessage: `Collapsed to build: ${lastRunningBuildId}`
+                })
+                .catch(err => {
+                    logger.error(`Failed to update build status to COLLAPSED for build:${buildId}:${err}`);
+                });
             await this.queueObject.connection.redis.hdel(`${queuePrefix}buildConfigs`, buildId);
 
             logger.info('%s | %s | Remove waiting key and collapse build', buildId, jobId);
@@ -354,12 +362,16 @@ class BlockedBy extends NodeResque.Plugin {
         // enqueueIn uses milliseconds
         await this.queueObject.enqueueIn(this.reenqueueWaitTime() * 1000 * 60, this.queue, this.func, this.args);
 
-        await helper.updateBuildStatus({
-            redisInstance: this.queueObject.connection.redis,
-            buildId,
-            status: 'BLOCKED',
-            statusMessage
-        });
+        await helper
+            .updateBuildStatus({
+                redisInstance: this.queueObject.connection.redis,
+                buildId,
+                status: 'BLOCKED',
+                statusMessage
+            })
+            .catch(err => {
+                logger.error(`Failed to update build status to BLOCKED for build:${buildId}:${err}`);
+            });
     }
 
     blockTimeout(buildTimeout) {

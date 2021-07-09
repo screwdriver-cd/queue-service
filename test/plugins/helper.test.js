@@ -52,7 +52,7 @@ describe('Helper Test', () => {
         mockery.registerMock('../config/redis', mockRedisConfig);
 
         // eslint-disable-next-line global-require
-        helper = require('../../plugins/helper.js');
+        helper = require('../../plugins/helper');
     });
 
     afterEach(() => {
@@ -79,6 +79,21 @@ describe('Helper Test', () => {
         }
         assert.calledWith(mockRedis.hget, 'mockQueuePrefix_buildConfigs', job.args[0].buildId);
         assert.calledWith(mockRequest, requestOptions);
+    });
+
+    it('logs correct message when fail to update build status with non 200 API response', async () => {
+        mockRequest.yieldsAsync(null, { statusCode: 401, body: 'Unauthorized' });
+        try {
+            await helper.updateBuildStatus({
+                redisInstance: mockRedis,
+                status,
+                statusMessage,
+                buildId: 1
+            });
+        } catch (err) {
+            assert.calledWith(mockRequest, requestOptions);
+            assert.strictEqual(err.message, 'Failed to updateBuildStatus with 401 code and Unauthorized');
+        }
     });
 
     it('logs correct message when fail to update build failure status', async () => {

@@ -126,7 +126,7 @@ describe('scheduler test', () => {
         mockery.registerMock('../helper', helperMock);
 
         /* eslint-disable global-require */
-        scheduler = require('../../../plugins/queue/scheduler.js');
+        scheduler = require('../../../plugins/queue/scheduler');
         Executor = require('../../../lib/queue');
         /* eslint-enable global-require */
 
@@ -535,7 +535,7 @@ describe('scheduler test', () => {
             mockery.registerMock('./utils/freezeWindows', freezeWindowsMockB);
 
             /* eslint-disable global-require */
-            scheduler = require('../../../plugins/queue/scheduler.js');
+            scheduler = require('../../../plugins/queue/scheduler');
             Executor = require('../../../lib/queue');
             /* eslint-enable global-require */
 
