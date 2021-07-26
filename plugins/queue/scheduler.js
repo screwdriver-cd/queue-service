@@ -396,7 +396,7 @@ async function start(executor, config) {
                     buildId,
                     token: buildToken,
                     apiUri,
-                    payload: { stats: build.stats }
+                    payload: { stats: build.stats, status: 'QUEUED' }
                 },
                 executor.requestRetryStrategy
             );

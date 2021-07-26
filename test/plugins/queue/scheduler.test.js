@@ -381,7 +381,7 @@ describe('scheduler test', () => {
                         buildId,
                         token: 'buildToken',
                         apiUri: 'http://api.com',
-                        payload: { stats: buildMock.stats }
+                        payload: { stats: buildMock.stats, status: 'QUEUED' }
                     },
                     executor.requestRetryStrategy
                 );
@@ -481,7 +481,7 @@ describe('scheduler test', () => {
                         buildId,
                         token: 'buildToken',
                         apiUri: 'http://api.com',
-                        payload: { stats: buildMock.stats }
+                        payload: { stats: buildMock.stats, status: 'QUEUED' }
                     },
                     executor.requestRetryStrategy
                 );
