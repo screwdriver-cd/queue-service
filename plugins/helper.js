@@ -1,7 +1,6 @@
 'use strict';
 
-const request = require('request');
-const requestretry = require('requestretry');
+const request = require('screwdriver-request');
 const logger = require('screwdriver-logger');
 const { queuePrefix } = require('../config/redis');
 
@@ -16,25 +15,42 @@ const RETRY_DELAY = 5;
  * @param {Function} retryStrategyFn
  * @param {Object} body
  */
-function formatOptions(method, uri, token, body, retryStrategyFn) {
+function formatOptions(caller, method, url, token, json, retryStrategyFn) {
     const options = {
-        json: true,
         method,
-        uri,
+        url,
         headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json'
+            Authorization: `Bearer ${token}`
         }
     };
 
-    if (body) {
-        Object.assign(options, { body });
+    if (json) {
+        Object.assign(options, { json });
     }
     if (retryStrategyFn) {
+        const retryOptions = {
+            limit: RETRY_LIMIT,
+            calculateDelay: ({ computedValue }) => (computedValue ? RETRY_DELAY * 1000 : 0) // in ms
+        };
+
+        if (method === 'POST') {
+            Object.assign(retryOptions, {
+                methods: ['POST']
+            });
+        }
+
         Object.assign(options, {
-            retryStrategy: retryStrategyFn,
-            maxAttempts: RETRY_LIMIT,
-            retryDelay: RETRY_DELAY * 1000 // in ms
+            retryOptions,
+            hooks: {
+                afterResponse: [retryStrategyFn]
+            }
+        });
+    }
+    if (caller) {
+        Object.assign(options, {
+            context: {
+                caller
+            }
         });
     }
 
@@ -58,7 +74,7 @@ async function updateBuildStatus(updateConfig) {
 
     return new Promise((resolve, reject) => {
         request(
-            formatOptions('PUT', `${buildConfig.apiUri}/v4/builds/${buildId}`, buildConfig.token, {
+            formatOptions('updateBuildStatus', 'PUT', `${buildConfig.apiUri}/v4/builds/${buildId}`, buildConfig.token, {
                 status,
                 statusMessage
             }),
@@ -97,10 +113,16 @@ async function updateStepStop(stepConfig) {
 
     return new Promise((resolve, reject) => {
         request(
-            formatOptions('PUT', `${buildConfig.apiUri}/v4/builds/${buildId}/steps/${stepName}`, buildConfig.token, {
-                endTime: new Date().toISOString(),
-                code
-            }),
+            formatOptions(
+                'updateStepStop',
+                'PUT',
+                `${buildConfig.apiUri}/v4/builds/${buildId}/steps/${stepName}`,
+                buildConfig.token,
+                {
+                    endTime: new Date().toISOString(),
+                    code
+                }
+            ),
             (err, res) => {
                 if (!err && res.statusCode === 200) {
                     return resolve(res.body);
@@ -129,7 +151,12 @@ async function getCurrentStep(stepConfig) {
 
     return new Promise((resolve, reject) => {
         request(
-            formatOptions('GET', `${buildConfig.apiUri}/v4/builds/${buildId}/steps?status=active`, buildConfig.token),
+            formatOptions(
+                'getCurrentStep',
+                'GET',
+                `${buildConfig.apiUri}/v4/builds/${buildId}/steps?status=active`,
+                buildConfig.token
+            ),
             (err, res) => {
                 if (!err && res.statusCode === 200) {
                     if (res.body && res.body.length > 0) {
@@ -154,25 +181,30 @@ async function getCurrentStep(stepConfig) {
  */
 async function createBuildEvent(apiUri, token, buildEvent, retryStrategyFn) {
     return new Promise((resolve, reject) => {
-        requestretry(formatOptions('POST', `${apiUri}/v4/events`, token, buildEvent, retryStrategyFn), (err, res) => {
-            if (!err) {
-                logger.info(
-                    `POST /v4/events/${buildEvent.buildId} completed with attempts, ${res.statusCode}, ${res.attempts}`
-                );
-                if (res.statusCode === 201) {
-                    return resolve(res);
+        request(
+            formatOptions('createBuildEvent', 'POST', `${apiUri}/v4/events`, token, buildEvent, retryStrategyFn),
+            (err, res) => {
+                if (!err) {
+                    logger.info(
+                        `POST /v4/events/${buildEvent.buildId} completed with attempts, ${res.statusCode}, ${res.attempts}`
+                    );
+                    if (res.statusCode === 201) {
+                        return resolve(res);
+                    }
+                    logger.info(
+                        `POST /v4/events/${buildEvent.buildId} returned non 201, ${res.statusCode}, ${JSON.stringify(
+                            res.body
+                        )}`
+                    );
+
+                    return res.statusCode === 200
+                        ? resolve(JSON.stringify(res.body))
+                        : reject(JSON.stringify(res.body));
                 }
-                logger.info(
-                    `POST /v4/events/${buildEvent.buildId} returned non 201, ${res.statusCode}, ${JSON.stringify(
-                        res.body
-                    )}`
-                );
 
-                return res.statusCode === 200 ? resolve(JSON.stringify(res.body)) : reject(JSON.stringify(res.body));
+                return reject(err);
             }
-
-            return reject(err);
-        });
+        );
     });
 }
 
@@ -184,8 +216,15 @@ async function createBuildEvent(apiUri, token, buildEvent, retryStrategyFn) {
  */
 async function getPipelineAdmin(token, apiUri, pipelineId, retryStrategyFn) {
     return new Promise((resolve, reject) => {
-        requestretry(
-            formatOptions('GET', `${apiUri}/v4/pipelines/${pipelineId}/admin`, token, undefined, retryStrategyFn),
+        request(
+            formatOptions(
+                'getPipelineAdmin',
+                'GET',
+                `${apiUri}/v4/pipelines/${pipelineId}/admin`,
+                token,
+                undefined,
+                retryStrategyFn
+            ),
             (err, res) => {
                 if (!err) {
                     logger.info(
@@ -221,8 +260,8 @@ async function updateBuild(updateConfig, retryStrategyFn) {
     const { buildId, token, payload, apiUri } = updateConfig;
 
     return new Promise((resolve, reject) => {
-        requestretry(
-            formatOptions('PUT', `${apiUri}/v4/builds/${buildId}`, token, payload, retryStrategyFn),
+        request(
+            formatOptions('updateBuild', 'PUT', `${apiUri}/v4/builds/${buildId}`, token, payload, retryStrategyFn),
             (err, res) => {
                 if (!err) {
                     logger.info(
