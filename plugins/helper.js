@@ -15,7 +15,7 @@ const RETRY_DELAY = 5;
  * @param {Function} retryStrategyFn
  * @param {Object} body
  */
-function formatOptions(caller, method, url, token, json, retryStrategyFn) {
+function formatOptions(method, url, token, json, retryStrategyFn) {
     const options = {
         method,
         url,
@@ -46,13 +46,6 @@ function formatOptions(caller, method, url, token, json, retryStrategyFn) {
             }
         });
     }
-    if (caller) {
-        Object.assign(options, {
-            context: {
-                caller
-            }
-        });
-    }
 
     logger.info(`${options.method} ${options.uri}`);
 
@@ -73,7 +66,7 @@ async function updateBuildStatus(updateConfig) {
     if (!buildConfig) return null;
 
     return request(
-        formatOptions('updateBuildStatus', 'PUT', `${buildConfig.apiUri}/v4/builds/${buildId}`, buildConfig.token, {
+        formatOptions('PUT', `${buildConfig.apiUri}/v4/builds/${buildId}`, buildConfig.token, {
             status,
             statusMessage
         })
@@ -106,16 +99,10 @@ async function updateStepStop(stepConfig) {
     if (!buildConfig) return null;
 
     return request(
-        formatOptions(
-            'updateStepStop',
-            'PUT',
-            `${buildConfig.apiUri}/v4/builds/${buildId}/steps/${stepName}`,
-            buildConfig.token,
-            {
-                endTime: new Date().toISOString(),
-                code
-            }
-        )
+        formatOptions('PUT', `${buildConfig.apiUri}/v4/builds/${buildId}/steps/${stepName}`, buildConfig.token, {
+            endTime: new Date().toISOString(),
+            code
+        })
     ).then(res => {
         if (res.statusCode === 200) {
             return res.body;
@@ -143,12 +130,7 @@ async function getCurrentStep(stepConfig) {
     if (!buildConfig) return null;
 
     return request(
-        formatOptions(
-            'getCurrentStep',
-            'GET',
-            `${buildConfig.apiUri}/v4/builds/${buildId}/steps?status=active`,
-            buildConfig.token
-        )
+        formatOptions('GET', `${buildConfig.apiUri}/v4/builds/${buildId}/steps?status=active`, buildConfig.token)
     ).then(res => {
         if (res.statusCode === 200) {
             if (res.body && res.body.length > 0) {
@@ -172,9 +154,7 @@ async function getCurrentStep(stepConfig) {
  * @param {Function} retryStrategyFn
  */
 async function createBuildEvent(apiUri, token, buildEvent, retryStrategyFn) {
-    return request(
-        formatOptions('createBuildEvent', 'POST', `${apiUri}/v4/events`, token, buildEvent, retryStrategyFn)
-    ).then(res => {
+    return request(formatOptions('POST', `${apiUri}/v4/events`, token, buildEvent, retryStrategyFn)).then(res => {
         logger.info(
             `POST /v4/events/${buildEvent.buildId} completed with attempts, ${res.statusCode}, ${res.attempts}`
         );
@@ -202,14 +182,7 @@ async function createBuildEvent(apiUri, token, buildEvent, retryStrategyFn) {
  */
 async function getPipelineAdmin(token, apiUri, pipelineId, retryStrategyFn) {
     return request(
-        formatOptions(
-            'getPipelineAdmin',
-            'GET',
-            `${apiUri}/v4/pipelines/${pipelineId}/admin`,
-            token,
-            undefined,
-            retryStrategyFn
-        )
+        formatOptions('GET', `${apiUri}/v4/pipelines/${pipelineId}/admin`, token, undefined, retryStrategyFn)
     ).then(res => {
         logger.info(
             `POST /v4/pipelines/${pipelineId}/admin completed with attempts, ${res.statusCode}, ${res.attempts}`
@@ -233,16 +206,16 @@ async function getPipelineAdmin(token, apiUri, pipelineId, retryStrategyFn) {
 async function updateBuild(updateConfig, retryStrategyFn) {
     const { buildId, token, payload, apiUri } = updateConfig;
 
-    return request(
-        formatOptions('updateBuild', 'PUT', `${apiUri}/v4/builds/${buildId}`, token, payload, retryStrategyFn)
-    ).then(res => {
-        logger.info(`PUT /v4/builds/${buildId} completed with attempts, ${res.statusCode}, ${res.attempts}`);
-        if (res.statusCode === 200) {
-            return res.body;
-        }
+    return request(formatOptions('PUT', `${apiUri}/v4/builds/${buildId}`, token, payload, retryStrategyFn)).then(
+        res => {
+            logger.info(`PUT /v4/builds/${buildId} completed with attempts, ${res.statusCode}, ${res.attempts}`);
+            if (res.statusCode === 200) {
+                return res.body;
+            }
 
-        throw new Error(`Build not updated with ${res.statusCode}code and ${JSON.stringify(res.body)}`);
-    });
+            throw new Error(`Build not updated with ${res.statusCode}code and ${JSON.stringify(res.body)}`);
+        }
+    );
 }
 
 module.exports = {

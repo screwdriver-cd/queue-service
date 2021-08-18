@@ -62,7 +62,6 @@ describe('Helper Test', () => {
     });
 
     it('logs correct message when successfully update build failure status', async () => {
-        requestOptions.context = { caller: 'updateBuildStatus' };
         mockRequest.resolves({ statusCode: 200 });
         try {
             await helper.updateBuildStatus({
@@ -79,7 +78,6 @@ describe('Helper Test', () => {
     });
 
     it('logs correct message when fail to update build status with non 200 API response', async () => {
-        requestOptions.context = { caller: 'updateBuildStatus' };
         mockRequest.resolves({ statusCode: 401, body: 'Unauthorized' });
         try {
             await helper.updateBuildStatus({
@@ -95,8 +93,6 @@ describe('Helper Test', () => {
     });
 
     it('logs correct message when fail to update build failure status', async () => {
-        requestOptions.context = { caller: 'updateBuildStatus' };
-
         const requestErr = new Error('failed to update');
 
         mockRequest.rejects(requestErr);
@@ -142,8 +138,7 @@ describe('Helper Test', () => {
             json: {
                 endTime: isoTime,
                 code: 3
-            },
-            context: { caller: 'updateStepStop' }
+            }
         });
         assert.isUndefined(res);
         sandbox.restore();
@@ -181,8 +176,7 @@ describe('Helper Test', () => {
             json: {
                 endTime: isoTime,
                 code: 3
-            },
-            context: { caller: 'updateStepStop' }
+            }
         });
         sandbox.restore();
     });
@@ -204,8 +198,7 @@ describe('Helper Test', () => {
                 Authorization: 'Bearer fake'
             },
             method: 'GET',
-            url: `foo.bar/v4/builds/${job.args[0].buildId}/steps?status=active`,
-            context: { caller: 'getCurrentStep' }
+            url: `foo.bar/v4/builds/${job.args[0].buildId}/steps?status=active`
         });
         assert.equal(res.stepName, 'wait');
     });
@@ -227,8 +220,7 @@ describe('Helper Test', () => {
                 Authorization: 'Bearer fake'
             },
             method: 'GET',
-            url: `foo.bar/v4/builds/${job.args[0].buildId}/steps?status=active`,
-            context: { caller: 'getCurrentStep' }
+            url: `foo.bar/v4/builds/${job.args[0].buildId}/steps?status=active`
         });
         assert.isNull(res);
     });
@@ -255,8 +247,7 @@ describe('Helper Test', () => {
                 retryOptions: {
                     limit: 3,
                     methods: ['POST']
-                },
-                context: { caller: 'createBuildEvent' }
+                }
             })
         );
     });
@@ -284,8 +275,7 @@ describe('Helper Test', () => {
                     limit: 3,
                     methods: ['POST']
                 },
-                hooks: { afterResponse: [retryFn] },
-                context: { caller: 'createBuildEvent' }
+                hooks: { afterResponse: [retryFn] }
             })
         );
     });
@@ -316,8 +306,7 @@ describe('Helper Test', () => {
                     limit: 3,
                     methods: ['POST']
                 },
-                hooks: { afterResponse: [retryFn] },
-                context: { caller: 'createBuildEvent' }
+                hooks: { afterResponse: [retryFn] }
             })
         );
     });
@@ -348,8 +337,7 @@ describe('Helper Test', () => {
                 retryOptions: {
                     limit: 3
                 },
-                hooks: { afterResponse: [retryFn] },
-                context: { caller: 'getPipelineAdmin' }
+                hooks: { afterResponse: [retryFn] }
             })
         );
         assert.equal(result.username, 'admin123');
@@ -380,8 +368,7 @@ describe('Helper Test', () => {
                 retryOptions: {
                     limit: 3
                 },
-                hooks: { afterResponse: [retryFn] },
-                context: { caller: 'getPipelineAdmin' }
+                hooks: { afterResponse: [retryFn] }
             })
         );
     });
@@ -411,8 +398,7 @@ describe('Helper Test', () => {
                 retryOptions: {
                     limit: 3
                 },
-                hooks: { afterResponse: [retryFn] },
-                context: { caller: 'getPipelineAdmin' }
+                hooks: { afterResponse: [retryFn] }
             })
         );
     });
@@ -451,8 +437,7 @@ describe('Helper Test', () => {
                 retryOptions: {
                     limit: 3
                 },
-                hooks: { afterResponse: [retryFn] },
-                context: { caller: 'updateBuild' }
+                hooks: { afterResponse: [retryFn] }
             })
         );
     });
@@ -494,8 +479,7 @@ describe('Helper Test', () => {
                 retryOptions: {
                     limit: 3
                 },
-                hooks: { afterResponse: [retryFn] },
-                context: { caller: 'updateBuild' }
+                hooks: { afterResponse: [retryFn] }
             })
         );
     });
