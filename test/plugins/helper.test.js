@@ -10,21 +10,8 @@ describe('Helper Test', () => {
     const job = { args: [{ buildId: 1 }] };
     const status = 'BLOCKED';
     const statusMessage = 'blocked by these bloking jobs: 123, 456';
-    const requestOptions = {
-        headers: {
-            Authorization: 'Bearer fake',
-            'Content-Type': 'application/json'
-        },
-        json: true,
-        method: 'PUT',
-        body: {
-            status,
-            statusMessage
-        },
-        uri: `foo.bar/v4/builds/${job.args[0].buildId}`
-    };
+    let requestOptions;
     let mockRequest;
-    let mockRequestRetry;
     let mockRedis;
     let mockRedisConfig;
     let helper;
@@ -37,8 +24,18 @@ describe('Helper Test', () => {
     });
 
     beforeEach(() => {
+        requestOptions = {
+            headers: {
+                Authorization: 'Bearer fake'
+            },
+            method: 'PUT',
+            json: {
+                status,
+                statusMessage
+            },
+            url: `foo.bar/v4/builds/${job.args[0].buildId}`
+        };
         mockRequest = sinon.stub();
-        mockRequestRetry = sinon.stub();
         mockRedis = {
             hget: sinon.stub().resolves('{"apiUri": "foo.bar", "token": "fake"}')
         };
@@ -47,8 +44,7 @@ describe('Helper Test', () => {
             queuePrefix: 'mockQueuePrefix_'
         };
 
-        mockery.registerMock('request', mockRequest);
-        mockery.registerMock('requestretry', mockRequestRetry);
+        mockery.registerMock('screwdriver-request', mockRequest);
         mockery.registerMock('../config/redis', mockRedisConfig);
 
         // eslint-disable-next-line global-require
@@ -66,7 +62,7 @@ describe('Helper Test', () => {
     });
 
     it('logs correct message when successfully update build failure status', async () => {
-        mockRequest.yieldsAsync(null, { statusCode: 200 });
+        mockRequest.resolves({ statusCode: 200 });
         try {
             await helper.updateBuildStatus({
                 redisInstance: mockRedis,
@@ -82,7 +78,7 @@ describe('Helper Test', () => {
     });
 
     it('logs correct message when fail to update build status with non 200 API response', async () => {
-        mockRequest.yieldsAsync(null, { statusCode: 401, body: 'Unauthorized' });
+        mockRequest.resolves({ statusCode: 401, body: 'Unauthorized' });
         try {
             await helper.updateBuildStatus({
                 redisInstance: mockRedis,
@@ -98,9 +94,8 @@ describe('Helper Test', () => {
 
     it('logs correct message when fail to update build failure status', async () => {
         const requestErr = new Error('failed to update');
-        const response = {};
 
-        mockRequest.yieldsAsync(requestErr, response);
+        mockRequest.rejects(requestErr);
 
         try {
             await helper.updateBuildStatus({
@@ -124,7 +119,7 @@ describe('Helper Test', () => {
         });
 
         sandbox.useFakeTimers(dateNow);
-        mockRequest.yieldsAsync(null, { statusCode: 200 });
+        mockRequest.resolves({ statusCode: 200 });
 
         const res = await helper.updateStepStop({
             redisInstance: mockRedis,
@@ -136,13 +131,11 @@ describe('Helper Test', () => {
         assert.calledWith(mockRedis.hget, 'mockQueuePrefix_buildConfigs', job.args[0].buildId);
         assert.calledWith(mockRequest, {
             headers: {
-                Authorization: 'Bearer fake',
-                'Content-Type': 'application/json'
+                Authorization: 'Bearer fake'
             },
-            json: true,
             method: 'PUT',
-            uri: `foo.bar/v4/builds/${job.args[0].buildId}/steps/${stepName}`,
-            body: {
+            url: `foo.bar/v4/builds/${job.args[0].buildId}/steps/${stepName}`,
+            json: {
                 endTime: isoTime,
                 code: 3
             }
@@ -154,7 +147,6 @@ describe('Helper Test', () => {
     it('logs correct message when fail to update step with code', async () => {
         const stepName = 'wait';
         const requestErr = new Error('failed to update');
-        const response = [];
         const dateNow = Date.now();
         const isoTime = new Date(dateNow).toISOString();
         const sandbox = sinon.createSandbox({
@@ -162,7 +154,7 @@ describe('Helper Test', () => {
         });
 
         sandbox.useFakeTimers(dateNow);
-        mockRequest.yieldsAsync(requestErr, response);
+        mockRequest.rejects(requestErr);
 
         try {
             await helper.updateStepStop({
@@ -177,13 +169,11 @@ describe('Helper Test', () => {
 
         assert.calledWith(mockRequest, {
             headers: {
-                Authorization: 'Bearer fake',
-                'Content-Type': 'application/json'
+                Authorization: 'Bearer fake'
             },
-            json: true,
             method: 'PUT',
-            uri: `foo.bar/v4/builds/${job.args[0].buildId}/steps/${stepName}`,
-            body: {
+            url: `foo.bar/v4/builds/${job.args[0].buildId}/steps/${stepName}`,
+            json: {
                 endTime: isoTime,
                 code: 3
             }
@@ -192,7 +182,7 @@ describe('Helper Test', () => {
     });
 
     it('returns correct when get current step is called', async () => {
-        mockRequest.yieldsAsync(null, {
+        mockRequest.resolves({
             statusCode: 200,
             body: [{ stepName: 'wait' }]
         });
@@ -205,43 +195,38 @@ describe('Helper Test', () => {
         assert.calledWith(mockRedis.hget, 'mockQueuePrefix_buildConfigs', job.args[0].buildId);
         assert.calledWith(mockRequest, {
             headers: {
-                Authorization: 'Bearer fake',
-                'Content-Type': 'application/json'
+                Authorization: 'Bearer fake'
             },
-            json: true,
             method: 'GET',
-            uri: `foo.bar/v4/builds/${job.args[0].buildId}/steps?status=active`
+            url: `foo.bar/v4/builds/${job.args[0].buildId}/steps?status=active`
         });
         assert.equal(res.stepName, 'wait');
     });
 
-    it('Correctly creates build event', async () => {
-        mockRequestRetry.yieldsAsync(null, { statusCode: 201 });
-        const retryFn = sinon.stub();
-
-        try {
-            await helper.createBuildEvent('foo.bar', 'fake', { buildId: 1, eventId: 321, jobId: 123 }, retryFn);
-        } catch (err) {
-            assert.isNull(err);
-        }
-
-        assert.calledWith(mockRequestRetry, {
-            json: true,
-            method: 'POST',
-            uri: 'foo.bar/v4/events',
-            headers: {
-                Authorization: 'Bearer fake',
-                'Content-Type': 'application/json'
-            },
-            body: { buildId: 1, eventId: 321, jobId: 123 },
-            maxAttempts: 3,
-            retryDelay: 5000,
-            retryStrategy: retryFn
+    it('returns correct when get current step is called with empty body', async () => {
+        mockRequest.resolves({
+            statusCode: 200,
+            body: []
         });
+
+        const res = await helper.getCurrentStep({
+            redisInstance: mockRedis,
+            buildId: 1
+        });
+
+        assert.calledWith(mockRedis.hget, 'mockQueuePrefix_buildConfigs', job.args[0].buildId);
+        assert.calledWith(mockRequest, {
+            headers: {
+                Authorization: 'Bearer fake'
+            },
+            method: 'GET',
+            url: `foo.bar/v4/builds/${job.args[0].buildId}/steps?status=active`
+        });
+        assert.isNull(res);
     });
 
-    it('Correctly creates build event with reponse code 200', async () => {
-        mockRequestRetry.yieldsAsync(null, { statusCode: 200 });
+    it('Correctly creates build event', async () => {
+        mockRequest.resolves({ statusCode: 201 });
         const retryFn = sinon.stub();
 
         try {
@@ -250,23 +235,84 @@ describe('Helper Test', () => {
             assert.isNull(err);
         }
 
-        assert.calledWith(mockRequestRetry, {
-            json: true,
-            method: 'POST',
-            uri: 'foo.bar/v4/events',
-            headers: {
-                Authorization: 'Bearer fake',
-                'Content-Type': 'application/json'
-            },
-            body: { buildId: 1, eventId: 321, jobId: 123 },
-            maxAttempts: 3,
-            retryDelay: 5000,
-            retryStrategy: retryFn
+        assert.calledWith(
+            mockRequest,
+            sinon.match({
+                method: 'POST',
+                url: 'foo.bar/v4/events',
+                headers: {
+                    Authorization: 'Bearer fake'
+                },
+                json: { buildId: 1, eventId: 321, jobId: 123 },
+                retryOptions: {
+                    limit: 3,
+                    methods: ['POST']
+                }
+            })
+        );
+    });
+
+    it('Correctly creates build event with response code 200', async () => {
+        mockRequest.resolves({ statusCode: 200 });
+        const retryFn = sinon.stub();
+
+        try {
+            await helper.createBuildEvent('foo.bar', 'fake', { buildId: 1, eventId: 321, jobId: 123 }, retryFn);
+        } catch (err) {
+            assert.isNull(err);
+        }
+
+        assert.calledWith(
+            mockRequest,
+            sinon.match({
+                method: 'POST',
+                url: 'foo.bar/v4/events',
+                headers: {
+                    Authorization: 'Bearer fake'
+                },
+                json: { buildId: 1, eventId: 321, jobId: 123 },
+                retryOptions: {
+                    limit: 3,
+                    methods: ['POST']
+                },
+                hooks: { afterResponse: [retryFn] }
+            })
+        );
+    });
+
+    it('throws when cannot creates build event correctly', async () => {
+        mockRequest.resolves({
+            statusCode: 403,
+            body: { username: 'admin123' }
         });
+        const retryFn = sinon.stub();
+
+        try {
+            await helper.createBuildEvent('foo.bar', 'fake', { buildId: 1, eventId: 321, jobId: 123 }, retryFn);
+        } catch (err) {
+            assert.strictEqual(err.message, '{"username":"admin123"}');
+        }
+
+        assert.calledWith(
+            mockRequest,
+            sinon.match({
+                method: 'POST',
+                url: 'foo.bar/v4/events',
+                headers: {
+                    Authorization: 'Bearer fake'
+                },
+                json: { buildId: 1, eventId: 321, jobId: 123 },
+                retryOptions: {
+                    limit: 3,
+                    methods: ['POST']
+                },
+                hooks: { afterResponse: [retryFn] }
+            })
+        );
     });
 
     it('Gets the pipeline admin correctly', async () => {
-        mockRequestRetry.yieldsAsync(null, {
+        mockRequest.resolves({
             statusCode: 200,
             body: { username: 'admin123' }
         });
@@ -280,23 +326,85 @@ describe('Helper Test', () => {
             assert.isNull(err);
         }
 
-        assert.calledWith(mockRequestRetry, {
-            json: true,
-            method: 'GET',
-            uri: `foo.bar/v4/pipelines/${pipelineId}/admin`,
-            headers: {
-                Authorization: 'Bearer fake',
-                'Content-Type': 'application/json'
-            },
-            maxAttempts: 3,
-            retryDelay: 5000,
-            retryStrategy: retryFn
-        });
+        assert.calledWith(
+            mockRequest,
+            sinon.match({
+                method: 'GET',
+                url: `foo.bar/v4/pipelines/${pipelineId}/admin`,
+                headers: {
+                    Authorization: 'Bearer fake'
+                },
+                retryOptions: {
+                    limit: 3
+                },
+                hooks: { afterResponse: [retryFn] }
+            })
+        );
         assert.equal(result.username, 'admin123');
     });
 
+    it('throws when cannot get the pipeline admin correctly', async () => {
+        mockRequest.resolves({
+            statusCode: 403,
+            body: { username: 'admin123' }
+        });
+        const retryFn = sinon.stub();
+        const pipelineId = 123456;
+
+        try {
+            await helper.getPipelineAdmin('fake', 'foo.bar', pipelineId, retryFn);
+        } catch (err) {
+            assert.strictEqual(err.message, 'No pipeline admin found with 403 code and {"username":"admin123"}');
+        }
+
+        assert.calledWith(
+            mockRequest,
+            sinon.match({
+                method: 'GET',
+                url: `foo.bar/v4/pipelines/${pipelineId}/admin`,
+                headers: {
+                    Authorization: 'Bearer fake'
+                },
+                retryOptions: {
+                    limit: 3
+                },
+                hooks: { afterResponse: [retryFn] }
+            })
+        );
+    });
+
+    it('throws when get error fetching the pipeline admin', async () => {
+        const requestErr = new Error('invalid');
+
+        mockRequest.rejects(requestErr);
+
+        const retryFn = sinon.stub();
+        const pipelineId = 123456;
+
+        try {
+            await helper.getPipelineAdmin('fake', 'foo.bar', pipelineId, retryFn);
+        } catch (err) {
+            assert.strictEqual(err.message, requestErr.message);
+        }
+
+        assert.calledWith(
+            mockRequest,
+            sinon.match({
+                method: 'GET',
+                url: `foo.bar/v4/pipelines/${pipelineId}/admin`,
+                headers: {
+                    Authorization: 'Bearer fake'
+                },
+                retryOptions: {
+                    limit: 3
+                },
+                hooks: { afterResponse: [retryFn] }
+            })
+        );
+    });
+
     it('Updates build status with retry', async () => {
-        mockRequestRetry.yieldsAsync(null, { statusCode: 200 });
+        mockRequest.resolves({ statusCode: 200 });
         const retryFn = sinon.stub();
         const buildId = 1;
 
@@ -317,18 +425,62 @@ describe('Helper Test', () => {
             assert.isNull(err);
         }
 
-        assert.calledWith(mockRequestRetry, {
-            json: true,
-            method: 'PUT',
-            uri: `foo.bar/v4/builds/${buildId}`,
-            headers: {
-                Authorization: 'Bearer fake',
-                'Content-Type': 'application/json'
-            },
-            body: { status, statusMessage },
-            maxAttempts: 3,
-            retryDelay: 5000,
-            retryStrategy: retryFn
+        assert.calledWith(
+            mockRequest,
+            sinon.match({
+                method: 'PUT',
+                url: `foo.bar/v4/builds/${buildId}`,
+                headers: {
+                    Authorization: 'Bearer fake'
+                },
+                json: { status, statusMessage },
+                retryOptions: {
+                    limit: 3
+                },
+                hooks: { afterResponse: [retryFn] }
+            })
+        );
+    });
+
+    it('throws when cannot update build status correctly', async () => {
+        mockRequest.resolves({
+            statusCode: 403,
+            body: { username: 'admin123' }
         });
+        const retryFn = sinon.stub();
+        const buildId = 1;
+
+        try {
+            await helper.updateBuild(
+                {
+                    apiUri: 'foo.bar',
+                    token: 'fake',
+                    buildId,
+                    payload: {
+                        status,
+                        statusMessage
+                    }
+                },
+                retryFn
+            );
+        } catch (err) {
+            assert.strictEqual(err.message, 'Build not updated with 403code and {"username":"admin123"}');
+        }
+
+        assert.calledWith(
+            mockRequest,
+            sinon.match({
+                method: 'PUT',
+                url: `foo.bar/v4/builds/${buildId}`,
+                headers: {
+                    Authorization: 'Bearer fake'
+                },
+                json: { status, statusMessage },
+                retryOptions: {
+                    limit: 3
+                },
+                hooks: { afterResponse: [retryFn] }
+            })
+        );
     });
 });

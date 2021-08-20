@@ -104,7 +104,7 @@ dist
 .tern-port
 
 config/local.*
-
+artifacts/
 .vscode
 
 package-lock.json
