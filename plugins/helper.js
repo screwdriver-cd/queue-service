@@ -28,19 +28,19 @@ function formatOptions(method, url, token, json, retryStrategyFn) {
         Object.assign(options, { json });
     }
     if (retryStrategyFn) {
-        const retryOptions = {
+        const retry = {
             limit: RETRY_LIMIT,
             calculateDelay: ({ computedValue }) => (computedValue ? RETRY_DELAY * 1000 : 0) // in ms
         };
 
         if (method === 'POST') {
-            Object.assign(retryOptions, {
+            Object.assign(retry, {
                 methods: ['POST']
             });
         }
 
         Object.assign(options, {
-            retryOptions,
+            retry,
             hooks: {
                 afterResponse: [retryStrategyFn]
             }
