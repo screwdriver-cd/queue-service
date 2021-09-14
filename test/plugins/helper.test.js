@@ -244,7 +244,7 @@ describe('Helper Test', () => {
                     Authorization: 'Bearer fake'
                 },
                 json: { buildId: 1, eventId: 321, jobId: 123 },
-                retryOptions: {
+                retry: {
                     limit: 3,
                     methods: ['POST']
                 }
@@ -271,7 +271,7 @@ describe('Helper Test', () => {
                     Authorization: 'Bearer fake'
                 },
                 json: { buildId: 1, eventId: 321, jobId: 123 },
-                retryOptions: {
+                retry: {
                     limit: 3,
                     methods: ['POST']
                 },
@@ -302,7 +302,7 @@ describe('Helper Test', () => {
                     Authorization: 'Bearer fake'
                 },
                 json: { buildId: 1, eventId: 321, jobId: 123 },
-                retryOptions: {
+                retry: {
                     limit: 3,
                     methods: ['POST']
                 },
@@ -334,7 +334,7 @@ describe('Helper Test', () => {
                 headers: {
                     Authorization: 'Bearer fake'
                 },
-                retryOptions: {
+                retry: {
                     limit: 3
                 },
                 hooks: { afterResponse: [retryFn] }
@@ -365,7 +365,7 @@ describe('Helper Test', () => {
                 headers: {
                     Authorization: 'Bearer fake'
                 },
-                retryOptions: {
+                retry: {
                     limit: 3
                 },
                 hooks: { afterResponse: [retryFn] }
@@ -395,7 +395,7 @@ describe('Helper Test', () => {
                 headers: {
                     Authorization: 'Bearer fake'
                 },
-                retryOptions: {
+                retry: {
                     limit: 3
                 },
                 hooks: { afterResponse: [retryFn] }
@@ -434,7 +434,7 @@ describe('Helper Test', () => {
                     Authorization: 'Bearer fake'
                 },
                 json: { status, statusMessage },
-                retryOptions: {
+                retry: {
                     limit: 3
                 },
                 hooks: { afterResponse: [retryFn] }
@@ -476,7 +476,7 @@ describe('Helper Test', () => {
                     Authorization: 'Bearer fake'
                 },
                 json: { status, statusMessage },
-                retryOptions: {
+                retry: {
                     limit: 3
                 },
                 hooks: { afterResponse: [retryFn] }
