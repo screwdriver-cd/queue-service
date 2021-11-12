@@ -651,7 +651,7 @@ async function stop(executor, config) {
 }
 
 /**
- * Cleanup any reladed processing
+ * Cleanup any related processing
  */
 async function cleanUp(executor) {
     try {

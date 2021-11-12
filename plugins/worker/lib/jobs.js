@@ -6,6 +6,7 @@ const config = require('config');
 const hoek = require('@hapi/hoek');
 const ExecutorRouter = require('screwdriver-executor-router');
 const logger = require('screwdriver-logger');
+const producer = require('screwdriver-aws-producer-service');
 const { BlockedBy } = require('./BlockedBy');
 const { Filter } = require('./Filter');
 const { CacheFilter } = require('./CacheFilter');
@@ -13,6 +14,7 @@ const blockedByConfig = config.get('plugins').blockedBy;
 const { connectionDetails, queuePrefix, runningJobsPrefix, waitingJobsPrefix } = require('../../../config/redis');
 const rabbitmqConf = require('../../../config/rabbitmq');
 const { amqpURI, exchange, connectOptions } = rabbitmqConf.getConfig();
+const kafkaEnabled = config.get('kafka').enabled === 'true';
 
 const RETRY_LIMIT = 3;
 // This is in milliseconds, reference: https://github.com/taskrabbit/node-resque/blob/master/lib/plugins/Retry.js#L12
@@ -72,7 +74,7 @@ function getRabbitmqConn() {
     logger.info('Creating new rabbitmq connection.');
 
     rabbitmqConn.on('connect', () => logger.info('Connected to rabbitmq!'));
-    rabbitmqConn.on('disconnect', params => logger.info('Disconnected from rabbitmq.', params.err.stack));
+    rabbitmqConn.on('disconnect', params => logger.info(`Disconnected from rabbitmq: ${params.err.stack}`));
 
     return rabbitmqConn;
 }
@@ -83,16 +85,22 @@ function getRabbitmqConn() {
  * @param {String} queue
  * @param {String} messageId
  */
-function pushToRabbitMq(message, queue, messageId) {
+async function pushToRabbitMq(message, queue, messageId) {
     if (!rabbitmqConf.getConfig().schedulerMode) {
         return Promise.resolve();
     }
-    const channelWrapper = getRabbitmqConn().createChannel({
+
+    const conn = getRabbitmqConn();
+    const channelWrapper = conn.createChannel({
         json: true,
         setup: channel => channel.checkExchange(exchange)
     });
 
     logger.info('publishing msg to rabbitmq: %s', messageId);
+
+    channelWrapper.on('error', (error, { name }) => {
+        logger.error(`channel wrapper error ${error}:${name}`);
+    });
 
     return channelWrapper
         .publish(exchange, queue, message, {
@@ -107,9 +115,22 @@ function pushToRabbitMq(message, queue, messageId) {
         .catch(err => {
             logger.error('publishing failed to rabbitmq: %s', err.message);
             channelWrapper.close();
-
+            conn.close();
             throw err;
         });
+}
+
+/**
+ *
+ * @param {Object} message
+ * @param {String} topic
+ */
+async function pushToKafka(message, topic) {
+    const conn = await producer.connect();
+
+    if (conn) {
+        await producer.sendMessage(message, topic);
+    }
 }
 
 /**
@@ -119,7 +140,7 @@ function pushToRabbitMq(message, queue, messageId) {
  * @param  {Object} buildConfig build config
  * @return {Promise}
  */
-function schedule(job, buildConfig) {
+async function schedule(job, buildConfig) {
     const buildCluster = buildConfig.buildClusterName;
 
     delete buildConfig.buildClusterName;
@@ -129,8 +150,20 @@ function schedule(job, buildConfig) {
         buildConfig
     };
 
+    if (kafkaEnabled && buildConfig.provider) {
+        const { accountId, region } = buildConfig.provider;
+        const topic = `builds-${accountId}-${region}`;
+
+        return pushToKafka(msg, topic);
+    }
+
     if (rabbitmqConf.getConfig().schedulerMode) {
-        return pushToRabbitMq(msg, buildCluster, buildConfig.buildId);
+        try {
+            return await pushToRabbitMq(msg, buildCluster, buildConfig.buildId);
+        } catch (err) {
+            logger.error(`err in pushing to rabbitmq: ${err}`);
+            throw err;
+        }
     }
 
     // token is not allowed in executor.stop
@@ -150,15 +183,17 @@ function schedule(job, buildConfig) {
  * @param  {String}    buildConfig.blockedBy     Jobs that are blocking this job
  * @return {Promise}
  */
-function start(buildConfig) {
-    return redis
-        .hget(`${queuePrefix}buildConfigs`, buildConfig.buildId)
-        .then(fullBuildConfig => schedule('start', JSON.parse(fullBuildConfig)))
-        .catch(err => {
-            logger.error(`err in start job: ${err}`);
+async function start(buildConfig) {
+    try {
+        const fullBuildConfig = await redis.hget(`${queuePrefix}buildConfigs`, buildConfig.buildId);
 
-            return Promise.reject(err);
-        });
+        await schedule('start', JSON.parse(fullBuildConfig));
+
+        return null;
+    } catch (err) {
+        logger.error(`err in start job: ${err}`);
+        throw err;
+    }
 }
 
 /**
@@ -171,77 +206,70 @@ function start(buildConfig) {
  * @param  {String}    buildConfig.started       Whether job has started
  * @return {Promise}
  */
-function stop(buildConfig) {
+async function stop(buildConfig) {
     const started = hoek.reach(buildConfig, 'started', { default: true }); // default value for backward compatibility
     const { buildId, jobId } = buildConfig;
-    const stopConfig = { buildId };
+    let stopConfig = { buildId };
     const runningKey = `${runningJobsPrefix}${jobId}`;
 
-    return (
-        redis
-            .hget(`${queuePrefix}buildConfigs`, buildId)
-            .then(fullBuildConfig => {
-                const parsedConfig = JSON.parse(fullBuildConfig);
+    try {
+        const fullBuildConfig = await redis.hget(`${queuePrefix}buildConfigs`, buildId);
+        const parsedConfig = JSON.parse(fullBuildConfig);
 
-                if (parsedConfig && parsedConfig.annotations) {
-                    stopConfig.annotations = parsedConfig.annotations;
-                }
+        if (parsedConfig) {
+            stopConfig = {
+                buildId,
+                ...parsedConfig
+            };
+        }
+    } catch (err) {
+        logger.error(`[Stop Build] failed to get config for build ${buildId}: ${err.message}`);
+    }
 
-                if (parsedConfig && parsedConfig.buildClusterName) {
-                    stopConfig.buildClusterName = parsedConfig.buildClusterName;
-                }
+    await redis.hdel(`${queuePrefix}buildConfigs`, buildId);
+    // If this is a running job
+    const runningBuildId = await redis.get(runningKey);
 
-                stopConfig.token = parsedConfig.token;
-            })
-            .catch(err => {
-                logger.error(`[Stop Build] failed to get config for build ${buildId}: ${err.message}`);
-            })
-            .then(() => redis.hdel(`${queuePrefix}buildConfigs`, buildId))
-            // If this is a running job
-            .then(() => redis.get(runningKey))
-            .then(runningBuildId => {
-                if (parseInt(runningBuildId, 10) === buildId) {
-                    return redis.del(runningKey);
-                }
+    if (parseInt(runningBuildId, 10) === buildId) {
+        await redis.del(runningKey);
+    }
+    // If this is a waiting job
+    await redis.lrem(`${waitingJobsPrefix}${jobId}`, 0, buildId);
 
-                return null;
-            })
-            // If this is a waiting job
-            .then(() => redis.lrem(`${waitingJobsPrefix}${jobId}`, 0, buildId))
-            .then(() => (started ? schedule('stop', stopConfig) : null))
-    );
+    if (started) {
+        await schedule('stop', stopConfig);
+    }
+
+    return null;
 }
 
 /**
  * Send message to clear cache from disk
  * @param {Object} cacheConfig
  */
-function clear(cacheConfig) {
+async function clear(cacheConfig) {
     const { id, buildClusters } = cacheConfig;
-    let queueName;
+    const data = await redis.hget(`${queuePrefix}buildConfigs`, id);
 
-    return redis
-        .hget(`${queuePrefix}buildConfigs`, id)
-        .then(data => {
-            if (data) {
-                const buildConfig = JSON.parse(data);
+    if (data) {
+        const buildConfig = JSON.parse(data);
 
-                queueName = buildConfig.buildClusterName;
-            }
-        })
-        .then(() => {
-            if (queueName) {
-                return pushToRabbitMq({ job: 'clear', cacheConfig }, queueName, id);
-            }
+        const queueName = buildConfig.buildClusterName;
 
-            if (buildClusters) {
-                return Promise.all(
-                    buildClusters.map(cluster => pushToRabbitMq({ job: 'clear', cacheConfig }, cluster, id))
-                );
-            }
+        if (queueName) {
+            await pushToRabbitMq({ job: 'clear', cacheConfig }, queueName, id);
+        }
+    }
 
-            return null;
-        });
+    if (buildClusters) {
+        await Promise.all(
+            buildClusters.map(async cluster => {
+                return pushToRabbitMq({ job: 'clear', cacheConfig }, cluster, id);
+            })
+        );
+    }
+
+    return null;
 }
 
 module.exports = {

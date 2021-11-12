@@ -1,0 +1,86 @@
+{
+    "plugin": "k8s-vm",
+    "k8s": {
+        "options": {
+            "kubernetes": {
+                "host": "kubernetes.default",
+                "privileged": false,
+                "automountServiceAccountToken": false,
+                "dockerFeatureEnabled": false,
+                "resources": {
+                    "cpu": {
+                        "micro": "0.5",
+                        "low": 2,
+                        "high": 6,
+                        "turbo": 12
+                    },
+                    "memory": {
+                        "micro": 1,
+                        "low": 2,
+                        "high": 12,
+                        "turbo": 16
+                    }
+                },
+                "buildTimeout": 90,
+                "maxBuildTimeout": 120,
+                "podLabels": {},
+                "nodeSelectors": {},
+                "preferredNodeSelectors": {},
+                "annotations": {},
+                "runtimeClass": "",
+                "imagePullSecretName": ""
+            },
+            "launchImage": "screwdrivercd/launcher",
+            "launchVersion": "stable",
+            "fusebox": {
+                "breaker": {
+                    "timeout": 10000
+                }
+            },
+            "requestretry": {
+                "retryDelay": 3000,
+                "maxAttempts": 5
+            }
+        }
+    },
+    "k8s-vm": {
+        "options": {
+            "kubernetes": {
+                "host": "kubernetes.default",
+                "privileged": false,
+                "resources": {
+                    "cpu": {
+                        "micro": 1,
+                        "low": 2,
+                        "high": 6,
+                        "turbo": 12,
+                        "max": 12
+                    },
+                    "memory": {
+                        "micro": 1,
+                        "low": 2,
+                        "high": 12,
+                        "turbo": 16,
+                        "max": 16
+                    }
+                },
+                "buildTimeout": 90,
+                "maxBuildTimeout": 120,
+                "podLabels": {},
+                "nodeSelectors": {},
+                "preferredNodeSelectors": {}
+            },
+            "launchImage": "screwdrivercd/launcher",
+            "launchVersion": "stable",
+            "fusebox": {
+                "breaker": {
+                    "timeout": 10000
+                }
+            },
+            "requestretry": {
+                "retryDelay": 3000,
+                "maxAttempts": 5
+            }
+        }
+    }
+}

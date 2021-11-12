@@ -3,12 +3,15 @@
 const { assert } = require('chai');
 const mockery = require('mockery');
 const sinon = require('sinon');
+const testExecutorConfig = require('../../../data/executorConfig.json');
+
 const fullConfig = {
     annotations: {
         'beta.screwdriver.cd/executor': 'k8s'
     },
     buildId: 8609,
     jobId: 777,
+    jobName: 'main',
     blockedBy: [777],
     container: 'node:4',
     apiUri: 'http://api.com',
@@ -17,8 +20,16 @@ const fullConfig = {
 const partialConfig = {
     buildId: 8609,
     jobId: 777,
+    jobName: 'main',
     blockedBy: [777]
 };
+const providerConfig = {
+    accountId: '123',
+    securityGroupId: 'sg-123',
+    subnetId: ['subnet-123', 'subnet-321'],
+    region: 'us-east-1'
+};
+const configWithProvider = { ...fullConfig, provider: providerConfig };
 
 sinon.assert.expose(assert, { prefix: '' });
 
@@ -37,6 +48,10 @@ describe('Jobs Unit Test', () => {
     let mockRabbitmqConnection;
     let mockRabbitmqCh;
     let mockRedisConfig;
+    let mockKafkaConfig;
+    let mockConfig;
+    let mockProducerSvc;
+    let mockEcosystemConfig;
 
     before(() => {
         mockery.enable({
@@ -56,18 +71,20 @@ describe('Jobs Unit Test', () => {
             hdel: sinon.stub(),
             del: sinon.stub(),
             get: sinon.stub(),
-            lrem: sinon.stub().resolves()
+            lrem: sinon.stub()
         };
 
         mockRabbitmqCh = {
             publish: sinon.stub().resolves(null),
             assertExchange: sinon.stub().resolves(null),
-            close: sinon.stub().resolves(null)
+            close: sinon.stub().resolves(null),
+            on: sinon.stub()
         };
 
         mockRabbitmqConnection = {
             on: sinon.stub(),
-            createChannel: sinon.stub().returns(mockRabbitmqCh)
+            createChannel: sinon.stub().returns(mockRabbitmqCh),
+            close: sinon.stub().resolves(null)
         };
 
         mockAmqp = {
@@ -96,22 +113,56 @@ describe('Jobs Unit Test', () => {
             waitingJobsPrefix: 'waiting_job_'
         };
 
+        mockKafkaConfig = {
+            enabled: 'true',
+            region: 'us-east-1',
+            hosts: 'b-1.example.com:9096,b-2.example.com:9096',
+            sasl: {
+                mechanism: 'scram-sha-512',
+                secretId: 'AmazonMSK_BETA_SD_SECRET'
+            },
+            clientId: 'sd-producer'
+        };
+
         mockRabbitmqConfig = {
             getConfig: sinon.stub().returns(mockRabbitmqConfigObj)
+        };
+
+        mockConfig = {
+            get: sinon.stub().returns()
         };
 
         mockExecutorRouter = function() {
             return mockExecutor;
         };
-        mockery.registerMock('screwdriver-executor-router', mockExecutorRouter);
 
+        mockEcosystemConfig = {
+            ui: 'foo.ui',
+            api: 'foo.api',
+            store: 'foo.store',
+            cache: {
+                strategy: 's3',
+                path: '/',
+                compress: false,
+                md5check: false,
+                max_size_mb: 0
+            }
+        };
+
+        mockProducerSvc = {
+            connect: sinon.stub().resolves({}),
+            sendMessage: sinon.stub().resolves({})
+        };
+
+        mockery.registerMock('config', mockConfig);
+        mockery.registerMock('screwdriver-executor-router', mockExecutorRouter);
         mockery.registerMock('amqp-connection-manager', mockAmqp);
 
         mockRedis = sinon.stub().returns(mockRedisObj);
         mockery.registerMock('ioredis', mockRedis);
-
         mockery.registerMock('../../../config/rabbitmq', mockRabbitmqConfig);
         mockery.registerMock('../../../config/redis', mockRedisConfig);
+        mockery.registerMock('screwdriver-aws-producer-service', mockProducerSvc);
 
         mockBlockedBy = {
             BlockedBy: sinon.stub().returns()
@@ -127,6 +178,17 @@ describe('Jobs Unit Test', () => {
         mockery.registerMock('./Filter', mockFilter);
         mockery.registerMock('./CacheFilter', mockCacheFilter);
 
+        mockConfig.get.withArgs('kafka').returns(mockKafkaConfig);
+        mockConfig.get.withArgs('ecosystem').returns(mockEcosystemConfig);
+        mockConfig.get.withArgs('plugins').returns({
+            blockedBy: {
+                blockTimeout: 120,
+                reenqueueWaitTime: 1,
+                blockedBySelf: true,
+                collapse: true
+            }
+        });
+        mockConfig.get.withArgs('executor').returns(testExecutorConfig);
         // eslint-disable-next-line global-require
         jobs = require('../../../../plugins/worker/lib/jobs');
     });
@@ -153,7 +215,7 @@ describe('Jobs Unit Test', () => {
         });
     });
 
-    describe('start', () => {
+    describe('start', async () => {
         it('constructs start job correctly', () =>
             assert.deepEqual(jobs.start, {
                 plugins: [mockFilter.Filter, 'Retry', mockBlockedBy.BlockedBy],
@@ -184,7 +246,7 @@ describe('Jobs Unit Test', () => {
             });
         });
 
-        it('enqueus a start job with scheduler mode', () => {
+        it('enqueues a start job with scheduler mode', () => {
             mockRabbitmqConfigObj.schedulerMode = true;
             mockRabbitmqConfig.getConfig.returns(mockRabbitmqConfigObj);
             fullConfig.buildClusterName = 'sd';
@@ -263,6 +325,44 @@ describe('Jobs Unit Test', () => {
                 }
             );
         });
+        it('enqueues a start job to kafka queue when kafkaEnabled is true', async () => {
+            mockRedisObj.hget.resolves(JSON.stringify(configWithProvider));
+
+            return jobs.start.perform(configWithProvider).then(result => {
+                delete configWithProvider.buildClusterName;
+                const msg = {
+                    job: 'start',
+                    buildConfig: configWithProvider
+                };
+                const topic = `builds-${providerConfig.accountId}-${providerConfig.region}`;
+
+                assert.isNull(result);
+                assert.calledWith(mockRedisObj.hget, 'buildConfigs', configWithProvider.buildId);
+                assert.notCalled(mockAmqp.connect);
+                assert.notCalled(mockRabbitmqConnection.createChannel);
+                assert.notCalled(mockRabbitmqCh.publish);
+                assert.notCalled(mockExecutor.start);
+                assert.calledOnce(mockProducerSvc.connect);
+                assert.calledWith(mockProducerSvc.sendMessage, msg, topic);
+            });
+        });
+        it('enqueues a start job to rabbitMQ when kafka is enabled but provider config is not available', async () => {
+            mockRabbitmqConfigObj.schedulerMode = true;
+            mockRabbitmqConfig.getConfig.returns(mockRabbitmqConfigObj);
+            fullConfig.buildClusterName = 'sd';
+            mockRedisObj.hget.resolves(JSON.stringify(fullConfig));
+
+            return jobs.start.perform(fullConfig).then(result => {
+                assert.isNull(result);
+                assert.calledWith(mockRedisObj.hget, 'buildConfigs', fullConfig.buildId);
+                assert.calledOnce(mockAmqp.connect);
+                assert.calledOnce(mockRabbitmqConnection.createChannel);
+                assert.calledOnce(mockRabbitmqCh.publish);
+                assert.notCalled(mockExecutor.start);
+                assert.notCalled(mockProducerSvc.connect);
+                assert.notCalled(mockProducerSvc.sendMessage);
+            });
+        });
     });
 
     describe('stop', () => {
@@ -304,20 +404,25 @@ describe('Jobs Unit Test', () => {
             mockRedisObj.del.resolves(null);
             mockRedisObj.get.withArgs('running_job_777').resolves(fullConfig.buildId);
 
-            return jobs.stop.perform(partialConfig).then(result => {
+            return jobs.stop.perform(fullConfig).then(result => {
                 assert.isNull(result);
                 assert.calledWith(mockRedisObj.hget, 'buildConfigs', fullConfig.buildId);
                 assert.calledWith(mockRedisObj.hdel, 'buildConfigs', fullConfig.buildId);
                 assert.calledWith(mockRedisObj.del, 'running_job_777');
                 assert.calledWith(mockRedisObj.lrem, 'waiting_job_777', 0, fullConfig.buildId);
                 assert.calledWith(mockExecutor.stop, {
-                    annotations: fullConfig.annotations,
-                    buildId: fullConfig.buildId
+                    buildId: 8609,
+                    annotations: { 'beta.screwdriver.cd/executor': 'k8s' },
+                    jobId: 777,
+                    jobName: 'main',
+                    blockedBy: [777],
+                    container: 'node:4',
+                    apiUri: 'http://api.com'
                 });
             });
         });
 
-        it('enqueus a stop job with scheduler mode', () => {
+        it('enqueues a stop job with scheduler mode', () => {
             fullConfig.buildClusterName = 'sd';
             mockExecutor.stop.resolves(null);
             mockRedisObj.hget.resolves(JSON.stringify(fullConfig));
@@ -328,15 +433,11 @@ describe('Jobs Unit Test', () => {
             mockRabbitmqConfig.getConfig.returns(mockRabbitmqConfigObj);
             const { amqpURI, exchange, connectOptions } = mockRabbitmqConfigObj;
 
-            return jobs.stop.perform(partialConfig).then(result => {
+            return jobs.stop.perform(fullConfig).then(result => {
                 delete fullConfig.buildClusterName;
                 const msg = {
                     job: 'stop',
-                    buildConfig: {
-                        buildId: fullConfig.buildId,
-                        annotations: fullConfig.annotations,
-                        token: fullConfig.token
-                    }
+                    buildConfig: fullConfig
                 };
 
                 assert.isNull(result);
@@ -353,6 +454,38 @@ describe('Jobs Unit Test', () => {
                 });
                 assert.calledOnce(mockRabbitmqCh.close);
                 assert.notCalled(mockExecutor.stop);
+            });
+        });
+
+        it('enqueues a stop job to kafka queue when kafkaEnabled is true', () => {
+            mockExecutor.stop.resolves(null);
+            mockRedisObj.hget.resolves(JSON.stringify(configWithProvider));
+
+            mockRedisObj.hdel.resolves(1);
+            mockRedisObj.del.resolves(null);
+            mockRedisObj.get.withArgs('running_job_777').resolves(configWithProvider.buildId);
+
+            return jobs.stop.perform(configWithProvider).then(result => {
+                delete configWithProvider.buildClusterName;
+                const msg = {
+                    job: 'stop',
+                    buildConfig: configWithProvider
+                };
+                const topic = `builds-${providerConfig.accountId}-${providerConfig.region}`;
+
+                assert.isNull(result);
+                assert.calledWith(mockRedisObj.hget, 'buildConfigs', configWithProvider.buildId);
+                assert.calledWith(mockRedisObj.hdel, 'buildConfigs', configWithProvider.buildId);
+                assert.calledWith(mockRedisObj.del, 'running_job_777');
+                assert.calledWith(mockRedisObj.lrem, 'waiting_job_777', 0, configWithProvider.buildId);
+                assert.calledWith(mockRedisObj.hget, 'buildConfigs', configWithProvider.buildId);
+                assert.notCalled(mockAmqp.connect);
+                assert.notCalled(mockRabbitmqConnection.createChannel);
+                assert.notCalled(mockRabbitmqCh.publish);
+                assert.notCalled(mockRabbitmqCh.close);
+                assert.notCalled(mockExecutor.stop);
+                assert.calledOnce(mockProducerSvc.connect);
+                assert.calledWith(mockProducerSvc.sendMessage, msg, topic);
             });
         });
 
@@ -471,7 +604,7 @@ describe('Jobs Unit Test', () => {
             });
         });
 
-        it('publish to all rabbitmq queues specified in buildCLuster', () => {
+        it('publish to all rabbitmq queues specified in buildCluster', () => {
             const cacheConfig = {
                 id: 123,
                 resource: 'caches',
@@ -481,7 +614,7 @@ describe('Jobs Unit Test', () => {
             };
 
             return jobs.clear.perform(cacheConfig).then(result => {
-                assert.deepEqual(result, [null, null]);
+                assert.deepEqual(result, null);
                 assert.calledWith(mockRedisObj.hget, 'buildConfigs', cacheConfig.id);
                 assert.calledWith(mockAmqp.connect, [amqpURI], connectOptions);
                 assert.calledTwice(mockRabbitmqConnection.createChannel);
