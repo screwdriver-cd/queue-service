@@ -691,10 +691,11 @@ async function clearCache(executor, config) {
 
 /**
  * Pushes a message to unzip artifacts
- * @async unzipArtifacts
- * @param {Object} executor
- * @param {Object} config               Configuration
- * @param {String} config.buildId       Unique ID for a build
+ * @async  unzipArtifacts
+ * @param  {Object} executor
+ * @param  {Object} config               Configuration
+ * @param  {String} config.buildId       Unique ID for a build
+ * @return {Promise}
  */
 async function unzipArtifacts(executor, config) {
     await executor.connect();
