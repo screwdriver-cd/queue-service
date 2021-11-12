@@ -905,7 +905,7 @@ describe('scheduler test', () => {
             );
         });
 
-        it('enqueues a unzip job', () => {
+        it('enqueues an unzip job', () => {
             return scheduler.unzipArtifacts(executor, unzipConfig).then(() => {
                 assert.calledOnce(queueMock.connect);
                 assert.calledOnce(executor.tokenGen);
