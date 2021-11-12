@@ -884,10 +884,12 @@ describe('scheduler test', () => {
 
     describe('unzipArtifacts', () => {
         let unzipConfig;
+        let unzipConfigMsg;
 
         beforeEach(() => {
             executor.tokenGen.returns('unzipToken');
             unzipConfig = { buildId: 123 };
+            unzipConfigMsg = { buildId: 123, token: 'unzipToken' };
         });
 
         it("rejects if it can't establish a connection", function() {
@@ -913,14 +915,9 @@ describe('scheduler test', () => {
                         username: unzipConfig.buildId,
                         scope: 'unzip_worker'
                     },
-                    120
+                    TEMPORAL_UNZIP_TOKEN_TIMEOUT
                 );
-                assert.calledWith(queueMock.enqueue, 'unzip', 'start', [
-                    {
-                        buildId: 123,
-                        token: 'unzipToken'
-                    }
-                ]);
+                assert.calledWith(queueMock.enqueue, 'unzip', 'start', [unzipConfigMsg]);
             });
         });
 
@@ -938,12 +935,7 @@ describe('scheduler test', () => {
                     },
                     TEMPORAL_UNZIP_TOKEN_TIMEOUT
                 );
-                assert.calledWith(queueMock.enqueue, 'unzip', 'start', [
-                    {
-                        buildId: 123,
-                        token: 'unzipToken'
-                    }
-                ]);
+                assert.calledWith(queueMock.enqueue, 'unzip', 'start', [unzipConfigMsg]);
             });
         });
     });
