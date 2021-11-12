@@ -25,6 +25,7 @@ const testAdmin = {
     username: 'admin'
 };
 const TEMPORAL_TOKEN_TIMEOUT = 12 * 60; // 12 hours in minutes
+const TEMPORAL_UNZIP_TOKEN_TIMEOUT = 2 * 60; // 2 hours in minutes
 
 sinon.assert.expose(chai.assert, { prefix: '' });
 
@@ -877,6 +878,72 @@ describe('scheduler test', () => {
             return scheduler.clearCache(executor, cacheConfig).then(() => {
                 assert.notCalled(queueMock.connect);
                 assert.calledWith(queueMock.enqueue, 'cache', 'clear', [cacheConfigMsg]);
+            });
+        });
+    });
+
+    describe('unzipArtifacts', () => {
+        let unzipConfig;
+
+        beforeEach(() => {
+            executor.tokenGen.returns('unzipToken');
+            unzipConfig = { buildId: 123 };
+        });
+
+        it("rejects if it can't establish a connection", function() {
+            queueMock.connect.rejects(new Error("couldn't connect"));
+
+            return scheduler.unzipArtifacts(executor, unzipConfig).then(
+                () => {
+                    assert.fail('Should not get here');
+                },
+                err => {
+                    assert.instanceOf(err, Error);
+                }
+            );
+        });
+
+        it('enqueues a unzip job', () => {
+            return scheduler.unzipArtifacts(executor, unzipConfig).then(() => {
+                assert.calledOnce(queueMock.connect);
+                assert.calledOnce(executor.tokenGen);
+                assert.calledWith(
+                    executor.tokenGen,
+                    {
+                        username: unzipConfig.buildId,
+                        scope: 'unzip_worker'
+                    },
+                    120
+                );
+                assert.calledWith(queueMock.enqueue, 'unzip', 'start', [
+                    {
+                        buildId: 123,
+                        token: 'unzipToken'
+                    }
+                ]);
+            });
+        });
+
+        it("doesn't call connect if there's already a connection", () => {
+            queueMock.connection.connected = true;
+
+            return scheduler.unzipArtifacts(executor, unzipConfig).then(() => {
+                assert.notCalled(queueMock.connect);
+                assert.calledOnce(executor.tokenGen);
+                assert.calledWith(
+                    executor.tokenGen,
+                    {
+                        username: unzipConfig.buildId,
+                        scope: 'unzip_worker'
+                    },
+                    TEMPORAL_UNZIP_TOKEN_TIMEOUT
+                );
+                assert.calledWith(queueMock.enqueue, 'unzip', 'start', [
+                    {
+                        buildId: 123,
+                        token: 'unzipToken'
+                    }
+                ]);
             });
         });
     });
