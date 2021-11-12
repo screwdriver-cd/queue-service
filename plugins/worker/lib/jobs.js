@@ -208,8 +208,8 @@ async function start(buildConfig) {
  */
 async function stop(buildConfig) {
     const started = hoek.reach(buildConfig, 'started', { default: true }); // default value for backward compatibility
-    const { buildId, jobId } = buildConfig;
-    let stopConfig = { buildId };
+    const { buildId, jobId, jobName } = buildConfig;
+    let stopConfig = { buildId, jobId, jobName };
     const runningKey = `${runningJobsPrefix}${jobId}`;
 
     try {

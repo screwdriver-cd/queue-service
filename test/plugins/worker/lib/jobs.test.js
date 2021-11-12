@@ -325,6 +325,7 @@ describe('Jobs Unit Test', () => {
                 }
             );
         });
+
         it('enqueues a start job to kafka queue when kafkaEnabled is true', async () => {
             mockRedisObj.hget.resolves(JSON.stringify(configWithProvider));
 
@@ -346,6 +347,7 @@ describe('Jobs Unit Test', () => {
                 assert.calledWith(mockProducerSvc.sendMessage, msg, topic);
             });
         });
+
         it('enqueues a start job to rabbitMQ when kafka is enabled but provider config is not available', async () => {
             mockRabbitmqConfigObj.schedulerMode = true;
             mockRabbitmqConfig.getConfig.returns(mockRabbitmqConfigObj);
@@ -360,6 +362,22 @@ describe('Jobs Unit Test', () => {
                 assert.calledOnce(mockRabbitmqCh.publish);
                 assert.notCalled(mockExecutor.start);
                 assert.notCalled(mockProducerSvc.connect);
+                assert.notCalled(mockProducerSvc.sendMessage);
+            });
+        });
+
+        it('does not enqueue message to kafka if connection is not available', async () => {
+            mockRedisObj.hget.resolves(JSON.stringify(configWithProvider));
+            mockProducerSvc.connect.resolves(null);
+
+            return jobs.start.perform(configWithProvider).then(result => {
+                assert.isNull(result);
+                assert.calledWith(mockRedisObj.hget, 'buildConfigs', configWithProvider.buildId);
+                assert.notCalled(mockAmqp.connect);
+                assert.notCalled(mockRabbitmqConnection.createChannel);
+                assert.notCalled(mockRabbitmqCh.publish);
+                assert.notCalled(mockExecutor.start);
+                assert.calledOnce(mockProducerSvc.connect);
                 assert.notCalled(mockProducerSvc.sendMessage);
             });
         });
@@ -499,7 +517,28 @@ describe('Jobs Unit Test', () => {
                 assert.isNull(result);
                 assert.calledWith(mockRedisObj.hget, 'buildConfigs', fullConfig.buildId);
                 assert.calledWith(mockExecutor.stop, {
-                    buildId: fullConfig.buildId
+                    buildId: fullConfig.buildId,
+                    jobName: fullConfig.jobName,
+                    jobId: fullConfig.jobId
+                });
+            });
+        });
+
+        it('does not enqueue a stop message to kafka when redis fails to get a config', () => {
+            const expectedError = new Error('hget error');
+
+            mockExecutor.stop.resolves(null);
+            mockRedisObj.hget.rejects(expectedError);
+
+            return jobs.stop.perform(partialConfig).then(result => {
+                assert.isNull(result);
+                assert.calledWith(mockRedisObj.hget, 'buildConfigs', fullConfig.buildId);
+                assert.notCalled(mockProducerSvc.connect);
+                assert.notCalled(mockProducerSvc.sendMessage);
+                assert.calledWith(mockExecutor.stop, {
+                    buildId: fullConfig.buildId,
+                    jobName: fullConfig.jobName,
+                    jobId: fullConfig.jobId
                 });
             });
         });
