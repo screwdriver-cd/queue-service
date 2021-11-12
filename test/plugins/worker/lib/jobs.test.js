@@ -288,6 +288,28 @@ describe('Jobs Unit Test', () => {
                 },
                 err => {
                     assert.calledOnce(mockRabbitmqCh.close);
+                    assert.calledOnce(mockRabbitmqConnection.close);
+                    assert.deepEqual(err, expectedError);
+                }
+            );
+        });
+
+        it('raise channelWrapper error and close the channel when publish fails', () => {
+            const expectedError = new Error('failed to publish');
+
+            mockRedisObj.hget.resolves(JSON.stringify(fullConfig));
+            mockRabbitmqConfigObj.schedulerMode = true;
+            mockRabbitmqConfig.getConfig.returns(mockRabbitmqConfigObj);
+            fullConfig.buildClusterName = 'sd';
+            mockRabbitmqCh.publish.rejects(expectedError);
+
+            return jobs.start.perform({}).then(
+                () => {
+                    assert.fail('Should not get here');
+                },
+                err => {
+                    assert.calledOnce(mockRabbitmqCh.on);
+                    assert.calledOnce(mockRabbitmqCh.close);
                     assert.deepEqual(err, expectedError);
                 }
             );
