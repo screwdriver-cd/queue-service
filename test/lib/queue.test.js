@@ -100,6 +100,7 @@ describe('queue test', () => {
             assert.strictEqual(executor.buildConfigTable, 'beta_buildConfigs');
             assert.strictEqual(executor.timeoutQueue, 'beta_timeoutConfigs');
             assert.strictEqual(executor.cacheQueue, 'beta_cache');
+            assert.strictEqual(executor.unzipQueue, 'beta_unzip');
         });
 
         it('throws when not given a redis connection', () => {

@@ -37,7 +37,8 @@ describe('queue plugin test', () => {
             stopTimer: sinon.stub().resolves(),
             stopFrozen: sinon.stub().resolves(),
             stopPeriodic: sinon.stub().resolves(),
-            clearCache: sinon.stub().resolves()
+            clearCache: sinon.stub().resolves(),
+            unzipArtifacts: sinon.stub().resolves()
         };
 
         mockery.registerMock('./scheduler', schedulerMock);
@@ -235,6 +236,15 @@ describe('queue plugin test', () => {
 
             assert.equal(reply.statusCode, 200);
             assert.calledOnce(schedulerMock.startTimer);
+        });
+
+        it('returns 200 when deleting message from queue', async () => {
+            options.url = '/v1/queue/message?type=unzip';
+
+            const reply = await server.inject(options);
+
+            assert.equal(reply.statusCode, 200);
+            assert.calledOnce(schedulerMock.unzipArtifacts);
         });
     });
 });

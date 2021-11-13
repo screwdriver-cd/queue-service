@@ -13,6 +13,7 @@ const RETRY_LIMIT = 3;
 const RETRY_DELAY = 5;
 const EXPIRE_TIME = 1800; // 30 mins
 const TEMPORAL_TOKEN_TIMEOUT = 12 * 60; // 12 hours in minutes
+const TEMPORAL_UNZIP_TOKEN_TIMEOUT = 2 * 60; // 2 hours in minutes
 
 /**
  * Posts a new build event to the API
@@ -688,6 +689,33 @@ async function clearCache(executor, config) {
     }
 }
 
+/**
+ * Pushes a message to unzip artifacts
+ * @async  unzipArtifacts
+ * @param  {Object} executor
+ * @param  {Object} config               Configuration
+ * @param  {String} config.buildId       Unique ID for a build
+ * @return {Promise}
+ */
+async function unzipArtifacts(executor, config) {
+    await executor.connect();
+    const { buildId } = config;
+    const tokenConfig = {
+        username: buildId,
+        scope: 'unzip_worker'
+    };
+    const token = executor.tokenGen(tokenConfig, TEMPORAL_UNZIP_TOKEN_TIMEOUT);
+
+    const enq = await executor.queueBreaker.runCommand('enqueue', executor.unzipQueue, 'start', [
+        {
+            buildId,
+            token
+        }
+    ]);
+
+    return enq;
+}
+
 module.exports = {
     init,
     start,
@@ -699,5 +727,6 @@ module.exports = {
     startTimer,
     stopTimer,
     cleanUp,
-    clearCache
+    clearCache,
+    unzipArtifacts
 };

@@ -33,6 +33,9 @@ module.exports = () => ({
                     case 'cache':
                         await scheduler.clearCache(executor, request.payload);
                         break;
+                    case 'unzip':
+                        await scheduler.unzipArtifacts(executor, request.payload);
+                        break;
                     default:
                         await scheduler.start(executor, request.payload);
                         break;
