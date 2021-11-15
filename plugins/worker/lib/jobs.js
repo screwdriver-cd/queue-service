@@ -121,9 +121,9 @@ async function pushToRabbitMq(message, queue, messageId) {
 }
 
 /**
- *
- * @param {Object} message
- * @param {String} topic
+ * Push message to Kafka topic
+ * @param {Object} message  Job and build config metadata
+ * @param {String} topic          Topic name
  */
 async function pushToKafka(message, topic) {
     const conn = await producer.connect();
