@@ -308,7 +308,7 @@ describe('Jobs Unit Test', () => {
                     assert.fail('Should not get here');
                 },
                 err => {
-                    assert.calledOnce(mockRabbitmqCh.on);
+                    assert.calledWith(mockRabbitmqCh.on, 'error');
                     assert.calledOnce(mockRabbitmqCh.close);
                     assert.deepEqual(err, expectedError);
                 }
@@ -367,6 +367,7 @@ describe('Jobs Unit Test', () => {
                 assert.notCalled(mockExecutor.start);
                 assert.calledOnce(mockProducerSvc.connect);
                 assert.calledWith(mockProducerSvc.sendMessage, msg, topic);
+                assert.notCalled(mockRabbitmqCh.on);
             });
         });
 
@@ -494,6 +495,7 @@ describe('Jobs Unit Test', () => {
                 });
                 assert.calledOnce(mockRabbitmqCh.close);
                 assert.notCalled(mockExecutor.stop);
+                assert.calledWith(mockRabbitmqCh.on, 'error');
             });
         });
 
@@ -526,6 +528,7 @@ describe('Jobs Unit Test', () => {
                 assert.notCalled(mockExecutor.stop);
                 assert.calledOnce(mockProducerSvc.connect);
                 assert.calledWith(mockProducerSvc.sendMessage, msg, topic);
+                assert.notCalled(mockRabbitmqCh.on);
             });
         });
 
