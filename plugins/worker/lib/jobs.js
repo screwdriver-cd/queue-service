@@ -204,6 +204,7 @@ async function start(buildConfig) {
  * @param  {String}    buildConfig.jobId         Job that this build belongs to
  * @param  {String}    buildConfig.blockedBy     Jobs that are blocking this job
  * @param  {String}    buildConfig.started       Whether job has started
+ * @param  {String}    buildConfig.jobName    Job name
  * @return {Promise}
  */
 async function stop(buildConfig) {
