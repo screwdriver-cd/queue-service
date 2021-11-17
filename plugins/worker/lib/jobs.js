@@ -121,9 +121,9 @@ async function pushToRabbitMq(message, queue, messageId) {
 }
 
 /**
- *
- * @param {Object} message
- * @param {String} topic
+ * Push message to Kafka topic
+ * @param {Object} message  Job and build config metadata
+ * @param {String} topic          Topic name
  */
 async function pushToKafka(message, topic) {
     const conn = await AWSProducer.connect();
@@ -204,6 +204,7 @@ async function start(buildConfig) {
  * @param  {String}    buildConfig.jobId         Job that this build belongs to
  * @param  {String}    buildConfig.blockedBy     Jobs that are blocking this job
  * @param  {String}    buildConfig.started       Whether job has started
+ * @param  {String}    buildConfig.jobName    Job name
  * @return {Promise}
  */
 async function stop(buildConfig) {
