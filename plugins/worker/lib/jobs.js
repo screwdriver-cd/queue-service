@@ -6,7 +6,7 @@ const config = require('config');
 const hoek = require('@hapi/hoek');
 const ExecutorRouter = require('screwdriver-executor-router');
 const logger = require('screwdriver-logger');
-const producer = require('screwdriver-aws-producer-service');
+const AWSProducer = require('screwdriver-aws-producer-service');
 const { BlockedBy } = require('./BlockedBy');
 const { Filter } = require('./Filter');
 const { CacheFilter } = require('./CacheFilter');
@@ -126,10 +126,10 @@ async function pushToRabbitMq(message, queue, messageId) {
  * @param {String} topic
  */
 async function pushToKafka(message, topic) {
-    const conn = await producer.connect();
+    const conn = await AWSProducer.connect();
 
     if (conn) {
-        await producer.sendMessage(message, topic);
+        await AWSProducer.sendMessage(message, topic);
     }
 }
 
