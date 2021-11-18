@@ -716,6 +716,19 @@ async function unzipArtifacts(executor, config) {
     return enq;
 }
 
+/**
+ * Pushes a message to unzip artifacts
+ * @async  sendWebhook
+ * @param  {Object} executor
+ * @param  {Object} webhookConfig               webhookConfiguration
+ * @return {Promise}
+ */
+async function sendWebhook(executor, webhookConfig) {
+    await executor.connect();
+
+    return executor.redisBreaker.runCommand('rpush', executor.webhookTable, JSON.stringify(webhookConfig));
+}
+
 module.exports = {
     init,
     start,
@@ -728,5 +741,6 @@ module.exports = {
     stopTimer,
     cleanUp,
     clearCache,
-    unzipArtifacts
+    unzipArtifacts,
+    sendWebhook
 };
