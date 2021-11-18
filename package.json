@@ -27,7 +27,8 @@
     "laabr": "^6.1.3",
     "node-resque": "^5.5.3",
     "redlock": "^4.2.0",
-    "screwdriver-data-schema": "^21.2.5",
+    "screwdriver-aws-producer-service": "^1.1.0",
+    "screwdriver-data-schema": "^21.10.2",
     "screwdriver-executor-docker": "^5.0.2",
     "screwdriver-executor-jenkins": "^5.0.1",
     "screwdriver-executor-k8s": "^14.14.4",
@@ -59,7 +60,8 @@
     "pretest": "eslint . --quiet",
     "test": "nyc --report-dir ./artifacts/coverage --reporter=lcov mocha --reporter mocha-multi-reporters --reporter-options configFile=./mocha.config.json --recursive --timeout 4000 --retries 1 --exit --allow-uncaught true --color true",
     "debug": "node --nolazy ./bin/server",
-    "functional": "cucumber-js --format=progress --tags 'not @ignore' --retry 2 --fail-fast --exit"
+    "functional": "cucumber-js --format=progress --tags 'not @ignore' --retry 2 --fail-fast --exit",
+    "semantic-release": "semantic-release"
   },
   "repository": {
     "type": "git",
@@ -84,9 +86,6 @@
   },
   "homepage": "https://github.com/screwdriver-cd/screwdriver-queue-service#readme",
   "release": {
-    "debug": false,
-    "verifyConditions": {
-      "path": "./node_modules/semantic-release/src/lib/plugin-noop.js"
-    }
+    "debug": false
   }
 }

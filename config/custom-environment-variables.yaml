@@ -272,3 +272,22 @@ scheduler:
         vhost: RABBITMQ_VHOST
         # Connection options
         connectOptions: RABBITMQ_CONNECT_OPTIONS
+kafka:
+  # flag for kafka broker
+  enabled: KAFKA_ENABLED
+  # kafka brokers list
+  hosts: KAFKA_BROKERS_LIST
+  # sasl options
+  sasl:
+    # sasl mechanism
+    mechanism: SASL_MECHANISM
+    # secret id for sasl/scram
+    secretId: SASL_AWS_SECRET_ID
+  # client id of the producer
+  clientId: KAFKA_CLIENT_ID
+  # Amazon access key
+  accessKeyId: KAFKA_ACCESS_KEY_ID
+  # Amazon secret access key
+  secretAccessKey: KAFKA_ACCESS_KEY_SECRET
+  # AWS region 
+  region: AWS_REGION
