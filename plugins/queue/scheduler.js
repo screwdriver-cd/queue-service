@@ -717,8 +717,8 @@ async function unzipArtifacts(executor, config) {
 }
 
 /**
- * Pushes a message to unzip artifacts
- * @async  sendWebhook
+ * Pushes webhooks to redis
+ * @async  queueWebhook
  * @param  {Object} executor
  * @param  {Object} webhookConfig               webhookConfiguration
  * @return {Promise}
