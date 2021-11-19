@@ -38,7 +38,8 @@ describe('queue plugin test', () => {
             stopFrozen: sinon.stub().resolves(),
             stopPeriodic: sinon.stub().resolves(),
             clearCache: sinon.stub().resolves(),
-            unzipArtifacts: sinon.stub().resolves()
+            unzipArtifacts: sinon.stub().resolves(),
+            queueWebhook: sinon.stub().resolves()
         };
 
         mockery.registerMock('./scheduler', schedulerMock);
@@ -263,6 +264,15 @@ describe('queue plugin test', () => {
 
             assert.equal(reply.statusCode, 200);
             assert.calledOnce(schedulerMock.unzipArtifacts);
+        });
+
+        it('returns 200 when pushing message to queue', async () => {
+            options.url = '/v1/queue/message?type=webhook';
+
+            const reply = await server.inject(options);
+
+            assert.equal(reply.statusCode, 200);
+            assert.calledOnce(schedulerMock.queueWebhook);
         });
     });
 });

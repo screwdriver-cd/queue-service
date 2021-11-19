@@ -723,10 +723,15 @@ async function unzipArtifacts(executor, config) {
  * @param  {Object} webhookConfig               webhookConfiguration
  * @return {Promise}
  */
-async function sendWebhook(executor, webhookConfig) {
+async function queueWebhook(executor, webhookConfig) {
     await executor.connect();
 
-    return executor.redisBreaker.runCommand('rpush', executor.webhookTable, JSON.stringify(webhookConfig));
+    return executor.queueBreaker.runCommand(
+        'enqueue',
+        executor.webhookQueue,
+        'sendWebhook',
+        JSON.stringify(webhookConfig)
+    );
 }
 
 module.exports = {
@@ -742,5 +747,5 @@ module.exports = {
     cleanUp,
     clearCache,
     unzipArtifacts,
-    sendWebhook
+    queueWebhook
 };

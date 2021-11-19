@@ -37,7 +37,7 @@ module.exports = () => ({
                         await scheduler.unzipArtifacts(executor, request.payload);
                         break;
                     case 'webhook':
-                        await scheduler.sendWebhook(executor, request.payload);
+                        await scheduler.queueWebhook(executor, request.payload);
                         break;
                     default:
                         await scheduler.start(executor, request.payload);

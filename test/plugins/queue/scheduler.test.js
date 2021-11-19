@@ -97,8 +97,7 @@ describe('scheduler test', () => {
             hdel: sinon.stub().yieldsAsync(),
             hset: sinon.stub().yieldsAsync(),
             set: sinon.stub().yieldsAsync(),
-            expire: sinon.stub().yieldsAsync(),
-            rpush: sinon.stub().yieldsAsync()
+            expire: sinon.stub().yieldsAsync()
         };
         redisConstructorMock = sinon.stub().returns(redisMock);
         cronMock = {
@@ -941,7 +940,7 @@ describe('scheduler test', () => {
         });
     });
 
-    describe('sendWebhook', () => {
+    describe('queueWebhook', () => {
         let webhookConfig;
 
         beforeEach(() => {
@@ -951,7 +950,7 @@ describe('scheduler test', () => {
         it("rejects if it can't establish a connection", function() {
             queueMock.connect.rejects(new Error("couldn't connect"));
 
-            return scheduler.sendWebhook(executor, webhookConfig).then(
+            return scheduler.queueWebhook(executor, webhookConfig).then(
                 () => {
                     assert.fail('Should not get here');
                 },
@@ -964,16 +963,16 @@ describe('scheduler test', () => {
         it("doesn't call connect if there's already a connection", () => {
             queueMock.connection.connected = true;
 
-            return scheduler.sendWebhook(executor, webhookConfig).then(() => {
+            return scheduler.queueWebhook(executor, webhookConfig).then(() => {
                 assert.notCalled(queueMock.connect);
             });
         });
 
         it('enqueues an webhook', () => {
-            return scheduler.sendWebhook(executor, webhookConfig).then(() => {
+            return scheduler.queueWebhook(executor, webhookConfig).then(() => {
                 assert.calledOnce(queueMock.connect);
-                assert.calledOnce(redisMock.rpush);
-                assert.calledWith(redisMock.rpush, 'webhooks', JSON.stringify(webhookConfig));
+                assert.calledOnce(queueMock.enqueue);
+                assert.calledWith(queueMock.enqueue, 'webhooks', 'sendWebhook', JSON.stringify(webhookConfig));
             });
         });
     });
