@@ -720,7 +720,7 @@ async function unzipArtifacts(executor, config) {
  * Pushes webhooks to redis
  * @async  queueWebhook
  * @param  {Object} executor
- * @param  {Object} webhookConfig               webhookConfiguration
+ * @param  {Object} webhookConfig
  * @return {Promise}
  */
 async function queueWebhook(executor, webhookConfig) {
