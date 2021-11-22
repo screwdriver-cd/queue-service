@@ -38,7 +38,8 @@ describe('queue plugin test', () => {
             stopFrozen: sinon.stub().resolves(),
             stopPeriodic: sinon.stub().resolves(),
             clearCache: sinon.stub().resolves(),
-            unzipArtifacts: sinon.stub().resolves()
+            unzipArtifacts: sinon.stub().resolves(),
+            queueWebhook: sinon.stub().resolves()
         };
 
         mockery.registerMock('./scheduler', schedulerMock);
@@ -161,6 +162,15 @@ describe('queue plugin test', () => {
         });
 
         it('returns 200 when deleting message from queue', async () => {
+            options.url = '/v1/queue/message?type=frozen';
+
+            const reply = await server.inject(options);
+
+            assert.equal(reply.statusCode, 200);
+            assert.calledOnce(schedulerMock.stopFrozen);
+        });
+
+        it('returns 200 when deleting message from queue', async () => {
             options.url = '/v1/queue/message?type=timer';
 
             const reply = await server.inject(options);
@@ -211,7 +221,7 @@ describe('queue plugin test', () => {
             assert.equal(reply.statusCode, 403);
         });
 
-        it('returns 200 when deleting message from queue', async () => {
+        it('returns 200 when pushing message to queue', async () => {
             options.url = '/v1/queue/message?type=periodic';
 
             const reply = await server.inject(options);
@@ -220,16 +230,16 @@ describe('queue plugin test', () => {
             assert.calledOnce(schedulerMock.startPeriodic);
         });
 
-        it('returns 200 when deleting message from queue', async () => {
-            options.url = '/v1/queue/message?type=cache';
+        it('returns 200 when pushing message to queue', async () => {
+            options.url = '/v1/queue/message?type=frozen';
 
             const reply = await server.inject(options);
 
             assert.equal(reply.statusCode, 200);
-            assert.calledOnce(schedulerMock.clearCache);
+            assert.calledOnce(schedulerMock.startFrozen);
         });
 
-        it('returns 200 when deleting message from queue', async () => {
+        it('returns 200 when pushing message to queue', async () => {
             options.url = '/v1/queue/message?type=timer';
 
             const reply = await server.inject(options);
@@ -238,13 +248,31 @@ describe('queue plugin test', () => {
             assert.calledOnce(schedulerMock.startTimer);
         });
 
-        it('returns 200 when deleting message from queue', async () => {
+        it('returns 200 when pushing message to queue', async () => {
+            options.url = '/v1/queue/message?type=cache';
+
+            const reply = await server.inject(options);
+
+            assert.equal(reply.statusCode, 200);
+            assert.calledOnce(schedulerMock.clearCache);
+        });
+
+        it('returns 200 when pushing message to queue', async () => {
             options.url = '/v1/queue/message?type=unzip';
 
             const reply = await server.inject(options);
 
             assert.equal(reply.statusCode, 200);
             assert.calledOnce(schedulerMock.unzipArtifacts);
+        });
+
+        it('returns 200 when pushing message to queue', async () => {
+            options.url = '/v1/queue/message?type=webhook';
+
+            const reply = await server.inject(options);
+
+            assert.equal(reply.statusCode, 200);
+            assert.calledOnce(schedulerMock.queueWebhook);
         });
     });
 });

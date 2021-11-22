@@ -939,4 +939,41 @@ describe('scheduler test', () => {
             });
         });
     });
+
+    describe('queueWebhook', () => {
+        let webhookConfig;
+
+        beforeEach(() => {
+            webhookConfig = { hookId: '72d3162e-cc78-11e3-81ab-4c9367dc0958' };
+        });
+
+        it("rejects if it can't establish a connection", function() {
+            queueMock.connect.rejects(new Error("couldn't connect"));
+
+            return scheduler.queueWebhook(executor, webhookConfig).then(
+                () => {
+                    assert.fail('Should not get here');
+                },
+                err => {
+                    assert.instanceOf(err, Error);
+                }
+            );
+        });
+
+        it("doesn't call connect if there's already a connection", () => {
+            queueMock.connection.connected = true;
+
+            return scheduler.queueWebhook(executor, webhookConfig).then(() => {
+                assert.notCalled(queueMock.connect);
+            });
+        });
+
+        it('enqueues an webhook', () => {
+            return scheduler.queueWebhook(executor, webhookConfig).then(() => {
+                assert.calledOnce(queueMock.connect);
+                assert.calledOnce(queueMock.enqueue);
+                assert.calledWith(queueMock.enqueue, 'webhooks', 'sendWebhook', JSON.stringify(webhookConfig));
+            });
+        });
+    });
 });

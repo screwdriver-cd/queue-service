@@ -36,6 +36,9 @@ module.exports = () => ({
                     case 'unzip':
                         await scheduler.unzipArtifacts(executor, request.payload);
                         break;
+                    case 'webhook':
+                        await scheduler.queueWebhook(executor, request.payload);
+                        break;
                     default:
                         await scheduler.start(executor, request.payload);
                         break;

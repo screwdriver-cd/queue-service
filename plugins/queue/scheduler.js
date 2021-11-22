@@ -716,6 +716,24 @@ async function unzipArtifacts(executor, config) {
     return enq;
 }
 
+/**
+ * Pushes webhooks to redis
+ * @async  queueWebhook
+ * @param  {Object} executor
+ * @param  {Object} webhookConfig
+ * @return {Promise}
+ */
+async function queueWebhook(executor, webhookConfig) {
+    await executor.connect();
+
+    return executor.queueBreaker.runCommand(
+        'enqueue',
+        executor.webhookQueue,
+        'sendWebhook',
+        JSON.stringify(webhookConfig)
+    );
+}
+
 module.exports = {
     init,
     start,
@@ -728,5 +746,6 @@ module.exports = {
     stopTimer,
     cleanUp,
     clearCache,
-    unzipArtifacts
+    unzipArtifacts,
+    queueWebhook
 };
