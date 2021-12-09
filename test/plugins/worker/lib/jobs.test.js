@@ -52,6 +52,7 @@ describe('Jobs Unit Test', () => {
     let mockConfig;
     let mockProducerSvc;
     let mockEcosystemConfig;
+    let helperMock;
 
     before(() => {
         mockery.enable({
@@ -63,7 +64,9 @@ describe('Jobs Unit Test', () => {
     beforeEach(() => {
         mockExecutor = {
             start: sinon.stub(),
-            stop: sinon.stub()
+            stop: sinon.stub(),
+            tokenGen: sinon.stub(),
+            requestRetryStrategyPostEvent: sinon.stub()
         };
 
         mockRedisObj = {
@@ -154,6 +157,10 @@ describe('Jobs Unit Test', () => {
             sendMessage: sinon.stub().resolves({})
         };
 
+        helperMock = {
+            processHooks: sinon.stub()
+        };
+
         mockery.registerMock('config', mockConfig);
         mockery.registerMock('screwdriver-executor-router', mockExecutorRouter);
         mockery.registerMock('amqp-connection-manager', mockAmqp);
@@ -162,6 +169,7 @@ describe('Jobs Unit Test', () => {
         mockery.registerMock('ioredis', mockRedis);
         mockery.registerMock('../../../config/rabbitmq', mockRabbitmqConfig);
         mockery.registerMock('../../../config/redis', mockRedisConfig);
+        mockery.registerMock('../../helper', helperMock);
         mockery.registerMock('screwdriver-aws-producer-service', mockProducerSvc);
 
         mockBlockedBy = {
@@ -705,6 +713,59 @@ describe('Jobs Unit Test', () => {
                 assert.calledTwice(mockRabbitmqCh.close);
                 assert.notCalled(mockExecutor.stop);
             });
+        });
+    });
+
+    describe('sendWebhook', () => {
+        it('constructs sendWebhook job correctly', () =>
+            assert.deepEqual(jobs.sendWebhook, {
+                plugins: ['Retry'],
+                pluginOptions: {
+                    Retry: {
+                        retryLimit: 3,
+                        retryDelay: 5000
+                    }
+                },
+                perform: jobs.sendWebhook.perform
+            }));
+
+        it('send message to processHooks API', () => {
+            const webhookConfig = '{ "foo": 123 }';
+
+            mockExecutor.tokenGen.returns('test_token');
+
+            return jobs.sendWebhook.perform(webhookConfig).then(result => {
+                assert.isNull(result);
+                assert.calledWith(mockExecutor.tokenGen, {
+                    service: 'queue',
+                    scope: ['webhook_worker']
+                });
+                assert.calledWith(
+                    helperMock.processHooks,
+                    'foo.api',
+                    'test_token',
+                    { foo: 123 },
+                    mockExecutor.requestRetryStrategyPostEvent
+                );
+            });
+        });
+
+        it('returns an error when webhookConfig is not a string in JSON format', () => {
+            const webhookConfig = 'foo';
+
+            mockExecutor.tokenGen.returns('test_token');
+
+            return jobs.sendWebhook.perform(webhookConfig).then(
+                () => {
+                    assert.fail('Should not get here');
+                },
+                err => {
+                    assert.notCalled(mockExecutor.tokenGen);
+                    assert.notCalled(helperMock.processHooks);
+                    assert.strictEqual(err.name, 'SyntaxError');
+                    assert.strictEqual(err.message, 'Unexpected token o in JSON at position 1');
+                }
+            );
         });
     });
 });

@@ -483,4 +483,61 @@ describe('Helper Test', () => {
             })
         );
     });
+
+    it('Post a webhooks process with retry', async () => {
+        mockRequest.resolves({ statusCode: 200 });
+        const retryFn = sinon.stub();
+
+        try {
+            await helper.processHooks('foo.bar', 'fake', { foo: 123 }, retryFn);
+        } catch (err) {
+            assert.isNull(err);
+        }
+
+        assert.calledWith(
+            mockRequest,
+            sinon.match({
+                method: 'POST',
+                url: `foo.bar/v4/processHooks`,
+                headers: {
+                    Authorization: 'Bearer fake'
+                },
+                json: { foo: 123 },
+                retry: {
+                    limit: 3
+                },
+                hooks: { afterResponse: [retryFn] }
+            })
+        );
+    });
+
+    it('throws when get error post a webhooks process', async () => {
+        mockRequest.resolves({
+            statusCode: 500,
+            body: 'server error'
+        });
+        const retryFn = sinon.stub();
+
+        try {
+            await helper.processHooks('foo.bar', 'fake', { foo: 123 }, retryFn);
+        } catch (err) {
+            assert.strictEqual(err.message, 'Failed to process webhook with 500 code and server error');
+        }
+
+        assert.calledWith(
+            mockRequest,
+            sinon.match({
+                method: 'POST',
+                url: `foo.bar/v4/processHooks`,
+                headers: {
+                    Authorization: 'Bearer fake'
+                },
+                json: { foo: 123 },
+                retry: {
+                    limit: 3
+                },
+                hooks: { afterResponse: [retryFn] }
+            })
+        );
+    });
 });
