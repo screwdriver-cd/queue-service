@@ -20,7 +20,7 @@ describe('Schedule test', () => {
     const job = { args: [{ buildId: 1 }] };
     const queue = 'testbuilds';
     const workerConfig = {
-        queues: ['mockQueuePrefix_builds', 'mockQueuePrefix_cache'],
+        queues: ['mockQueuePrefix_builds', 'mockQueuePrefix_cache', 'mockQueuePrefix_webhooks'],
         minTaskProcessors: 123,
         maxTaskProcessors: 234,
         checkTimeout: 345,
