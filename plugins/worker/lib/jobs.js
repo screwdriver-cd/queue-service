@@ -7,6 +7,7 @@ const hoek = require('@hapi/hoek');
 const ExecutorRouter = require('screwdriver-executor-router');
 const logger = require('screwdriver-logger');
 const AWSProducer = require('screwdriver-aws-producer-service');
+const helper = require('../../helper');
 const { BlockedBy } = require('./BlockedBy');
 const { Filter } = require('./Filter');
 const { CacheFilter } = require('./CacheFilter');
@@ -17,7 +18,7 @@ const { amqpURI, exchange, connectOptions } = rabbitmqConf.getConfig();
 const kafkaEnabled = config.get('kafka').enabled === 'true';
 
 const RETRY_LIMIT = 3;
-// This is in milliseconds, reference: https://github.com/taskrabbit/node-resque/blob/master/lib/plugins/Retry.js#L12
+// This is in milliseconds, reference: https://github.com/actionhero/node-resque/blob/2ffdf0/lib/plugins/Retry.js#L12
 const RETRY_DELAY = 5 * 1000;
 const redis = new Redis(connectionDetails.port, connectionDetails.host, connectionDetails.options);
 
@@ -273,6 +274,24 @@ async function clear(cacheConfig) {
     return null;
 }
 
+/**
+ * Send message to processHooks API
+ * @param {String} webhookConfig as String
+ */
+async function sendWebhook(webhookConfig) {
+    const parsedConfig = JSON.parse(webhookConfig);
+    const apiUri = ecosystem.api;
+    const token = executor.tokenGen({
+        service: 'queue',
+        scope: ['webhook_worker']
+    });
+    const retryFn = executor.requestRetryStrategyPostEvent;
+
+    await helper.processHooks(apiUri, token, parsedConfig, retryFn);
+
+    return null;
+}
+
 module.exports = {
     start: {
         plugins: [Filter, 'Retry', BlockedBy],
@@ -295,5 +314,12 @@ module.exports = {
             Retry: retryOptions
         },
         perform: clear
+    },
+    sendWebhook: {
+        plugins: ['Retry'],
+        pluginOptions: {
+            Retry: retryOptions
+        },
+        perform: sendWebhook
     }
 };

@@ -218,11 +218,34 @@ async function updateBuild(updateConfig, retryStrategyFn) {
     );
 }
 
+/**
+ * Post the webhooks process
+ * @method processHooks
+ * @param {String} apiUri
+ * @param {String} token
+ * @param {String} webhookConfig as JSON format
+ * @param {Function} retryStrategyFn
+ * @return {Promise} response or error
+ */
+async function processHooks(apiUri, token, webhookConfig, retryStrategyFn) {
+    return request(formatOptions('POST', `${apiUri}/v4/processHooks`, token, webhookConfig, retryStrategyFn)).then(
+        res => {
+            logger.info(`POST /v4/processHooks completed, ${res.statusCode}, ${JSON.stringify(res.body)}`);
+            if ([200, 201, 204].includes(res.statusCode)) {
+                return res;
+            }
+
+            throw new Error(`Failed to process webhook with ${res.statusCode} code and ${res.body}`);
+        }
+    );
+}
+
 module.exports = {
     updateBuildStatus,
     updateStepStop,
     getCurrentStep,
     createBuildEvent,
     getPipelineAdmin,
-    updateBuild
+    updateBuild,
+    processHooks
 };
