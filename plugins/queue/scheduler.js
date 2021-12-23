@@ -730,7 +730,13 @@ async function queueWebhook(executor, webhookConfig) {
         'enqueue',
         executor.webhookQueue,
         'sendWebhook',
-        JSON.stringify(webhookConfig)
+        JSON.stringify({
+            webhookConfig,
+            token: executor.tokenGen({
+                service: 'queue',
+                scope: ['webhook_worker']
+            })
+        })
     );
 }
 

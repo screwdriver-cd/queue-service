@@ -278,16 +278,18 @@ async function clear(cacheConfig) {
  * Send message to processHooks API
  * @param {String} webhookConfig as String
  */
-async function sendWebhook(webhookConfig) {
-    const parsedConfig = JSON.parse(webhookConfig);
+async function sendWebhook(config) {
+    const parsedConfig = JSON.parse(config);
+    const { webhookConfig, token } = parsedConfig;
     const apiUri = ecosystem.api;
-    const token = executor.tokenGen({
-        service: 'queue',
-        scope: ['webhook_worker']
-    });
-    const retryFn = executor.requestRetryStrategyPostEvent;
 
-    await helper.processHooks(apiUri, token, parsedConfig, retryFn);
+    await helper.processHooks(apiUri, token, webhookConfig, request => {
+        if (Math.floor(response.statusCode / 100) !== 2 && response.statusCode !== 404) {
+            throw new Error('Retry limit reached');
+        }
+
+        return response;
+    });
 
     return null;
 }
