@@ -276,14 +276,14 @@ async function clear(cacheConfig) {
 
 /**
  * Send message to processHooks API
- * @param {String} webhookConfig as String
+ * @param {String} configs as String
  */
-async function sendWebhook(webhookConfig) {
-    const parsedConfig = JSON.parse(webhookConfig);
-    const { parsedWebhookConfig, token } = parsedConfig;
+async function sendWebhook(configs) {
+    const parsedConfig = JSON.parse(configs);
+    const { webhookConfig, token } = parsedConfig;
     const apiUri = ecosystem.api;
 
-    await helper.processHooks(apiUri, token, parsedWebhookConfig, helper.requestRetryStrategyPostEvent);
+    await helper.processHooks(apiUri, token, webhookConfig, helper.requestRetryStrategyPostEvent);
 
     return null;
 }
