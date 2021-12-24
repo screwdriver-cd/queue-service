@@ -111,7 +111,9 @@ describe('scheduler test', () => {
         helperMock = {
             getPipelineAdmin: sinon.stub().resolves(testAdmin),
             createBuildEvent: sinon.stub().resolves(),
-            updateBuild: sinon.stub().resolves()
+            updateBuild: sinon.stub().resolves(),
+            requestRetryStrategy: sinon.stub(),
+            requestRetryStrategyPostEvent: sinon.stub()
         };
         buildMock = {
             eventId: 4566,
@@ -282,7 +284,7 @@ describe('scheduler test', () => {
                     pipelineId: testDelayedConfig.pipeline.id,
                     startFrom: testDelayedConfig.job.name
                 },
-                executor.requestRetryStrategyPostEvent
+                helperMock.requestRetryStrategyPostEvent
             ];
 
             return scheduler.startPeriodic(executor, testDelayedConfig).then(() => {
@@ -317,7 +319,7 @@ describe('scheduler test', () => {
                     pipelineId: testDelayedConfig.pipeline.id,
                     startFrom: testDelayedConfig.job.name
                 },
-                executor.requestRetryStrategyPostEvent
+                helperMock.requestRetryStrategyPostEvent
             ];
 
             return scheduler.startPeriodic(executor, testDelayedConfig).then(() => {
@@ -384,7 +386,7 @@ describe('scheduler test', () => {
                         apiUri: 'http://api.com',
                         payload: { stats: buildMock.stats, status: 'QUEUED' }
                     },
-                    executor.requestRetryStrategy
+                    helperMock.requestRetryStrategy
                 );
                 assert.equal(buildMock.stats.queueEnterTime, isoTime);
                 sandbox.restore();
@@ -484,7 +486,7 @@ describe('scheduler test', () => {
                         apiUri: 'http://api.com',
                         payload: { stats: buildMock.stats, status: 'QUEUED' }
                     },
-                    executor.requestRetryStrategy
+                    helperMock.requestRetryStrategy
                 );
                 assert.equal(buildMock.stats.queueEnterTime, isoTime);
                 sandbox.restore();
@@ -585,7 +587,7 @@ describe('scheduler test', () => {
                         jobId
                     }
                 ]);
-                assert.calledWith(helperMock.updateBuild, options, executor.requestRetryStrategy);
+                assert.calledWith(helperMock.updateBuild, options, helperMock.requestRetryStrategy);
                 assert.calledOnce(executor.tokenGen);
                 sandbox.restore();
             });
@@ -972,7 +974,19 @@ describe('scheduler test', () => {
             return scheduler.queueWebhook(executor, webhookConfig).then(() => {
                 assert.calledOnce(queueMock.connect);
                 assert.calledOnce(queueMock.enqueue);
-                assert.calledWith(queueMock.enqueue, 'webhooks', 'sendWebhook', JSON.stringify(webhookConfig));
+                assert.calledWith(executor.tokenGen, {
+                    service: 'queue',
+                    scope: ['webhook_worker']
+                });
+                assert.calledWith(
+                    queueMock.enqueue,
+                    'webhooks',
+                    'sendWebhook',
+                    JSON.stringify({
+                        webhookConfig,
+                        token: 'token'
+                    })
+                );
             });
         });
     });
