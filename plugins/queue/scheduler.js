@@ -38,7 +38,7 @@ async function postBuildEvent(executor, eventConfig) {
             scope: ['user']
         });
 
-        const admin = await helper.getPipelineAdmin(token, apiUri, pipelineId, executor.requestRetryStrategy);
+        const admin = await helper.getPipelineAdmin(token, apiUri, pipelineId, helper.requestRetryStrategy);
 
         if (admin) {
             logger.info(
@@ -64,7 +64,7 @@ async function postBuildEvent(executor, eventConfig) {
                 buildEvent.buildId = buildId;
             }
 
-            await helper.createBuildEvent(apiUri, jwt, buildEvent, executor.requestRetryStrategyPostEvent);
+            await helper.createBuildEvent(apiUri, jwt, buildEvent, helper.requestRetryStrategyPostEvent);
         } else {
             logger.error(
                 `POST event for pipeline failed as no admin found: ${pipelineId}:${job.name}:${job.id}:${buildId}`
@@ -337,7 +337,7 @@ async function start(executor, config) {
                     apiUri,
                     payload
                 },
-                executor.requestRetryStrategy
+                helper.requestRetryStrategy
             )
             .catch(err => {
                 logger.error(`frozenBuilds: failed to update build status for build ${buildId}: ${err}`);
@@ -399,7 +399,7 @@ async function start(executor, config) {
                     apiUri,
                     payload: { stats: build.stats, status: 'QUEUED' }
                 },
-                executor.requestRetryStrategy
+                helper.requestRetryStrategy
             );
         }
     }
