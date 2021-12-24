@@ -4,10 +4,10 @@
 
 const chai = require('chai');
 const util = require('util');
-const assert = chai.assert;
+const { assert } = chai;
 const mockery = require('mockery');
 const sinon = require('sinon');
-const EventEmitter = require('events').EventEmitter;
+const { EventEmitter } = require('events');
 const testConnection = require('../../data/testConnection.json');
 const testConfig = require('../../data/fullConfig.json');
 const testPipeline = require('../../data/testPipeline.json');
@@ -18,9 +18,7 @@ const partialTestConfig = {
     jobId,
     blockedBy
 };
-const partialTestConfigToString = Object.assign({}, partialTestConfig, {
-    blockedBy: blockedBy.toString()
-});
+const partialTestConfigToString = { ...partialTestConfig, blockedBy: blockedBy.toString() };
 const testAdmin = {
     username: 'admin'
 };
@@ -402,7 +400,7 @@ describe('scheduler test', () => {
             sandbox.useFakeTimers(dateNow);
             buildMock.stats = {};
             testConfig.build = buildMock;
-            const newConfig = Object.assign({}, testConfig);
+            const newConfig = { ...testConfig };
 
             delete newConfig.isPR;
 
@@ -496,7 +494,7 @@ describe('scheduler test', () => {
         it('enqueues a build and with enqueueTime', () => {
             buildMock.stats = {};
             testConfig.build = buildMock;
-            const config = Object.assign({}, testConfig, { enqueueTime: new Date() });
+            const config = { ...testConfig, enqueueTime: new Date() };
 
             return scheduler.start(executor, config).then(() => {
                 assert.calledTwice(queueMock.connect);
@@ -610,7 +608,7 @@ describe('scheduler test', () => {
 
         it('removes a start event from the queue and the cached buildconfig', () => {
             const deleteKey = `deleted_${jobId}_${buildId}`;
-            const stopConfig = Object.assign({ started: false }, partialTestConfigToString);
+            const stopConfig = { started: false, ...partialTestConfigToString };
 
             return scheduler.stop(executor, partialTestConfig).then(() => {
                 assert.calledOnce(queueMock.connect);
@@ -623,7 +621,7 @@ describe('scheduler test', () => {
 
         it('adds a stop event to the queue if no start events were removed', () => {
             queueMock.del.resolves(0);
-            const stopConfig = Object.assign({ started: true }, partialTestConfigToString);
+            const stopConfig = { started: true, ...partialTestConfigToString };
 
             return scheduler.stop(executor, partialTestConfig).then(() => {
                 assert.calledOnce(queueMock.connect);
@@ -634,10 +632,8 @@ describe('scheduler test', () => {
 
         it('adds a stop event to the queue if it has no blocked job', () => {
             queueMock.del.resolves(0);
-            const partialTestConfigUndefined = Object.assign({}, partialTestConfig, {
-                blockedBy: undefined
-            });
-            const stopConfig = Object.assign({ started: true }, partialTestConfigUndefined);
+            const partialTestConfigUndefined = { ...partialTestConfig, blockedBy: undefined };
+            const stopConfig = { started: true, ...partialTestConfigUndefined };
 
             return scheduler.stop(executor, partialTestConfigUndefined).then(() => {
                 assert.calledOnce(queueMock.connect);
@@ -650,14 +646,12 @@ describe('scheduler test', () => {
             queueMock.connection.connected = true;
 
             return scheduler
-                .stop(
-                    executor,
-                    Object.assign({}, partialTestConfig, {
-                        annotations: {
-                            'beta.screwdriver.cd/executor': 'screwdriver-executor-k8s'
-                        }
-                    })
-                )
+                .stop(executor, {
+                    ...partialTestConfig,
+                    annotations: {
+                        'beta.screwdriver.cd/executor': 'screwdriver-executor-k8s'
+                    }
+                })
                 .then(() => {
                     assert.notCalled(queueMock.connect);
                     assert.calledWith(queueMock.del, 'builds', 'start', [partialTestConfigToString]);
