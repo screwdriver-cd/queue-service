@@ -8,6 +8,34 @@ const RETRY_LIMIT = 3;
 const RETRY_DELAY = 5;
 
 /**
+ * Callback function to retry when HTTP status code is not 2xx
+ * @param   {Object}    response
+ * @param   {Function}  retryWithMergedOptions
+ * @return  {Object}    response
+ */
+function requestRetryStrategy(response) {
+    if (Math.floor(response.statusCode / 100) !== 2) {
+        throw new Error('Retry limit reached');
+    }
+
+    return response;
+}
+
+/**
+ * Callback function to retry when HTTP status code is not 2xx and 404
+ * @param   {Object}    response
+ * @param   {Function}  retryWithMergedOptions
+ * @return  {Object}    response
+ */
+function requestRetryStrategyPostEvent(response) {
+    if (Math.floor(response.statusCode / 100) !== 2 && response.statusCode !== 404) {
+        throw new Error('Retry limit reached');
+    }
+
+    return response;
+}
+
+/**
  *
  * @param {String} method
  * @param {String} uri
@@ -241,6 +269,8 @@ async function processHooks(apiUri, token, webhookConfig, retryStrategyFn) {
 }
 
 module.exports = {
+    requestRetryStrategy,
+    requestRetryStrategyPostEvent,
     updateBuildStatus,
     updateStepStop,
     getCurrentStep,

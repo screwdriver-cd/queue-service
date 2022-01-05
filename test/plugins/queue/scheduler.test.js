@@ -4,10 +4,10 @@
 
 const chai = require('chai');
 const util = require('util');
-const assert = chai.assert;
+const { assert } = chai;
 const mockery = require('mockery');
 const sinon = require('sinon');
-const EventEmitter = require('events').EventEmitter;
+const { EventEmitter } = require('events');
 const testConnection = require('../../data/testConnection.json');
 const testConfig = require('../../data/fullConfig.json');
 const testPipeline = require('../../data/testPipeline.json');
@@ -18,9 +18,7 @@ const partialTestConfig = {
     jobId,
     blockedBy
 };
-const partialTestConfigToString = Object.assign({}, partialTestConfig, {
-    blockedBy: blockedBy.toString()
-});
+const partialTestConfigToString = { ...partialTestConfig, blockedBy: blockedBy.toString() };
 const testAdmin = {
     username: 'admin'
 };
@@ -111,7 +109,9 @@ describe('scheduler test', () => {
         helperMock = {
             getPipelineAdmin: sinon.stub().resolves(testAdmin),
             createBuildEvent: sinon.stub().resolves(),
-            updateBuild: sinon.stub().resolves()
+            updateBuild: sinon.stub().resolves(),
+            requestRetryStrategy: sinon.stub(),
+            requestRetryStrategyPostEvent: sinon.stub()
         };
         buildMock = {
             eventId: 4566,
@@ -282,7 +282,7 @@ describe('scheduler test', () => {
                     pipelineId: testDelayedConfig.pipeline.id,
                     startFrom: testDelayedConfig.job.name
                 },
-                executor.requestRetryStrategyPostEvent
+                helperMock.requestRetryStrategyPostEvent
             ];
 
             return scheduler.startPeriodic(executor, testDelayedConfig).then(() => {
@@ -317,7 +317,7 @@ describe('scheduler test', () => {
                     pipelineId: testDelayedConfig.pipeline.id,
                     startFrom: testDelayedConfig.job.name
                 },
-                executor.requestRetryStrategyPostEvent
+                helperMock.requestRetryStrategyPostEvent
             ];
 
             return scheduler.startPeriodic(executor, testDelayedConfig).then(() => {
@@ -384,7 +384,7 @@ describe('scheduler test', () => {
                         apiUri: 'http://api.com',
                         payload: { stats: buildMock.stats, status: 'QUEUED' }
                     },
-                    executor.requestRetryStrategy
+                    helperMock.requestRetryStrategy
                 );
                 assert.equal(buildMock.stats.queueEnterTime, isoTime);
                 sandbox.restore();
@@ -400,7 +400,7 @@ describe('scheduler test', () => {
             sandbox.useFakeTimers(dateNow);
             buildMock.stats = {};
             testConfig.build = buildMock;
-            const newConfig = Object.assign({}, testConfig);
+            const newConfig = { ...testConfig };
 
             delete newConfig.isPR;
 
@@ -484,7 +484,7 @@ describe('scheduler test', () => {
                         apiUri: 'http://api.com',
                         payload: { stats: buildMock.stats, status: 'QUEUED' }
                     },
-                    executor.requestRetryStrategy
+                    helperMock.requestRetryStrategy
                 );
                 assert.equal(buildMock.stats.queueEnterTime, isoTime);
                 sandbox.restore();
@@ -494,7 +494,7 @@ describe('scheduler test', () => {
         it('enqueues a build and with enqueueTime', () => {
             buildMock.stats = {};
             testConfig.build = buildMock;
-            const config = Object.assign({}, testConfig, { enqueueTime: new Date() });
+            const config = { ...testConfig, enqueueTime: new Date() };
 
             return scheduler.start(executor, config).then(() => {
                 assert.calledTwice(queueMock.connect);
@@ -585,7 +585,7 @@ describe('scheduler test', () => {
                         jobId
                     }
                 ]);
-                assert.calledWith(helperMock.updateBuild, options, executor.requestRetryStrategy);
+                assert.calledWith(helperMock.updateBuild, options, helperMock.requestRetryStrategy);
                 assert.calledOnce(executor.tokenGen);
                 sandbox.restore();
             });
@@ -608,7 +608,7 @@ describe('scheduler test', () => {
 
         it('removes a start event from the queue and the cached buildconfig', () => {
             const deleteKey = `deleted_${jobId}_${buildId}`;
-            const stopConfig = Object.assign({ started: false }, partialTestConfigToString);
+            const stopConfig = { started: false, ...partialTestConfigToString };
 
             return scheduler.stop(executor, partialTestConfig).then(() => {
                 assert.calledOnce(queueMock.connect);
@@ -621,7 +621,7 @@ describe('scheduler test', () => {
 
         it('adds a stop event to the queue if no start events were removed', () => {
             queueMock.del.resolves(0);
-            const stopConfig = Object.assign({ started: true }, partialTestConfigToString);
+            const stopConfig = { started: true, ...partialTestConfigToString };
 
             return scheduler.stop(executor, partialTestConfig).then(() => {
                 assert.calledOnce(queueMock.connect);
@@ -632,10 +632,8 @@ describe('scheduler test', () => {
 
         it('adds a stop event to the queue if it has no blocked job', () => {
             queueMock.del.resolves(0);
-            const partialTestConfigUndefined = Object.assign({}, partialTestConfig, {
-                blockedBy: undefined
-            });
-            const stopConfig = Object.assign({ started: true }, partialTestConfigUndefined);
+            const partialTestConfigUndefined = { ...partialTestConfig, blockedBy: undefined };
+            const stopConfig = { started: true, ...partialTestConfigUndefined };
 
             return scheduler.stop(executor, partialTestConfigUndefined).then(() => {
                 assert.calledOnce(queueMock.connect);
@@ -648,14 +646,12 @@ describe('scheduler test', () => {
             queueMock.connection.connected = true;
 
             return scheduler
-                .stop(
-                    executor,
-                    Object.assign({}, partialTestConfig, {
-                        annotations: {
-                            'beta.screwdriver.cd/executor': 'screwdriver-executor-k8s'
-                        }
-                    })
-                )
+                .stop(executor, {
+                    ...partialTestConfig,
+                    annotations: {
+                        'beta.screwdriver.cd/executor': 'screwdriver-executor-k8s'
+                    }
+                })
                 .then(() => {
                     assert.notCalled(queueMock.connect);
                     assert.calledWith(queueMock.del, 'builds', 'start', [partialTestConfigToString]);
@@ -972,7 +968,19 @@ describe('scheduler test', () => {
             return scheduler.queueWebhook(executor, webhookConfig).then(() => {
                 assert.calledOnce(queueMock.connect);
                 assert.calledOnce(queueMock.enqueue);
-                assert.calledWith(queueMock.enqueue, 'webhooks', 'sendWebhook', JSON.stringify(webhookConfig));
+                assert.calledWith(executor.tokenGen, {
+                    service: 'queue',
+                    scope: ['webhook_worker']
+                });
+                assert.calledWith(
+                    queueMock.enqueue,
+                    'webhooks',
+                    'sendWebhook',
+                    JSON.stringify({
+                        webhookConfig,
+                        token: 'token'
+                    })
+                );
             });
         });
     });
