@@ -15,9 +15,8 @@ const blockedByConfig = config.get('plugins').blockedBy;
 const { connectionDetails, queuePrefix, runningJobsPrefix, waitingJobsPrefix } = require('../../../config/redis');
 const rabbitmqConf = require('../../../config/rabbitmq');
 const { amqpURI, exchange, connectOptions } = rabbitmqConf.getConfig();
-const kafkaConfig = config.get('kafka');
-const kafkaEnabled = kafkaConfig.enabled === 'true';
-const useShortRegionName = kafkaConfig.shortRegion === 'true';
+const kafkaConfig = require('../../../config/kafka');
+const { kafkaEnabled, useShortRegionName } = kafkaConfig.get();
 const RETRY_LIMIT = 3;
 // This is in milliseconds, reference: https://github.com/actionhero/node-resque/blob/2ffdf0/lib/plugins/Retry.js#L12
 const RETRY_DELAY = 5 * 1000;
