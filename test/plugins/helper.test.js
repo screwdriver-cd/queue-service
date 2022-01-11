@@ -61,6 +61,47 @@ describe('Helper Test', () => {
         mockery.disable();
     });
 
+    it('return response when HTTP 200 status code for GET response', async () => {
+        const response = { statusCode: 200 };
+        const result = helper.requestRetryStrategy(response);
+
+        assert.strictEqual(result, response);
+    });
+
+    it('throw error when HTTP 404 status code for GET response', async () => {
+        const response = { statusCode: 404 };
+
+        try {
+            helper.requestRetryStrategy(response);
+        } catch (err) {
+            assert.strictEqual(err.message, 'Retry limit reached');
+        }
+    });
+
+    it('return response when HTTP 200 status code for POST response', async () => {
+        const response = { statusCode: 200 };
+        const result = helper.requestRetryStrategyPostEvent(response);
+
+        assert.strictEqual(result, response);
+    });
+
+    it('return response when HTTP 404 status code for POST response', async () => {
+        const response = { statusCode: 404 };
+        const result = helper.requestRetryStrategyPostEvent(response);
+
+        assert.strictEqual(result, response);
+    });
+
+    it('throw error when HTTP 500 status code for POST response', async () => {
+        const response = { statusCode: 500 };
+
+        try {
+            helper.requestRetryStrategyPostEvent(response);
+        } catch (err) {
+            assert.strictEqual(err.message, 'Retry limit reached');
+        }
+    });
+
     it('logs correct message when successfully update build failure status', async () => {
         mockRequest.resolves({ statusCode: 200 });
         try {

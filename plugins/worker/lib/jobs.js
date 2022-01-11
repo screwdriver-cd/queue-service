@@ -303,18 +303,14 @@ async function clear(cacheConfig) {
 
 /**
  * Send message to processHooks API
- * @param {String} webhookConfig as String
+ * @param {String} configs as String
  */
-async function sendWebhook(webhookConfig) {
-    const parsedConfig = JSON.parse(webhookConfig);
+async function sendWebhook(configs) {
+    const parsedConfig = JSON.parse(configs);
+    const { webhookConfig, token } = parsedConfig;
     const apiUri = ecosystem.api;
-    const token = executor.tokenGen({
-        service: 'queue',
-        scope: ['webhook_worker']
-    });
-    const retryFn = executor.requestRetryStrategyPostEvent;
 
-    await helper.processHooks(apiUri, token, parsedConfig, retryFn);
+    await helper.processHooks(apiUri, token, webhookConfig, helper.requestRetryStrategyPostEvent);
 
     return null;
 }

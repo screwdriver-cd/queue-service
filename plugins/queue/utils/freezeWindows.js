@@ -74,12 +74,11 @@ const timeOutOfWindow = (cronExp, timeToCheck) => {
     const utcDayOfWeek = timeToCheck.getUTCDay();
     const utcMonth = timeToCheck.getUTCMonth() + 1;
 
-    /* eslint no-underscore-dangle: ["error", { "allow": ["_fields"] }] */
-    const minuteField = cronObj._fields.minute;
-    const hourField = cronObj._fields.hour;
-    const dayOfMonthField = cronObj._fields.dayOfMonth;
-    const dayOfWeekField = cronObj._fields.dayOfWeek;
-    const monthField = cronObj._fields.month;
+    const minuteField = cronObj.fields.minute;
+    const hourField = cronObj.fields.hour;
+    const dayOfMonthField = cronObj.fields.dayOfMonth;
+    const dayOfWeekField = cronObj.fields.dayOfWeek;
+    const monthField = cronObj.fields.month;
 
     const includesMinute = minuteField.includes(utcMinutes);
     const includesHour = hourField.includes(utcHours);
