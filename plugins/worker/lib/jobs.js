@@ -15,8 +15,9 @@ const blockedByConfig = config.get('plugins').blockedBy;
 const { connectionDetails, queuePrefix, runningJobsPrefix, waitingJobsPrefix } = require('../../../config/redis');
 const rabbitmqConf = require('../../../config/rabbitmq');
 const { amqpURI, exchange, connectOptions } = rabbitmqConf.getConfig();
-const kafkaEnabled = config.get('kafka').enabled === 'true';
-
+const kafkaConfig = config.get('kafka');
+const kafkaEnabled = kafkaConfig.enabled === 'true';
+const useShortRegionName = kafkaConfig.shortRegion === 'true';
 const RETRY_LIMIT = 3;
 // This is in milliseconds, reference: https://github.com/actionhero/node-resque/blob/2ffdf0/lib/plugins/Retry.js#L12
 const RETRY_DELAY = 5 * 1000;
@@ -57,6 +58,17 @@ const blockedByOptions = {
 
     collapse: blockedByConfig.collapse
 };
+// AWS region map
+const AWS_REGION_MAP = {
+    north: 'n',
+    west: 'w',
+    northeast: 'nw',
+    east: 'e',
+    south: 's',
+    central: 'c',
+    southeast: 'se'
+};
+
 let rabbitmqConn;
 
 /**
@@ -135,6 +147,23 @@ async function pushToKafka(message, topic) {
 }
 
 /**
+ *
+ * @param {*String} accountId The AWS accountId
+ * @param {*String} region The region name
+ * @returns String topicName
+ */
+function getTopicName(accountId, region) {
+    const items = region.split('-');
+
+    if (items.length < 3 || !useShortRegionName) {
+        return `builds-${accountId}-${region}`;
+    }
+
+    const shortRegion = ''.concat(items[0], AWS_REGION_MAP[items[1]], items[2]);
+
+    return `builds-${accountId}-${shortRegion}`;
+}
+/**
  * Schedule a job based on mode
  * @method schedule
  * @param  {String} job         job name, either start or stop
@@ -153,9 +182,8 @@ async function schedule(job, buildConfig) {
 
     if (kafkaEnabled && buildConfig.provider) {
         const { accountId, region } = buildConfig.provider;
-        const topic = `builds-${accountId}-${region}`;
 
-        return pushToKafka(msg, topic);
+        return pushToKafka(msg, getTopicName(accountId, region));
     }
 
     if (rabbitmqConf.getConfig().schedulerMode) {
