@@ -291,3 +291,5 @@ kafka:
   secretAccessKey: KAFKA_ACCESS_KEY_SECRET
   # AWS region 
   region: AWS_REGION
+  # Flag to use Short Region Name like use2,usw2
+  shortRegion : USE_SHORT_REGION_NAME

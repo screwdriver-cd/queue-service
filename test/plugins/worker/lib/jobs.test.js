@@ -49,6 +49,7 @@ describe('Jobs Unit Test', () => {
     let mockRabbitmqCh;
     let mockRedisConfig;
     let mockKafkaConfig;
+    let mockKafkaConfigObj;
     let mockConfig;
     let mockProducerSvc;
     let mockEcosystemConfig;
@@ -115,15 +116,13 @@ describe('Jobs Unit Test', () => {
             waitingJobsPrefix: 'waiting_job_'
         };
 
+        mockKafkaConfigObj = {
+            kafkaEnabled: 'true',
+            shortRegionName: 'true'
+        };
+
         mockKafkaConfig = {
-            enabled: 'true',
-            region: 'us-east-1',
-            hosts: 'b-1.example.com:9096,b-2.example.com:9096',
-            sasl: {
-                mechanism: 'scram-sha-512',
-                secretId: 'AmazonMSK_BETA_SD_SECRET'
-            },
-            clientId: 'sd-producer'
+            get: sinon.stub().returns(mockKafkaConfigObj)
         };
 
         mockRabbitmqConfig = {
@@ -169,6 +168,7 @@ describe('Jobs Unit Test', () => {
         mockery.registerMock('ioredis', mockRedis);
         mockery.registerMock('../../../config/rabbitmq', mockRabbitmqConfig);
         mockery.registerMock('../../../config/redis', mockRedisConfig);
+        mockery.registerMock('../../../config/kafka', mockKafkaConfig);
         mockery.registerMock('../../helper', helperMock);
         mockery.registerMock('screwdriver-aws-producer-service', mockProducerSvc);
 
@@ -186,7 +186,6 @@ describe('Jobs Unit Test', () => {
         mockery.registerMock('./Filter', mockFilter);
         mockery.registerMock('./CacheFilter', mockCacheFilter);
 
-        mockConfig.get.withArgs('kafka').returns(mockKafkaConfig);
         mockConfig.get.withArgs('ecosystem').returns(mockEcosystemConfig);
         mockConfig.get.withArgs('plugins').returns({
             blockedBy: {
