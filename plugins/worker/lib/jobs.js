@@ -136,12 +136,13 @@ async function pushToRabbitMq(message, queue, messageId) {
  * Push message to Kafka topic
  * @param {Object} message  Job and build config metadata
  * @param {String} topic          Topic name
+ * @param {String} messageId The message id
  */
-async function pushToKafka(message, topic) {
-    const conn = await AWSProducer.connect();
+async function pushToKafka(message, topic, messageId) {
+    const producer = await AWSProducer.connect();
 
-    if (conn) {
-        await AWSProducer.sendMessage(message, topic);
+    if (producer) {
+        await AWSProducer.sendMessage(producer, message, topic, messageId);
     }
 }
 
@@ -181,8 +182,9 @@ async function schedule(job, buildConfig) {
 
     if (kafkaEnabled && buildConfig.provider) {
         const { accountId, region } = buildConfig.provider;
+        const messageId = `${job}-${buildConfig.buildId}`;
 
-        return pushToKafka(msg, getTopicName(accountId, region));
+        return pushToKafka(msg, getTopicName(accountId, region), messageId);
     }
 
     if (rabbitmqConf.getConfig().schedulerMode) {
