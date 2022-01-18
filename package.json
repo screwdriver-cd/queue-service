@@ -27,7 +27,7 @@
     "laabr": "^6.1.3",
     "node-resque": "^5.5.3",
     "redlock": "^4.2.0",
-    "screwdriver-aws-producer-service": "^1.1.0",
+    "screwdriver-aws-producer-service": "^1.3.0",
     "screwdriver-data-schema": "^21.16.0",
     "screwdriver-executor-docker": "^5.0.2",
     "screwdriver-executor-jenkins": "^5.0.1",

@@ -364,6 +364,7 @@ describe('Jobs Unit Test', () => {
                     job: 'start',
                     buildConfig: configWithProvider
                 };
+                const messageId = `start-${configWithProvider.buildId}`;
                 const topic = `builds-${providerConfig.accountId}-${providerConfig.region}`;
 
                 assert.isNull(result);
@@ -373,7 +374,7 @@ describe('Jobs Unit Test', () => {
                 assert.notCalled(mockRabbitmqCh.publish);
                 assert.notCalled(mockExecutor.start);
                 assert.calledOnce(mockProducerSvc.connect);
-                assert.calledWith(mockProducerSvc.sendMessage, msg, topic);
+                assert.calledWith(mockProducerSvc.sendMessage, {}, msg, topic, messageId);
                 assert.notCalled(mockRabbitmqCh.on);
             });
         });
@@ -520,6 +521,7 @@ describe('Jobs Unit Test', () => {
                     job: 'stop',
                     buildConfig: configWithProvider
                 };
+                const messageId = `stop-${configWithProvider.buildId}`;
                 const topic = `builds-${providerConfig.accountId}-${providerConfig.region}`;
 
                 assert.isNull(result);
@@ -534,7 +536,7 @@ describe('Jobs Unit Test', () => {
                 assert.notCalled(mockRabbitmqCh.close);
                 assert.notCalled(mockExecutor.stop);
                 assert.calledOnce(mockProducerSvc.connect);
-                assert.calledWith(mockProducerSvc.sendMessage, msg, topic);
+                assert.calledWith(mockProducerSvc.sendMessage, {}, msg, topic, messageId);
                 assert.notCalled(mockRabbitmqCh.on);
             });
         });
