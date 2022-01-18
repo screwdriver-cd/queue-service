@@ -20,6 +20,7 @@ const { kafkaEnabled, useShortRegionName } = kafkaConfig.get();
 const RETRY_LIMIT = 3;
 // This is in milliseconds, reference: https://github.com/actionhero/node-resque/blob/2ffdf0/lib/plugins/Retry.js#L12
 const RETRY_DELAY = 5 * 1000;
+const DEFAULT_BUILD_TIMEOUT = 90;
 const redis = new Redis(connectionDetails.port, connectionDetails.host, connectionDetails.options);
 
 const ecosystem = config.get('ecosystem');
@@ -163,6 +164,35 @@ function getTopicName(accountId, region) {
 
     return `builds-${accountId}-${shortRegion}`;
 }
+
+/**
+ *
+ * @param {String} job  type of job start|stop`
+ * @param {*} buildConfig
+ * @returns
+ */
+function getKafkaMessageRequest(job, buildConfig) {
+    const { accountId, region, executor: executorType } = buildConfig.provider;
+
+    const topic = getTopicName(accountId, region);
+    const messageId = `${job}-${buildConfig.buildId}`;
+
+    const timeout = parseInt(hoek.reach(buildConfig, 'annotations>screwdriver.cd/timeout', { separator: '>' }), 10);
+    const buildTimeout = Number.isNaN(timeout) ? DEFAULT_BUILD_TIMEOUT : timeout;
+
+    const message = {
+        job,
+        executorType,
+        buildConfig: {
+            ...buildConfig,
+            buildTimeout,
+            uiUri: ecosystem.ui,
+            storeUri: ecosystem.store
+        }
+    };
+
+    return { message, topic, messageId };
+}
 /**
  * Schedule a job based on mode
  * @method schedule
@@ -175,17 +205,16 @@ async function schedule(job, buildConfig) {
 
     delete buildConfig.buildClusterName;
 
+    if (kafkaEnabled && buildConfig.provider) {
+        const { message, topic, messageId } = getKafkaMessageRequest(job, buildConfig);
+
+        return pushToKafka(message, topic, messageId);
+    }
+
     const msg = {
         job,
         buildConfig
     };
-
-    if (kafkaEnabled && buildConfig.provider) {
-        const { accountId, region } = buildConfig.provider;
-        const messageId = `${job}-${buildConfig.buildId}`;
-
-        return pushToKafka(msg, getTopicName(accountId, region), messageId);
-    }
 
     if (rabbitmqConf.getConfig().schedulerMode) {
         try {
