@@ -167,7 +167,7 @@ function getTopicName(accountId, region) {
 
 /**
  *
- * @param {Sting} job  type of job start|stop`
+ * @param {String} job  type of job start|stop`
  * @param {*} buildConfig
  * @returns
  */
