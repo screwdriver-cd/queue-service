@@ -27,7 +27,10 @@ const providerConfig = {
     accountId: '123',
     securityGroupId: 'sg-123',
     subnetId: ['subnet-123', 'subnet-321'],
-    region: 'us-east-1'
+    region: 'us-east-1',
+    launcherImage: 'sdLauncher:v6',
+    launcherVersion: 'v6',
+    executor: 'sls'
 };
 const configWithProvider = { ...fullConfig, provider: providerConfig };
 
@@ -362,7 +365,13 @@ describe('Jobs Unit Test', () => {
                 delete configWithProvider.buildClusterName;
                 const msg = {
                     job: 'start',
-                    buildConfig: configWithProvider
+                    executorType: providerConfig.executor,
+                    buildConfig: {
+                        ...configWithProvider,
+                        buildTimeout: 90,
+                        uiUri: mockEcosystemConfig.ui,
+                        storeUri: mockEcosystemConfig.store
+                    }
                 };
                 const messageId = `start-${configWithProvider.buildId}`;
                 const topic = `builds-${providerConfig.accountId}-${providerConfig.region}`;
@@ -519,7 +528,13 @@ describe('Jobs Unit Test', () => {
                 delete configWithProvider.buildClusterName;
                 const msg = {
                     job: 'stop',
-                    buildConfig: configWithProvider
+                    executorType: providerConfig.executor,
+                    buildConfig: {
+                        ...configWithProvider,
+                        buildTimeout: 90,
+                        uiUri: mockEcosystemConfig.ui,
+                        storeUri: mockEcosystemConfig.store
+                    }
                 };
                 const messageId = `stop-${configWithProvider.buildId}`;
                 const topic = `builds-${providerConfig.accountId}-${providerConfig.region}`;
