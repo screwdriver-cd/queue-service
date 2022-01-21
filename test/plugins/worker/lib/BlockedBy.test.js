@@ -25,6 +25,10 @@ describe('Plugin Test', () => {
     let mockWorker;
     let mockArgs;
     let mockRedis;
+    let mockRedisDep;
+    let mockRedlock;
+    let mockRedlockObj;
+    let mockLockObj;
     let BlockedBy;
     let blockedBy;
     let helperMock;
@@ -59,6 +63,14 @@ describe('Plugin Test', () => {
             del: sinon.stub().resolves(),
             lrem: sinon.stub().resolves()
         };
+        mockRedisDep = sinon.stub().returns(mockRedis);
+        mockLockObj = {
+            unlock: sinon.stub().resolves()
+        };
+        mockRedlockObj = {
+            lock: sinon.stub().resolves(mockLockObj)
+        };
+        mockRedlock = sinon.stub().returns(mockRedlockObj);
         mockWorker = {
             queueObject: {
                 connection: {
@@ -68,6 +80,15 @@ describe('Plugin Test', () => {
             }
         };
         mockRedisConfig = {
+            connectionDetails: {
+                host: '127.0.0.1',
+                options: {
+                    password: 'test123',
+                    tls: false
+                },
+                port: 1234,
+                database: 0
+            },
             runningJobsPrefix,
             waitingJobsPrefix
         };
@@ -75,7 +96,8 @@ describe('Plugin Test', () => {
             updateBuildStatus: sinon.stub()
         };
 
-        mockery.registerMock('ioredis', mockRedis);
+        mockery.registerMock('ioredis', mockRedisDep);
+        mockery.registerMock('redlock', mockRedlock);
         mockery.registerMock('../../../config/redis', mockRedisConfig);
         mockery.registerMock('../../helper', helperMock);
 
