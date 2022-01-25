@@ -18,7 +18,6 @@ describe('Plugin Test', () => {
     const mockQueue = 'queuename';
     const runningJobsPrefix = 'mockRunningJobsPrefix_';
     const waitingJobsPrefix = 'mockRunningJobsPrefix_';
-    const queuePrefix = undefined;
     const deleteKey = `deleted_${jobId}_${buildId}`;
     const runningKey = `${runningJobsPrefix}777`;
     const key = `${runningJobsPrefix}${jobId}`;
