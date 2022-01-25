@@ -28,6 +28,7 @@ describe('Plugin Test', () => {
     let mockRedisDep;
     let mockRedlock;
     let mockRedlockObj;
+    let mockLogger;
     let mockLockObj;
     let BlockedBy;
     let blockedBy;
@@ -67,6 +68,10 @@ describe('Plugin Test', () => {
         mockLockObj = {
             unlock: sinon.stub().resolves()
         };
+        mockLogger = {
+            info: sinon.stub().resolves(),
+            error: sinon.stub().resolves()
+        };
         mockRedlockObj = {
             lock: sinon.stub().resolves(mockLockObj)
         };
@@ -98,6 +103,7 @@ describe('Plugin Test', () => {
 
         mockery.registerMock('ioredis', mockRedisDep);
         mockery.registerMock('redlock', mockRedlock);
+        mockery.registerMock('screwdriver-logger', mockLogger);
         mockery.registerMock('../../../config/redis', mockRedisConfig);
         mockery.registerMock('../../helper', helperMock);
 
@@ -836,24 +842,34 @@ describe('Plugin Test', () => {
             });
 
             it('log error when redlock fail to accquire lock', async () => {
-                const expectedError = new Error('Fail to accquire lock');
+                const lockErr = new Error('Fail to accquire lock');
+                const message = `Failed to lock job ${jobId} for ${buildId}: ${lockErr}`;
 
-                mockRedlockObj.lock = sinon.stub().throws(expectedError);
-                await blockedBy.beforePerform().catch(err => assert.equal(err, expectedError));
-                assert.notCalled(mockRedis.get);
-                assert.notCalled(mockRedis.set);
-                assert.notCalled(mockRedis.expire);
-                assert.notCalled(mockRedis.rpush);
+                mockRedlockObj.lock = sinon.stub().throws(lockErr);
+                mockRedis.lrange.resolves([]);
+                await blockedBy.beforePerform().catch(() => {});
+                assert.calledWith(mockRedlockObj.lock, `jobId_${jobId}`, 10000);
+                assert.notCalled(mockLockObj.unlock);
+                assert.calledWith(mockLogger.error, message);
+                assert.calledWith(mockRedis.set, key, buildId);
+                assert.calledWith(mockRedis.expire, key, DEFAULT_BLOCKTIMEOUT * 60);
                 assert.notCalled(mockWorker.queueObject.enqueueIn);
-                assert.notCalled(helperMock.updateBuildStatus);
+                assert.calledWith(mockRedis.get, runningKey);
+                assert.calledWith(mockRedis.get, deleteKey);
+                assert.calledWith(mockRedis.get, `${runningJobsPrefix}111`);
+                assert.calledWith(mockRedis.get, `${runningJobsPrefix}222`);
             });
 
             it('log error when redlock fail to unlock lock', async () => {
-                const expectedError = new Error('Fail to unlock lock');
+                const lockErr = new Error('Fail to unlock lock');
+                const message = `Failed to unlock job ${jobId} for ${buildId}: ${lockErr}`;
 
-                mockLockObj.unlock = sinon.stub().throws(expectedError);
+                mockLockObj.unlock = sinon.stub().throws(lockErr);
                 mockRedis.lrange.resolves([]);
-                await blockedBy.beforePerform().catch(err => assert.equal(err, expectedError));
+                await blockedBy.beforePerform();
+                assert.calledWith(mockRedlockObj.lock, `jobId_${jobId}`, 10000);
+                assert.calledOnce(mockLockObj.unlock);
+                assert.calledWith(mockLogger.error, message);
                 assert.calledWith(mockRedis.set, key, buildId);
                 assert.calledWith(mockRedis.expire, key, DEFAULT_BLOCKTIMEOUT * 60);
                 assert.notCalled(mockWorker.queueObject.enqueueIn);

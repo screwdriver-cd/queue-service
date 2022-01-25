@@ -344,15 +344,22 @@ class BlockedBy extends NodeResque.Plugin {
      */
     async beforePerform() {
         const { jobId, buildId } = this.args[0];
-        const lock = await redlock.lock(`jobId_${jobId}`, REDIS_LOCK_TTL).catch(err => {
+        let lock;
+
+        try {
+            lock = await redlock.lock(`jobId_${jobId}`, REDIS_LOCK_TTL);
+        } catch (err) {
             logger.error(`Failed to lock job ${jobId} for ${buildId}: ${err}`);
-        });
+        }
+
         const shouldProceed = await checkBlockingJob.call(this, { jobId, buildId });
 
         if (lock) {
-            await lock.unlock().catch(err => {
+            try {
+                await lock.unlock();
+            } catch (err) {
                 logger.error(`Failed to unlock job ${jobId} for ${buildId}: ${err}`);
-            });
+            }
         }
 
         return shouldProceed;
