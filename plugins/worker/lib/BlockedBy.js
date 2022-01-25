@@ -129,43 +129,6 @@ async function blockedBySelf({ waitingKey, buildId, collapse }) {
 }
 
 /**
- *
- * @param {String} buildConfig
- * @param {Array} blockingBuildIds
- * @param {String} buildId
- * @param {Object} redisConn
- */
-async function checkMultipleBuildsInSameEvent(buildConfig, blockingBuildIds, buildId, redisConn) {
-    if (!buildConfig) return false;
-
-    const currentBuild = JSON.parse(buildConfig);
-
-    if (!currentBuild || !currentBuild.eventId || !currentBuild.jobId) {
-        return false;
-    }
-
-    const isSameBuild = await Promise.race(
-        blockingBuildIds.map(async id => {
-            const blockedBuild = JSON.parse(await redisConn.hget(`${queuePrefix}buildConfigs`, id));
-            const hasEventId = blockedBuild && blockedBuild.eventId && blockedBuild.jobId;
-            const isSameJob =
-                hasEventId &&
-                currentBuild.eventId === blockedBuild.eventId &&
-                currentBuild.jobId === blockedBuild.jobId;
-
-            if (isSameJob) {
-                logger.error(`Builds ${id} & ${buildId} have the same event 
-                ${currentBuild.eventId} & same job ${currentBuild.jobId}`);
-            }
-
-            return isSameJob;
-        })
-    );
-
-    return isSameBuild;
-}
-
-/**
  * Checks if there are any blocking jobs running.
  * If yes, re-enqueue. If no, check if there is the same job waiting.
  * If buildId is not the same, re-enqueue. Otherwise, proceeds and set the current job as running
@@ -269,17 +232,6 @@ async function checkBlockingJob({ jobId, buildId }) {
 
         // If any blocking job is running, then re-enqueue
         if (blockingBuildIds.length > 0) {
-            // if build is from same event then don't re-enqueue
-            const isSameBuild = await checkMultipleBuildsInSameEvent(
-                buildConfig,
-                blockingBuildIds,
-                buildId,
-                this.queueObject.connection.redis
-            );
-
-            if (isSameBuild) {
-                return false;
-            }
             if (enforceBlockedBySelf && collapse) {
                 await collapseBuilds.call(this, {
                     waitingKey,

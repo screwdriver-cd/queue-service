@@ -440,69 +440,6 @@ describe('Plugin Test', () => {
                 });
             });
 
-            it('do not re-enqueue if build from the same event id', async () => {
-                mockArgs = [
-                    {
-                        jobId,
-                        buildId,
-                        blockedBy: '3,4,5'
-                    }
-                ];
-                blockedBy = new BlockedBy(mockWorker, mockFunc, mockQueue, mockJob, mockArgs, {
-                    blockedBySelf: true,
-                    collapse: true
-                });
-                const buildConfig1 = {
-                    apiUri: 'foo.bar',
-                    token: 'fake',
-                    annotations: {
-                        'screwdriver.cd/timeout': 200,
-                        'screwdriver.cd/collapseBuilds': false
-                    },
-                    eventId: '345',
-                    jobId: '777'
-                };
-
-                const buildConfig2 = {
-                    apiUri: 'foo.foo',
-                    token: 'morefake',
-                    annotations: {
-                        'screwdriver.cd/timeout': 300,
-                        'screwdriver.cd/collapseBuilds': false
-                    },
-                    eventId: '345',
-                    jobId: '777'
-                };
-
-                const buildConfig3 = {
-                    apiUri: 'bar.foo',
-                    token: 'stillfake',
-                    annotations: {
-                        'screwdriver.cd/timeout': 500,
-                        'screwdriver.cd/collapseBuilds': false
-                    },
-                    eventId: '344',
-                    jobId: '111'
-                };
-
-                mockRedis.hget.withArgs(`${queuePrefix}buildConfigs`, buildId).resolves(JSON.stringify(buildConfig1));
-                mockRedis.hget.withArgs(`${queuePrefix}buildConfigs`, '4').resolves(JSON.stringify(buildConfig2));
-                mockRedis.hget.withArgs(`${queuePrefix}buildConfigs`, '5').resolves(JSON.stringify(buildConfig3));
-                mockRedis.get.withArgs(`${runningJobsPrefix}3`).resolves('4');
-                mockRedis.lrange.resolves(['3']);
-                helperMock.updateBuildStatus.resolves();
-                await blockedBy.beforePerform();
-                assert.equal(mockRedis.get.getCall(0).args[0], deleteKey);
-                assert.equal(mockRedis.get.getCall(1).args[0], runningKey);
-                assert.equal(mockRedis.get.getCall(2).args[0], `last_${runningKey}`);
-                assert.equal(mockRedis.get.getCall(3).args[0], `${runningJobsPrefix}3`);
-                assert.equal(mockRedis.get.getCall(4).args[0], `${runningJobsPrefix}4`);
-                assert.notCalled(mockRedis.set);
-                assert.notCalled(mockRedis.expire);
-                assert.notCalled(mockRedis.lrem);
-                assert.notCalled(mockWorker.queueObject.enqueueIn);
-            });
-
             it('do not collapse if waiting build is the latest one', async () => {
                 blockedBy = new BlockedBy(mockWorker, mockFunc, mockQueue, mockJob, mockArgs, {
                     blockedBySelf: true,
