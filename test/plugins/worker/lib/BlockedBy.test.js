@@ -834,6 +834,34 @@ describe('Plugin Test', () => {
                     statusMessage: 'Blocked by these running build(s): <a href="/builds/123">123</a>'
                 });
             });
+
+            it('log error when redlock fail to accquire lock', async () => {
+                const expectedError = new Error('Fail to accquire lock');
+
+                mockRedlockObj.lock = sinon.stub().throws(expectedError);
+                await blockedBy.beforePerform().catch(err => assert.equal(err, expectedError));
+                assert.notCalled(mockRedis.get);
+                assert.notCalled(mockRedis.set);
+                assert.notCalled(mockRedis.expire);
+                assert.notCalled(mockRedis.rpush);
+                assert.notCalled(mockWorker.queueObject.enqueueIn);
+                assert.notCalled(helperMock.updateBuildStatus);
+            });
+
+            it('log error when redlock fail to unlock lock', async () => {
+                const expectedError = new Error('Fail to unlock lock');
+
+                mockLockObj.unlock = sinon.stub().throws(expectedError);
+                mockRedis.lrange.resolves([]);
+                await blockedBy.beforePerform().catch(err => assert.equal(err, expectedError));
+                assert.calledWith(mockRedis.set, key, buildId);
+                assert.calledWith(mockRedis.expire, key, DEFAULT_BLOCKTIMEOUT * 60);
+                assert.notCalled(mockWorker.queueObject.enqueueIn);
+                assert.calledWith(mockRedis.get, runningKey);
+                assert.calledWith(mockRedis.get, deleteKey);
+                assert.calledWith(mockRedis.get, `${runningJobsPrefix}111`);
+                assert.calledWith(mockRedis.get, `${runningJobsPrefix}222`);
+            });
         });
 
         describe('afterPerform', () => {
