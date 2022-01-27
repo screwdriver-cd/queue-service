@@ -10,7 +10,8 @@ const kafkaConfig = config.get('kafka');
 function get() {
     return {
         kafkaEnabled: kafkaConfig.enabled === 'true',
-        useShortRegionName: kafkaConfig.shortRegion === 'true'
+        useShortRegionName: kafkaConfig.shortRegion === 'true',
+        kafkaPrefix: kafkaConfig.prefix
     };
 }
 

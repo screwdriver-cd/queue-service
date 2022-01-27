@@ -30,7 +30,8 @@ const providerConfig = {
     region: 'us-east-1',
     launcherImage: 'sdLauncher:v6',
     launcherVersion: 'v6',
-    executor: 'sls'
+    executor: 'sls',
+    prefix: 'beta-'
 };
 const configWithProvider = { ...fullConfig, provider: providerConfig };
 
@@ -121,7 +122,8 @@ describe('Jobs Unit Test', () => {
 
         mockKafkaConfigObj = {
             kafkaEnabled: 'true',
-            shortRegionName: 'true'
+            shortRegionName: 'true',
+            kafkaPrefix: 'beta-'
         };
 
         mockKafkaConfig = {
@@ -370,7 +372,8 @@ describe('Jobs Unit Test', () => {
                         ...configWithProvider,
                         buildTimeout: 90,
                         uiUri: mockEcosystemConfig.ui,
-                        storeUri: mockEcosystemConfig.store
+                        storeUri: mockEcosystemConfig.store,
+                        prefix: providerConfig.prefix
                     }
                 };
                 const messageId = `start-${configWithProvider.buildId}`;
@@ -533,7 +536,8 @@ describe('Jobs Unit Test', () => {
                         ...configWithProvider,
                         buildTimeout: 90,
                         uiUri: mockEcosystemConfig.ui,
-                        storeUri: mockEcosystemConfig.store
+                        storeUri: mockEcosystemConfig.store,
+                        prefix: providerConfig.prefix
                     }
                 };
                 const messageId = `stop-${configWithProvider.buildId}`;

@@ -293,3 +293,5 @@ kafka:
   region: AWS_REGION
   # Flag to use Short Region Name like use2,usw2
   shortRegion : USE_SHORT_REGION_NAME
+  # prefix for build
+  prefix: KAFKA_PREFIX

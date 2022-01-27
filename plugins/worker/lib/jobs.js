@@ -16,7 +16,7 @@ const { connectionDetails, queuePrefix, runningJobsPrefix, waitingJobsPrefix } =
 const rabbitmqConf = require('../../../config/rabbitmq');
 const { amqpURI, exchange, connectOptions } = rabbitmqConf.getConfig();
 const kafkaConfig = require('../../../config/kafka');
-const { kafkaEnabled, useShortRegionName } = kafkaConfig.get();
+const { kafkaEnabled, useShortRegionName, kafkaPrefix } = kafkaConfig.get();
 const RETRY_LIMIT = 3;
 // This is in milliseconds, reference: https://github.com/actionhero/node-resque/blob/2ffdf0/lib/plugins/Retry.js#L12
 const RETRY_DELAY = 5 * 1000;
@@ -187,7 +187,8 @@ function getKafkaMessageRequest(job, buildConfig) {
             ...buildConfig,
             buildTimeout,
             uiUri: ecosystem.ui,
-            storeUri: ecosystem.store
+            storeUri: ecosystem.store,
+            prefix: kafkaPrefix
         }
     };
 
