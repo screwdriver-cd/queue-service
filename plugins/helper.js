@@ -6,6 +6,7 @@ const { queuePrefix } = require('../config/redis');
 
 const RETRY_LIMIT = 3;
 const RETRY_DELAY = 5;
+const calculateDelay = ({ computedValue }) => (computedValue ? RETRY_DELAY * 1000 : 0); // in ms
 
 /**
  * Callback function to retry when HTTP status code is not 2xx
@@ -58,7 +59,7 @@ function formatOptions(method, url, token, json, retryStrategyFn) {
     if (retryStrategyFn) {
         const retry = {
             limit: RETRY_LIMIT,
-            calculateDelay: ({ computedValue }) => (computedValue ? RETRY_DELAY * 1000 : 0) // in ms
+            calculateDelay
         };
 
         if (method === 'POST') {
@@ -265,7 +266,7 @@ async function processHooks(apiUri, token, webhookConfig) {
         json: webhookConfig,
         retry: {
             limit: RETRY_LIMIT,
-            calculateDelay: ({ computedValue }) => (computedValue ? RETRY_DELAY * 1000 : 0),
+            calculateDelay,
             methods: ['POST']
         },
         // Do not retry when request times out
