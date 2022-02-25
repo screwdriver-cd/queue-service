@@ -269,8 +269,8 @@ async function processHooks(apiUri, token, webhookConfig) {
             calculateDelay,
             methods: ['POST']
         },
-        // Do not retry when request times out
-        errorCodes: ['ECONNRESET', 'EADDRINUSE', 'ECONNREFUSED', 'EPIPE', 'ENOTFOUND', 'ENETUNREACH', 'EAI_AGAIN']
+        // Do not retry if the request is received
+        errorCodes: ['EADDRINUSE', 'ECONNREFUSED', 'ENOTFOUND', 'ENETUNREACH', 'EAI_AGAIN']
     };
 
     return request(options)

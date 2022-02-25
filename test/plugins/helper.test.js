@@ -548,15 +548,7 @@ describe('Helper Test', () => {
                     calculateDelay: sinon.match.func,
                     methods: ['POST']
                 },
-                errorCodes: [
-                    'ECONNRESET',
-                    'EADDRINUSE',
-                    'ECONNREFUSED',
-                    'EPIPE',
-                    'ENOTFOUND',
-                    'ENETUNREACH',
-                    'EAI_AGAIN'
-                ]
+                errorCodes: ['EADDRINUSE', 'ECONNREFUSED', 'ENOTFOUND', 'ENETUNREACH', 'EAI_AGAIN']
             })
         );
     });
@@ -585,15 +577,7 @@ describe('Helper Test', () => {
                 retry: {
                     limit: 3
                 },
-                errorCodes: [
-                    'ECONNRESET',
-                    'EADDRINUSE',
-                    'ECONNREFUSED',
-                    'EPIPE',
-                    'ENOTFOUND',
-                    'ENETUNREACH',
-                    'EAI_AGAIN'
-                ]
+                errorCodes: ['EADDRINUSE', 'ECONNREFUSED', 'ENOTFOUND', 'ENETUNREACH', 'EAI_AGAIN']
             })
         );
     });
@@ -626,15 +610,7 @@ describe('Helper Test', () => {
                 retry: {
                     limit: 3
                 },
-                errorCodes: [
-                    'ECONNRESET',
-                    'EADDRINUSE',
-                    'ECONNREFUSED',
-                    'EPIPE',
-                    'ENOTFOUND',
-                    'ENETUNREACH',
-                    'EAI_AGAIN'
-                ]
+                errorCodes: ['EADDRINUSE', 'ECONNREFUSED', 'ENOTFOUND', 'ENETUNREACH', 'EAI_AGAIN']
             })
         );
     });
