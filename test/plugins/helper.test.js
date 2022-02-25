@@ -544,7 +544,9 @@ describe('Helper Test', () => {
                 },
                 json: { foo: 123 },
                 retry: {
-                    limit: 3
+                    limit: 3,
+                    calculateDelay: sinon.match.func,
+                    methods: ['POST']
                 },
                 errorCodes: [
                     'ECONNRESET',
