@@ -255,17 +255,45 @@ async function updateBuild(updateConfig, retryStrategyFn) {
  * @param {Function} retryStrategyFn
  * @return {Promise} response or error
  */
-async function processHooks(apiUri, token, webhookConfig, retryStrategyFn) {
-    return request(formatOptions('POST', `${apiUri}/v4/processHooks`, token, webhookConfig, retryStrategyFn)).then(
-        res => {
+async function processHooks(apiUri, token, webhookConfig) {
+    const options = {
+        method: 'POST',
+        url: `${apiUri}/v4/processHooks`,
+        headers: {
+            Authorization: `Bearer ${token}`
+        },
+        json: webhookConfig,
+        retry: {
+            limit: RETRY_LIMIT,
+            calculateDelay: ({ computedValue }) => (computedValue ? RETRY_DELAY * 1000 : 0),
+            methods: ['POST']
+        },
+        // Do not retry when request times out
+        errorCodes: ['ECONNRESET', 'EADDRINUSE', 'ECONNREFUSED', 'EPIPE', 'ENOTFOUND', 'ENETUNREACH', 'EAI_AGAIN']
+    };
+
+    return request(options)
+        .then(res => {
             logger.info(`POST /v4/processHooks completed, ${res.statusCode}, ${JSON.stringify(res.body)}`);
             if ([200, 201, 204].includes(res.statusCode)) {
                 return res;
             }
 
             throw new Error(`Failed to process webhook with ${res.statusCode} code and ${res.body}`);
-        }
-    );
+        })
+        .catch(err => {
+            if (err.code === 'ETIMEDOUT') {
+                logger.info(`POST /v4/processHooks timed out.`);
+                const res = {
+                    statusCode: 504,
+                    message: `POST /v4/processHooks timed out.`
+                };
+
+                return res;
+            }
+
+            throw err;
+        });
 }
 
 module.exports = {
