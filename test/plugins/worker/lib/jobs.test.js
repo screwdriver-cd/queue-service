@@ -753,13 +753,7 @@ describe('Jobs Unit Test', () => {
 
             return jobs.sendWebhook.perform(webhookConfig).then(result => {
                 assert.isNull(result);
-                assert.calledWith(
-                    helperMock.processHooks,
-                    'foo.api',
-                    'test_token',
-                    { foo: 123 },
-                    helperMock.requestRetryStrategyPostEvent
-                );
+                assert.calledWith(helperMock.processHooks, 'foo.api', 'test_token', { foo: 123 });
             });
         });
 

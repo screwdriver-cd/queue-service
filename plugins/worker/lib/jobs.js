@@ -341,7 +341,7 @@ async function sendWebhook(configs) {
     const { webhookConfig, token } = parsedConfig;
     const apiUri = ecosystem.api;
 
-    await helper.processHooks(apiUri, token, webhookConfig, helper.requestRetryStrategyPostEvent);
+    await helper.processHooks(apiUri, token, webhookConfig);
 
     return null;
 }

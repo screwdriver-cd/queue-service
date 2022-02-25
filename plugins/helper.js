@@ -6,6 +6,7 @@ const { queuePrefix } = require('../config/redis');
 
 const RETRY_LIMIT = 3;
 const RETRY_DELAY = 5;
+const calculateDelay = ({ computedValue }) => (computedValue ? RETRY_DELAY * 1000 : 0); // in ms
 
 /**
  * Callback function to retry when HTTP status code is not 2xx
@@ -58,7 +59,7 @@ function formatOptions(method, url, token, json, retryStrategyFn) {
     if (retryStrategyFn) {
         const retry = {
             limit: RETRY_LIMIT,
-            calculateDelay: ({ computedValue }) => (computedValue ? RETRY_DELAY * 1000 : 0) // in ms
+            calculateDelay
         };
 
         if (method === 'POST') {
@@ -255,17 +256,45 @@ async function updateBuild(updateConfig, retryStrategyFn) {
  * @param {Function} retryStrategyFn
  * @return {Promise} response or error
  */
-async function processHooks(apiUri, token, webhookConfig, retryStrategyFn) {
-    return request(formatOptions('POST', `${apiUri}/v4/processHooks`, token, webhookConfig, retryStrategyFn)).then(
-        res => {
+async function processHooks(apiUri, token, webhookConfig) {
+    const options = {
+        method: 'POST',
+        url: `${apiUri}/v4/processHooks`,
+        headers: {
+            Authorization: `Bearer ${token}`
+        },
+        json: webhookConfig,
+        retry: {
+            limit: RETRY_LIMIT,
+            calculateDelay,
+            methods: ['POST']
+        },
+        // Do not retry if the request is received
+        errorCodes: ['EADDRINUSE', 'ECONNREFUSED', 'ENOTFOUND', 'ENETUNREACH', 'EAI_AGAIN']
+    };
+
+    return request(options)
+        .then(res => {
             logger.info(`POST /v4/processHooks completed, ${res.statusCode}, ${JSON.stringify(res.body)}`);
             if ([200, 201, 204].includes(res.statusCode)) {
                 return res;
             }
 
             throw new Error(`Failed to process webhook with ${res.statusCode} code and ${res.body}`);
-        }
-    );
+        })
+        .catch(err => {
+            if (err.code === 'ETIMEDOUT') {
+                logger.info(`POST /v4/processHooks timed out.`);
+                const res = {
+                    statusCode: 504,
+                    message: `POST /v4/processHooks timed out.`
+                };
+
+                return res;
+            }
+
+            throw err;
+        });
 }
 
 module.exports = {
