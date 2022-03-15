@@ -5,6 +5,7 @@ const configSchema = require('screwdriver-data-schema').config;
 const TOKEN_CONFIG_SCHEMA = configSchema.tokenConfig;
 const { merge, reach } = require('@hapi/hoek');
 const Resque = require('node-resque');
+const hoek = require('@hapi/hoek');
 const cron = require('./utils/cron');
 const helper = require('../helper');
 const { timeOutOfWindows } = require('./utils/freezeWindows');
@@ -253,6 +254,8 @@ async function startPeriodic(executor, config) {
  */
 async function start(executor, config) {
     await executor.connect();
+    const allowSameJob = hoek.reach(config, 'allowSameJob', { default: false });
+    const blockTime = hoek.reach(config, 'blockTime', { default: 5 });
     const {
         build,
         buildId,
@@ -388,7 +391,9 @@ async function start(executor, config) {
             {
                 buildId,
                 jobId,
-                blockedBy: blockedBy.toString()
+                blockedBy: blockedBy.toString(),
+                allowSameJob,
+                blockTime
             }
         ]);
         if (buildStats) {
