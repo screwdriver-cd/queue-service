@@ -62,7 +62,7 @@ const blockedByOptions = {
 const AWS_REGION_MAP = {
     north: 'n',
     west: 'w',
-    northeast: 'nw',
+    northeast: 'ne',
     east: 'e',
     south: 's',
     central: 'c',
