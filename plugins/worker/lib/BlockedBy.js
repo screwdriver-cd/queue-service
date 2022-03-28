@@ -208,23 +208,23 @@ async function checkBlockingJob({ jobId, buildId }) {
 
     let blockedBy = this.args[0].blockedBy.split(',').map(jid => `${runningJobsPrefix}${jid}`);
 
-    const allowSameJob = this.args[0].allowSameJob;
-    const blockTime = this.args[0].blockTime;
+    const blockedBySameJob = this.args[0].blockedBySameJob;
+    const blockedBySameJobWaitTime = this.args[0].blockedBySameJobWaitTime;
     const json = await this.queueObject.connection.redis.hget(`${queuePrefix}timeoutConfigs`, lastRunningBuildId);
     const timeoutConfig = JSON.parse(json);
-    let notBlockedBySelf = false;
+    let notBlockedBySameJob = false;
 
-    if (allowSameJob && timeoutConfig) {
+    if (!blockedBySameJob && timeoutConfig) {
         const { startTime } = timeoutConfig;
         const diffMs = new Date().getTime() - new Date(startTime).getTime();
         const diffMins = Math.round(diffMs / 60000);
 
-        if (diffMins >= blockTime) {
-            notBlockedBySelf = true;
+        if (diffMins >= blockedBySameJobWaitTime) {
+            notBlockedBySameJob = true;
         }
     }
 
-    if (notBlockedBySelf || !enforceBlockedBySelf) {
+    if (notBlockedBySameJob || !enforceBlockedBySelf) {
         blockedBy = blockedBy.filter(key => key !== `${runningJobsPrefix}${jobId}`); // remove itself from blocking list
     }
 

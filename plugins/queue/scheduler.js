@@ -254,8 +254,7 @@ async function startPeriodic(executor, config) {
  */
 async function start(executor, config) {
     await executor.connect();
-    const allowSameJob = hoek.reach(config, 'allowSameJob', { default: false });
-    const blockTime = hoek.reach(config, 'blockTime', { default: 5 });
+
     const {
         build,
         buildId,
@@ -268,7 +267,9 @@ async function start(executor, config) {
         apiUri,
         pipeline,
         isPR,
-        prParentJobId
+        prParentJobId,
+        blockedBySameJob,
+        blockedBySameJobWaitTime
     } = config;
     const forceStart = /\[(force start)\]/.test(causeMessage);
 
@@ -392,8 +393,8 @@ async function start(executor, config) {
                 buildId,
                 jobId,
                 blockedBy: blockedBy.toString(),
-                allowSameJob,
-                blockTime
+                blockedBySameJob,
+                blockedBySameJobWaitTime
             }
         ]);
         if (buildStats) {
