@@ -17,6 +17,7 @@ const redlock = new Redlock([redis], {
 });
 const REDIS_LOCK_TTL = 10000; // in ms
 const BLOCK_TIMEOUT_BUFFER = 30;
+const BLOCKED_BY_SAME_JOB_WAIT_TIME = 5;
 
 /**
  * collapse waiting builds and re-enequeue the current build if it is the latest one
@@ -208,13 +209,24 @@ async function checkBlockingJob({ jobId, buildId }) {
 
     let blockedBy = this.args[0].blockedBy.split(',').map(jid => `${runningJobsPrefix}${jid}`);
 
-    const blockedBySameJob = this.args[0].blockedBySameJob;
-    const blockedBySameJobWaitTime = this.args[0].blockedBySameJobWaitTime;
+    let blockedBySameJob = true;
+    let blockedBySameJobWaitTime = BLOCKED_BY_SAME_JOB_WAIT_TIME;
+
+    if (typeof this.args[0].blockedBySameJob === 'boolean') {
+        blockedBySameJob = this.args[0].blockedBySameJob;
+    }
+
+    if (typeof this.args[0].blockedBySameJobWaitTime === 'number') {
+        blockedBySameJobWaitTime = this.args[0].blockedBySameJobWaitTime;
+    }
+
     const json = await this.queueObject.connection.redis.hget(`${queuePrefix}timeoutConfigs`, lastRunningBuildId);
     const timeoutConfig = JSON.parse(json);
     let notBlockedBySameJob = false;
 
-    if (!blockedBySameJob && timeoutConfig) {
+    if (!blockedBySameJob && !timeoutConfig) {
+        notBlockedBySameJob = true;
+    } else if (!blockedBySameJob && timeoutConfig) {
         const { startTime } = timeoutConfig;
         const diffMs = new Date().getTime() - new Date(startTime).getTime();
         const diffMins = Math.round(diffMs / 60000);

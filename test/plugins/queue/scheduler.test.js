@@ -12,7 +12,9 @@ const testConnection = require('../../data/testConnection.json');
 const testConfig = require('../../data/fullConfig.json');
 const testPipeline = require('../../data/testPipeline.json');
 const testJob = require('../../data/testJob.json');
-const { buildId, jobId, blockedBy, blockedBySameJob, blockedBySameJobWaitTime } = testConfig;
+const { buildId, jobId, blockedBy } = testConfig;
+const blockedBySameJob = true;
+const blockedBySameJobWaitTime = 5;
 const partialTestConfig = {
     buildId,
     jobId,
@@ -24,8 +26,8 @@ const partialTestDefaultConfig = {
     buildId,
     jobId,
     blockedBy: blockedBy.toString(),
-    blockedBySameJob: true,
-    blockedBySameJobWaitTime: 5
+    blockedBySameJob,
+    blockedBySameJobWaitTime
 };
 const partialTestStopConfigToString = {
     buildId,
