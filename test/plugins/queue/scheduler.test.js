@@ -13,12 +13,27 @@ const testConfig = require('../../data/fullConfig.json');
 const testPipeline = require('../../data/testPipeline.json');
 const testJob = require('../../data/testJob.json');
 const { buildId, jobId, blockedBy } = testConfig;
+const blockedBySameJob = true;
+const blockedBySameJobWaitTime = 5;
 const partialTestConfig = {
     buildId,
     jobId,
-    blockedBy
+    blockedBy,
+    blockedBySameJob,
+    blockedBySameJobWaitTime
 };
-const partialTestConfigToString = { ...partialTestConfig, blockedBy: blockedBy.toString() };
+const partialTestDefaultConfig = {
+    buildId,
+    jobId,
+    blockedBy: blockedBy.toString(),
+    blockedBySameJob,
+    blockedBySameJobWaitTime
+};
+const partialTestStopConfigToString = {
+    buildId,
+    jobId,
+    blockedBy: blockedBy.toString()
+};
 const testAdmin = {
     username: 'admin'
 };
@@ -374,7 +389,7 @@ describe('scheduler test', () => {
             return scheduler.start(executor, testConfig).then(() => {
                 assert.calledTwice(queueMock.connect);
                 assert.calledWith(redisMock.hset, 'buildConfigs', buildId, JSON.stringify(testConfig));
-                assert.calledWith(queueMock.enqueue, 'builds', 'start', [partialTestConfigToString]);
+                assert.calledWith(queueMock.enqueue, 'builds', 'start', [partialTestDefaultConfig]);
                 assert.calledTwice(executor.tokenGen);
                 assert.calledWith(
                     helperMock.updateBuild,
@@ -446,7 +461,7 @@ describe('scheduler test', () => {
             return scheduler.start(executor, testConfig).then(() => {
                 assert.calledTwice(queueMock.connect);
                 assert.calledWith(redisMock.hset, 'buildConfigs', buildId, JSON.stringify(testConfig));
-                assert.calledWith(queueMock.enqueue, 'builds', 'start', [partialTestConfigToString]);
+                assert.calledWith(queueMock.enqueue, 'builds', 'start', [partialTestDefaultConfig]);
                 assert.calledTwice(executor.tokenGen);
                 assert.calledWith(executor.tokenGen, {
                     buildId: testConfig.buildId,
@@ -499,7 +514,7 @@ describe('scheduler test', () => {
             return scheduler.start(executor, config).then(() => {
                 assert.calledTwice(queueMock.connect);
                 assert.calledWith(redisMock.hset, 'buildConfigs', buildId, JSON.stringify(config));
-                assert.calledWith(queueMock.enqueue, 'builds', 'start', [partialTestConfigToString]);
+                assert.calledWith(queueMock.enqueue, 'builds', 'start', [partialTestDefaultConfig]);
             });
         });
 
@@ -507,7 +522,7 @@ describe('scheduler test', () => {
             scheduler.start(executor, testConfig).then(() => {
                 assert.calledTwice(queueMock.connect);
                 assert.calledWith(redisMock.hset, 'buildConfigs', buildId, JSON.stringify(testConfig));
-                assert.calledWith(queueMock.enqueue, 'builds', 'start', [partialTestConfigToString]);
+                assert.calledWith(queueMock.enqueue, 'builds', 'start', [partialTestDefaultConfig]);
             }));
 
         it("doesn't call connect if there's already a connection", () => {
@@ -515,7 +530,7 @@ describe('scheduler test', () => {
 
             return scheduler.start(executor, testConfig).then(() => {
                 assert.notCalled(queueMock.connect);
-                assert.calledWith(queueMock.enqueue, 'builds', 'start', [partialTestConfigToString]);
+                assert.calledWith(queueMock.enqueue, 'builds', 'start', [partialTestDefaultConfig]);
             });
         });
     });
@@ -608,11 +623,11 @@ describe('scheduler test', () => {
 
         it('removes a start event from the queue and the cached buildconfig', () => {
             const deleteKey = `deleted_${jobId}_${buildId}`;
-            const stopConfig = { started: false, ...partialTestConfigToString };
+            const stopConfig = { started: false, ...partialTestStopConfigToString };
 
             return scheduler.stop(executor, partialTestConfig).then(() => {
                 assert.calledOnce(queueMock.connect);
-                assert.calledWith(queueMock.del, 'builds', 'start', [partialTestConfigToString]);
+                assert.calledWith(queueMock.del, 'builds', 'start', [partialTestStopConfigToString]);
                 assert.calledWith(redisMock.set, deleteKey, '');
                 assert.calledWith(redisMock.expire, deleteKey, 1800);
                 assert.calledWith(queueMock.enqueue, 'builds', 'stop', [stopConfig]);
@@ -621,18 +636,18 @@ describe('scheduler test', () => {
 
         it('adds a stop event to the queue if no start events were removed', () => {
             queueMock.del.resolves(0);
-            const stopConfig = { started: true, ...partialTestConfigToString };
+            const stopConfig = { started: true, ...partialTestStopConfigToString };
 
             return scheduler.stop(executor, partialTestConfig).then(() => {
                 assert.calledOnce(queueMock.connect);
-                assert.calledWith(queueMock.del, 'builds', 'start', [partialTestConfigToString]);
+                assert.calledWith(queueMock.del, 'builds', 'start', [partialTestStopConfigToString]);
                 assert.calledWith(queueMock.enqueue, 'builds', 'stop', [stopConfig]);
             });
         });
 
         it('adds a stop event to the queue if it has no blocked job', () => {
             queueMock.del.resolves(0);
-            const partialTestConfigUndefined = { ...partialTestConfig, blockedBy: undefined };
+            const partialTestConfigUndefined = { ...partialTestStopConfigToString, blockedBy: undefined };
             const stopConfig = { started: true, ...partialTestConfigUndefined };
 
             return scheduler.stop(executor, partialTestConfigUndefined).then(() => {
@@ -654,7 +669,7 @@ describe('scheduler test', () => {
                 })
                 .then(() => {
                     assert.notCalled(queueMock.connect);
-                    assert.calledWith(queueMock.del, 'builds', 'start', [partialTestConfigToString]);
+                    assert.calledWith(queueMock.del, 'builds', 'start', [partialTestStopConfigToString]);
                 });
         });
     });

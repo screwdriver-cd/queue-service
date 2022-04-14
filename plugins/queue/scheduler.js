@@ -14,6 +14,7 @@ const RETRY_DELAY = 5;
 const EXPIRE_TIME = 1800; // 30 mins
 const TEMPORAL_TOKEN_TIMEOUT = 12 * 60; // 12 hours in minutes
 const TEMPORAL_UNZIP_TOKEN_TIMEOUT = 2 * 60; // 2 hours in minutes
+const BLOCKED_BY_SAME_JOB_WAIT_TIME = 5;
 
 /**
  * Posts a new build event to the API
@@ -253,6 +254,7 @@ async function startPeriodic(executor, config) {
  */
 async function start(executor, config) {
     await executor.connect();
+
     const {
         build,
         buildId,
@@ -383,12 +385,23 @@ async function start(executor, config) {
         // Store the config in redis
         await executor.redisBreaker.runCommand('hset', executor.buildConfigTable, buildId, JSON.stringify(config));
 
+        const blockedBySameJob = reach(config, 'annotations>screwdriver.cd/blockedBySameJob', {
+            separator: '>',
+            default: true
+        });
+        const blockedBySameJobWaitTime = reach(config, 'annotations>screwdriver.cd/blockedBySameJobWaitTime', {
+            separator: '>',
+            default: BLOCKED_BY_SAME_JOB_WAIT_TIME
+        });
+
         // Note: arguments to enqueue are [queue name, job name, array of args]
         enq = await executor.queueBreaker.runCommand('enqueue', executor.buildQueue, 'start', [
             {
                 buildId,
                 jobId,
-                blockedBy: blockedBy.toString()
+                blockedBy: blockedBy.toString(),
+                blockedBySameJob,
+                blockedBySameJobWaitTime
             }
         ]);
         if (buildStats) {
