@@ -224,9 +224,7 @@ async function checkBlockingJob({ jobId, buildId }) {
     const timeoutConfig = JSON.parse(json);
     let notBlockedBySameJob = false;
 
-    if (!blockedBySameJob && !timeoutConfig) {
-        notBlockedBySameJob = true;
-    } else if (!blockedBySameJob && timeoutConfig) {
+    if (!blockedBySameJob && timeoutConfig) {
         const { startTime } = timeoutConfig;
         const diffMs = new Date().getTime() - new Date(startTime).getTime();
         const diffMins = Math.round(diffMs / 60000);
