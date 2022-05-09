@@ -67,7 +67,7 @@ async function invoke() {
         );
         multiWorker.on('poll', async (workerId, queue) => {
             if (queue === 'builds') {
-                // logger.info(`queueWorker->worker[${workerId}] polling ${queue}`);
+                logger.info(`queueWorker->worker[${workerId}] polling ${queue}`);
                 await timeout.checkWithBackOff(redis, redlock, workerId);
             }
         });

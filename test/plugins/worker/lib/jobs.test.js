@@ -36,7 +36,7 @@ const configWithProvider = { ...fullConfig, provider: providerConfig };
 
 sinon.assert.expose(assert, { prefix: '' });
 
-describe.only('Jobs Unit Test', () => {
+describe('Jobs Unit Test', () => {
     let jobs;
     let mockExecutor;
     let mockExecutorRouter;
@@ -77,7 +77,8 @@ describe.only('Jobs Unit Test', () => {
             hdel: sinon.stub(),
             del: sinon.stub(),
             get: sinon.stub(),
-            lrem: sinon.stub()
+            lrem: sinon.stub(),
+            on: sinon.stub()
         };
 
         mockRabbitmqCh = {
@@ -171,6 +172,7 @@ describe.only('Jobs Unit Test', () => {
         mockery.registerMock('ioredis', mockRedis);
         mockery.registerMock('../../../config/rabbitmq', mockRabbitmqConfig);
         mockery.registerMock('../../../config/redis', mockRedisConfig);
+        mockery.registerMock('../config/redis', mockRedisConfig);
         mockery.registerMock('../../../config/kafka', mockKafkaConfig);
         mockery.registerMock('../../helper', helperMock);
         mockery.registerMock('screwdriver-aws-producer-service', mockProducerSvc);
@@ -221,7 +223,12 @@ describe.only('Jobs Unit Test', () => {
                 tls: false
             };
 
-            assert.calledWith(mockRedis, expectedPort, expectedHost, expectedOptions);
+            assert.calledWith(mockRedis, {
+                port: expectedPort,
+                host: expectedHost,
+                password: expectedOptions.password,
+                tls: expectedOptions.tls
+            });
         });
     });
 
