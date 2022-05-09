@@ -507,38 +507,38 @@ async function init(executor) {
 
     executor.scheduler = new Resque.Scheduler({ connection: redisConnection });
 
-    // executor.multiWorker.on('start', workerId => logger.info(`worker[${workerId}] started`));
-    // executor.multiWorker.on('end', workerId => logger.info(`worker[${workerId}] ended`));
-    // executor.multiWorker.on('cleaning_worker', (workerId, worker, pid) =>
-    //     logger.info(`cleaning old worker ${worker} pid ${pid}`)
-    // );
-    // executor.multiWorker.on('job', (workerId, queue, job) =>
-    //     logger.info(`worker[${workerId}] working job ${queue} ${JSON.stringify(job)}`)
-    // );
-    // executor.multiWorker.on('reEnqueue', (workerId, queue, job, plugin) =>
-    //     logger.info(`worker[${workerId}] reEnqueue job (${plugin}) ${queue} ${JSON.stringify(job)}`)
-    // );
-    // executor.multiWorker.on('success', (workerId, queue, job, result) =>
-    //     logger.info(`worker[${workerId}] job success ${queue} ${JSON.stringify(job)} >> ${result}`)
-    // );
-    // executor.multiWorker.on('failure', (workerId, queue, job, failure) =>
-    //     logger.info(`worker[${workerId}] job failure ${queue} ${JSON.stringify(job)} >> ${failure}`)
-    // );
+    executor.multiWorker.on('start', workerId => logger.info(`worker[${workerId}] started`));
+    executor.multiWorker.on('end', workerId => logger.info(`worker[${workerId}] ended`));
+    executor.multiWorker.on('cleaning_worker', (workerId, worker, pid) =>
+        logger.info(`cleaning old worker ${worker} pid ${pid}`)
+    );
+    executor.multiWorker.on('job', (workerId, queue, job) =>
+        logger.info(`worker[${workerId}] working job ${queue} ${JSON.stringify(job)}`)
+    );
+    executor.multiWorker.on('reEnqueue', (workerId, queue, job, plugin) =>
+        logger.info(`worker[${workerId}] reEnqueue job (${plugin}) ${queue} ${JSON.stringify(job)}`)
+    );
+    executor.multiWorker.on('success', (workerId, queue, job, result) =>
+        logger.info(`worker[${workerId}] job success ${queue} ${JSON.stringify(job)} >> ${result}`)
+    );
+    executor.multiWorker.on('failure', (workerId, queue, job, failure) =>
+        logger.info(`worker[${workerId}] job failure ${queue} ${JSON.stringify(job)} >> ${failure}`)
+    );
     executor.multiWorker.on('error', (workerId, queue, job, error) =>
         logger.error(`worker[${workerId}] error ${queue} ${JSON.stringify(job)} >> ${error}`)
     );
 
     // multiWorker emitters
-    // executor.multiWorker.on('internalError', error => logger.error(error));
+    executor.multiWorker.on('internalError', error => logger.error(error));
 
-    // executor.scheduler.on('start', () => logger.info('scheduler started'));
-    // executor.scheduler.on('end', () => logger.info('scheduler ended'));
-    // executor.scheduler.on('master', state => logger.info(`scheduler became master ${state}`));
+    executor.scheduler.on('start', () => logger.info('scheduler started'));
+    executor.scheduler.on('end', () => logger.info('scheduler ended'));
+    executor.scheduler.on('master', state => logger.info(`scheduler became master ${state}`));
     executor.scheduler.on('error', error => logger.info(`scheduler error >> ${error}`));
-    // executor.scheduler.on('workingTimestamp', timestamp => logger.info(`scheduler working timestamp ${timestamp}`));
-    // executor.scheduler.on('transferredJob', (timestamp, job) =>
-    //     logger.info(`scheduler enqueuing job timestamp  >>  ${JSON.stringify(job)}`)
-    // );
+    executor.scheduler.on('workingTimestamp', timestamp => logger.info(`scheduler working timestamp ${timestamp}`));
+    executor.scheduler.on('transferredJob', (timestamp, job) =>
+        logger.info(`scheduler enqueuing job timestamp  >>  ${JSON.stringify(job)}`)
+    );
 
     await executor.multiWorker.start();
     await executor.scheduler.connect();
