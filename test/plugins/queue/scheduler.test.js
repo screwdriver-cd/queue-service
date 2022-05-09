@@ -96,7 +96,8 @@ describe('scheduler test', () => {
             connection: {
                 connected: false
             },
-            end: sinon.stub().resolves()
+            end: sinon.stub().resolves(),
+            on: sinon.stub()
         };
         resqueMock = {
             Queue: sinon.stub().returns(queueMock),
@@ -110,7 +111,8 @@ describe('scheduler test', () => {
             hdel: sinon.stub().yieldsAsync(),
             hset: sinon.stub().yieldsAsync(),
             set: sinon.stub().yieldsAsync(),
-            expire: sinon.stub().yieldsAsync()
+            expire: sinon.stub().yieldsAsync(),
+            on: sinon.stub()
         };
         redisConstructorMock = sinon.stub().returns(redisMock);
         cronMock = {

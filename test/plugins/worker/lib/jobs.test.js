@@ -36,7 +36,7 @@ const configWithProvider = { ...fullConfig, provider: providerConfig };
 
 sinon.assert.expose(assert, { prefix: '' });
 
-describe('Jobs Unit Test', () => {
+describe.only('Jobs Unit Test', () => {
     let jobs;
     let mockExecutor;
     let mockExecutorRouter;

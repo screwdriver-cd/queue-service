@@ -34,9 +34,12 @@ describe('server case', () => {
     });
 
     beforeEach(() => {
-        const mockRedis = sinon.stub().returns({});
+        const redisMock = {
+            on: sinon.stub()
+        };
+        const redisConstructorMock = sinon.stub().returns(redisMock);
 
-        mockery.registerMock('ioredis', mockRedis);
+        mockery.registerMock('ioredis', redisConstructorMock);
     });
 
     afterEach(() => {

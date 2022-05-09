@@ -1,7 +1,7 @@
 'use strict';
 
 const amqp = require('amqp-connection-manager');
-const Redis = require('ioredis');
+// const Redis = require('ioredis');
 const config = require('config');
 const hoek = require('@hapi/hoek');
 const ExecutorRouter = require('screwdriver-executor-router');
@@ -12,7 +12,7 @@ const { BlockedBy } = require('./BlockedBy');
 const { Filter } = require('./Filter');
 const { CacheFilter } = require('./CacheFilter');
 const blockedByConfig = config.get('plugins').blockedBy;
-const { connectionDetails, queuePrefix, runningJobsPrefix, waitingJobsPrefix } = require('../../../config/redis');
+const { queuePrefix, runningJobsPrefix, waitingJobsPrefix } = require('../../../config/redis');
 const rabbitmqConf = require('../../../config/rabbitmq');
 const { amqpURI, exchange, connectOptions } = rabbitmqConf.getConfig();
 const kafkaConfig = require('../../../config/kafka');
@@ -21,8 +21,7 @@ const RETRY_LIMIT = 3;
 // This is in milliseconds, reference: https://github.com/actionhero/node-resque/blob/2ffdf0/lib/plugins/Retry.js#L12
 const RETRY_DELAY = 5 * 1000;
 const DEFAULT_BUILD_TIMEOUT = 90;
-const redis = new Redis(connectionDetails.port, connectionDetails.host, connectionDetails.options);
-
+const redis = require('../../redis');
 const ecosystem = config.get('ecosystem');
 const executorConfig = config.get('executor');
 
