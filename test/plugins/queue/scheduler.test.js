@@ -60,6 +60,7 @@ describe('scheduler test', () => {
     let userTokenGen;
     let tokenGen;
     let testDelayedConfig;
+    let winstonMock;
 
     before(() => {
         mockery.enable({
@@ -136,12 +137,17 @@ describe('scheduler test', () => {
                 id: buildId
             })
         };
+        winstonMock = {
+            info: sinon.stub(),
+            error: sinon.stub()
+        };
 
         mockery.registerMock('node-resque', resqueMock);
         mockery.registerMock('ioredis', redisConstructorMock);
         mockery.registerMock('./utils/cron', cronMock);
         mockery.registerMock('./utils/freezeWindows', freezeWindowsMock);
         mockery.registerMock('../helper', helperMock);
+        mockery.registerMock('screwdriver-logger', winstonMock);
 
         /* eslint-disable global-require */
         scheduler = require('../../../plugins/queue/scheduler');
@@ -406,6 +412,49 @@ describe('scheduler test', () => {
                 assert.equal(buildMock.stats.queueEnterTime, isoTime);
                 sandbox.restore();
             });
+        });
+
+        it('logs error when failed to enqueues a build', () => {
+            const dateNow = Date.now();
+            const isoTime = new Date(dateNow).toISOString();
+            const sandbox = sinon.createSandbox({
+                useFakeTimers: false
+            });
+            const expectedError = new Error('updateBuild Error');
+
+            sandbox.useFakeTimers(dateNow);
+            buildMock.stats = {};
+            testConfig.build = buildMock;
+            helperMock.updateBuild.rejects(expectedError);
+
+            return scheduler
+                .start(executor, testConfig)
+                .then(() => {
+                    assert.fail('Should not get here');
+                })
+                .catch(err => {
+                    assert.calledTwice(queueMock.connect);
+                    assert.calledWith(redisMock.hset, 'buildConfigs', buildId, JSON.stringify(testConfig));
+                    assert.calledWith(queueMock.enqueue, 'builds', 'start', [partialTestDefaultConfig]);
+                    assert.calledTwice(executor.tokenGen);
+                    assert.calledWith(
+                        helperMock.updateBuild,
+                        {
+                            buildId,
+                            token: 'buildToken',
+                            apiUri: 'http://api.com',
+                            payload: { stats: buildMock.stats, status: 'QUEUED' }
+                        },
+                        helperMock.requestRetryStrategy
+                    );
+                    assert.equal(buildMock.stats.queueEnterTime, isoTime);
+                    assert.deepEqual(err, expectedError);
+                    assert.calledWith(
+                        winstonMock.error,
+                        `Failed to update build status for build ${buildId}: ${expectedError}`
+                    );
+                    sandbox.restore();
+                });
         });
 
         it('fails to enqueue a build with validation error for tokenConfig', () => {
