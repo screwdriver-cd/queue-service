@@ -1,7 +1,6 @@
 'use strict';
 
 const amqp = require('amqp-connection-manager');
-// const Redis = require('ioredis');
 const config = require('config');
 const hoek = require('@hapi/hoek');
 const ExecutorRouter = require('screwdriver-executor-router');
