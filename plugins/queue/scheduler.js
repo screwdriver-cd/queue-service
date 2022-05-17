@@ -405,15 +405,21 @@ async function start(executor, config) {
             }
         ]);
         if (buildStats) {
-            await helper.updateBuild(
-                {
-                    buildId,
-                    token: buildToken,
-                    apiUri,
-                    payload: { stats: build.stats, status: 'QUEUED' }
-                },
-                helper.requestRetryStrategy
-            );
+            await helper
+                .updateBuild(
+                    {
+                        buildId,
+                        token: buildToken,
+                        apiUri,
+                        payload: { stats: build.stats, status: 'QUEUED' }
+                    },
+                    helper.requestRetryStrategy
+                )
+                .catch(err => {
+                    logger.error(`Failed to update build status for build ${buildId}: ${err}`);
+
+                    throw err;
+                });
         }
     }
 

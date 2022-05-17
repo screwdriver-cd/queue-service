@@ -2,7 +2,6 @@
 
 const NodeResque = require('node-resque');
 const config = require('config');
-const Redis = require('ioredis');
 const logger = require('screwdriver-logger');
 const Redlock = require('redlock');
 const jobs = require('./lib/jobs');
@@ -10,7 +9,7 @@ const timeout = require('./lib/timeout');
 const helper = require('../helper');
 const workerConfig = config.get('worker');
 const { connectionDetails, queuePrefix } = require('../../config/redis');
-const redis = new Redis(connectionDetails.port, connectionDetails.host, connectionDetails.options);
+const redis = require('../redis');
 // https://github.com/mike-marcacci/node-redlock
 const redlock = new Redlock([redis], {
     driftFactor: 0.01, // time in ms
@@ -86,29 +85,27 @@ async function invoke() {
             logger.info(`queueWorker->worker[${workerId}] ${job} success ${queue} ${JSON.stringify(job)} >> ${result}`)
         );
         multiWorker.on('failure', (workerId, queue, job, failure) =>
-            helper.updateBuildStatus(
-                {
+            helper
+                .updateBuildStatus({
                     redisInstance: redis,
                     buildId: job.args[0].buildId,
                     status: 'FAILURE',
                     statusMessage: `${failure}`
-                },
-                (err, response) => {
-                    if (!err) {
-                        logger.info(
-                            `queueWorker->worker[${workerId}] ${JSON.stringify(job)} ` +
-                                `failure ${queue} ` +
-                                `${JSON.stringify(job)} >> successfully update build status: ${failure}`
-                        );
-                    } else {
-                        logger.error(
-                            `queueWorker->worker[${workerId}] ${job} failure ` +
-                                `${queue} ${JSON.stringify(job)} ` +
-                                `>> ${failure} ${err} ${JSON.stringify(response)}`
-                        );
-                    }
-                }
-            )
+                })
+                .then(() => {
+                    logger.info(
+                        `queueWorker->worker[${workerId}] ${JSON.stringify(job)} ` +
+                            `failure ${queue} ` +
+                            `${JSON.stringify(job)} >> successfully update build status: ${failure}`
+                    );
+                })
+                .catch(err => {
+                    logger.error(
+                        `queueWorker->worker[${workerId}] ${job} failure ` +
+                            `${queue} ${JSON.stringify(job)} ` +
+                            `>> ${failure} ${err}`
+                    );
+                })
         );
         multiWorker.on('error', (workerId, queue, job, error) =>
             logger.error(`queueWorker->worker[${workerId}] error ${queue} ${JSON.stringify(job)} >> ${error}`)

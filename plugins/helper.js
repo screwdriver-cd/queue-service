@@ -76,7 +76,7 @@ function formatOptions(method, url, token, json, retryStrategyFn) {
         });
     }
 
-    logger.info(`${options.method} ${options.uri}`);
+    logger.info(`${options.method} ${options.url}`);
 
     return options;
 }

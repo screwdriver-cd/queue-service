@@ -61,7 +61,8 @@ describe('Plugin Test', () => {
             lrange: sinon.stub().resolves(['4', '5']),
             rpush: sinon.stub().resolves(),
             del: sinon.stub().resolves(),
-            lrem: sinon.stub().resolves()
+            lrem: sinon.stub().resolves(),
+            on: sinon.stub()
         };
         mockRedisDep = sinon.stub().returns(mockRedis);
         mockLockObj = {

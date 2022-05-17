@@ -112,7 +112,8 @@ describe('Schedule test', () => {
             queuePrefix: 'mockQueuePrefix_'
         };
         mockRedisObj = {
-            hget: sinon.stub().resolves('{"apiUri": "foo.bar", "token": "fake"}')
+            hget: sinon.stub().resolves('{"apiUri": "foo.bar", "token": "fake"}'),
+            on: sinon.stub()
         };
         mockRedlockObj = {
             lock: sinon.stub().resolves()
@@ -126,6 +127,7 @@ describe('Schedule test', () => {
         mockery.registerMock('node-resque', nrMockClass);
         mockery.registerMock('request', requestMock);
         mockery.registerMock('../../config/redis', redisConfigMock);
+        mockery.registerMock('../config/redis', redisConfigMock);
         mockery.registerMock('ioredis', mockRedis);
         mockery.registerMock('redlock', mockRedlock);
         mockery.registerMock('../helper', helperMock);
@@ -273,24 +275,21 @@ describe('Schedule test', () => {
                 `${JSON.stringify(job)} failure ${queue} ` +
                 `${JSON.stringify(job)} >> successfully update build status: ${failure}`;
 
-            helperMock.updateBuildStatus.yieldsAsync(null, {});
+            helperMock.updateBuildStatus.resolves();
             testWorker.emit('failure', workerId, queue, job, failure);
             await sleep(100);
             assert.calledWith(helperMock.updateBuildStatus, updateConfig);
             assert.calledWith(winstonMock.info, errMsg);
 
             // When updateBuildStatus fails
-            const updateStatusError = new Error('failed');
-            const response = { statusCode: 500 };
+            const updateStatusError = new Error('Error');
 
             errMsg =
                 `queueWorker->worker[${workerId}] ${job} failure ${queue} ` +
                 `${JSON.stringify(job)} >> ${failure} ` +
-                `${updateStatusError} ${JSON.stringify(response)}`;
+                `${updateStatusError}`;
 
-            helperMock.updateBuildStatus.yieldsAsync(updateStatusError, {
-                statusCode: 500
-            });
+            helperMock.updateBuildStatus.rejects();
             testWorker.emit('failure', workerId, queue, job, failure);
             await sleep(100);
             assert.calledWith(helperMock.updateBuildStatus, updateConfig);

@@ -20,7 +20,7 @@
     "config": "^1.31.0",
     "cron-parser": "^4.2.1",
     "hapi-auth-jwt2": "^10.2.0",
-    "ioredis": "^3.2.2",
+    "ioredis": "^5.0.4",
     "joi": "^17.5.0",
     "js-yaml": "^3.14.1",
     "jsonwebtoken": "^8.5.1",

@@ -3,11 +3,10 @@
 const NodeResque = require('node-resque');
 const hoek = require('@hapi/hoek');
 const logger = require('screwdriver-logger');
-const Redis = require('ioredis');
 const Redlock = require('redlock');
 const helper = require('../../helper');
-const { connectionDetails, runningJobsPrefix, waitingJobsPrefix, queuePrefix } = require('../../../config/redis');
-const redis = new Redis(connectionDetails.port, connectionDetails.host, connectionDetails.options);
+const { runningJobsPrefix, waitingJobsPrefix, queuePrefix } = require('../../../config/redis');
+const redis = require('../../redis');
 // https://github.com/mike-marcacci/node-redlock
 const redlock = new Redlock([redis], {
     driftFactor: 0.01, // time in ms
