@@ -301,7 +301,7 @@ describe('Schedule test', () => {
             const timestamp = 'mock timestamp';
             const workerName = 'mock workerName';
             const delta = 'mock delta';
-            const errorPayload = 'errorPayload';
+            const errorPayload = 'mock errorPayload';
 
             testScheduler.emit('start');
             assert.calledWith(winstonMock.info, 'queueWorker->scheduler started');
@@ -330,7 +330,7 @@ describe('Schedule test', () => {
             testScheduler.emit('cleanStuckWorker', workerName, errorPayload, delta);
             assert.calledWith(
                 winstonMock.info,
-                `failing ${workerName} (stuck for ${delta}s) and failing job ${errorPayload}`
+                `queueWorker->scheduler failing ${workerName} (stuck for ${delta}s) and failing job ${errorPayload}`
             );
         });
     });

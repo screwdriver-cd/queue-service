@@ -538,7 +538,7 @@ async function init(executor) {
     executor.scheduler.on('error', error => logger.info(`scheduler error >> ${error}`));
     executor.scheduler.on('workingTimestamp', timestamp => logger.info(`scheduler working timestamp ${timestamp}`));
     executor.scheduler.on('cleanStuckWorker', (workerName, errorPayload, delta) =>
-        logger.info(`failing ${workerName} (stuck for ${delta}s) and failing job ${errorPayload}`)
+        logger.info(`scheduler failing ${workerName} (stuck for ${delta}s) and failing job ${errorPayload}`)
     );
     executor.scheduler.on('transferredJob', (timestamp, job) =>
         logger.info(`scheduler enqueuing job ${timestamp}  >>  ${JSON.stringify(job)}`)

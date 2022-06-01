@@ -130,7 +130,9 @@ async function invoke() {
             logger.info(`queueWorker->scheduler enqueuing job timestamp  >> ${timestamp} ${JSON.stringify(job)}`)
         );
         scheduler.on('cleanStuckWorker', (workerName, errorPayload, delta) =>
-            logger.info(`failing ${workerName} (stuck for ${delta}s) and failing job ${errorPayload}`)
+            logger.info(
+                `queueWorker->scheduler failing ${workerName} (stuck for ${delta}s) and failing job ${errorPayload}`
+            )
         );
         multiWorker.start();
 
