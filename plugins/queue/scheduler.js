@@ -166,15 +166,6 @@ async function startPeriodic(executor, config) {
 
     if (triggerBuild) {
         config.causeMessage = 'Started by periodic build scheduler';
-
-        // Even if post event failed for this event after retry, we should still enqueue the next event
-        try {
-            await postBuildEvent(executor, config);
-        } catch (err) {
-            logger.error(
-                `periodic builds: failed to post build event for job ${job.id} in pipeline ${pipeline.id}: ${err}`
-            );
-        }
     }
 
     if (buildCron && job.state === 'ENABLED' && !job.archived) {
@@ -214,18 +205,28 @@ async function startPeriodic(executor, config) {
                 logger.error(`failed to enqueue for job ${job.id}: ${err}`);
             }
         }
-        if (!shouldRetry) {
-            logger.info(`successfully added to queue for job ${job.id}`);
 
-            return Promise.resolve();
-        }
-        try {
-            await executor.queue.enqueueAt(next, executor.periodicBuildQueue, 'startDelayed', [{ jobId: job.id }]);
-        } catch (err) {
-            logger.error(`failed to add to delayed queue for job ${job.id}: ${err}`);
+        if (shouldRetry) {
+            try {
+                await executor.queue.enqueueAt(next, executor.periodicBuildQueue, 'startDelayed', [{ jobId: job.id }]);
+            } catch (err) {
+                logger.error(`failed to add to delayed queue for job ${job.id}: ${err}`);
+            }
+        } else {
+            logger.info(`successfully added to queue for job ${job.id}`);
         }
     }
     logger.info(`added to delayed queue for job ${job.id}`);
+
+    if (triggerBuild) {
+        try {
+            await postBuildEvent(executor, config);
+        } catch (err) {
+            logger.error(
+                `periodic builds: failed to post build event for job ${job.id} in pipeline ${pipeline.id}: ${err}`
+            );
+        }
+    }
 
     return Promise.resolve();
 }
@@ -536,8 +537,11 @@ async function init(executor) {
     executor.scheduler.on('master', state => logger.info(`scheduler became master ${state}`));
     executor.scheduler.on('error', error => logger.info(`scheduler error >> ${error}`));
     executor.scheduler.on('workingTimestamp', timestamp => logger.info(`scheduler working timestamp ${timestamp}`));
+    executor.scheduler.on('cleanStuckWorker', (workerName, errorPayload, delta) =>
+        logger.info(`scheduler failing ${workerName} (stuck for ${delta}s) and failing job ${errorPayload}`)
+    );
     executor.scheduler.on('transferredJob', (timestamp, job) =>
-        logger.info(`scheduler enqueuing job timestamp  >>  ${JSON.stringify(job)}`)
+        logger.info(`scheduler enqueuing job ${timestamp}  >>  ${JSON.stringify(job)}`)
     );
 
     await executor.multiWorker.start();

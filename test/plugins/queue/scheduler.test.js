@@ -177,6 +177,42 @@ describe('scheduler test', () => {
         mockery.disable();
     });
 
+    describe('event handler', () => {
+        it('logs the correct message for worker', () => {
+            const state = 'mock state';
+            const timestamp = 'mock timestamp';
+            const workerName = 'mock workerName';
+            const delta = 'mock delta';
+            const errorPayload = 'mock errorPayload';
+            const error = 'mock error';
+            const job = 'mock job';
+
+            executor.scheduler.emit('start');
+            assert.calledWith(winstonMock.info, 'scheduler started');
+
+            executor.scheduler.emit('end');
+            assert.calledWith(winstonMock.info, 'scheduler ended');
+
+            executor.scheduler.emit('master', state);
+            assert.calledWith(winstonMock.info, `scheduler became master ${state}`);
+
+            executor.scheduler.emit('error', error);
+            assert.calledWith(winstonMock.info, `scheduler error >> ${error}`);
+
+            executor.scheduler.emit('workingTimestamp', timestamp);
+            assert.calledWith(winstonMock.info, `scheduler working timestamp ${timestamp}`);
+
+            executor.scheduler.emit('transferredJob', timestamp, job);
+            assert.calledWith(winstonMock.info, `scheduler enqueuing job ${timestamp}  >>  ${JSON.stringify(job)}`);
+
+            executor.scheduler.emit('cleanStuckWorker', workerName, errorPayload, delta);
+            assert.calledWith(
+                winstonMock.info,
+                `scheduler failing ${workerName} (stuck for ${delta}s) and failing job ${errorPayload}`
+            );
+        });
+    });
+
     describe('startPeriodic', () => {
         beforeEach(() => {});
         it("rejects if it can't establish a connection", function() {

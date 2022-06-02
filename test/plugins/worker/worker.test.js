@@ -299,6 +299,9 @@ describe('Schedule test', () => {
         it('logs the correct message for scheduler', () => {
             const state = 'mock state';
             const timestamp = 'mock timestamp';
+            const workerName = 'mock workerName';
+            const delta = 'mock delta';
+            const errorPayload = 'mock errorPayload';
 
             testScheduler.emit('start');
             assert.calledWith(winstonMock.info, 'queueWorker->scheduler started');
@@ -315,13 +318,19 @@ describe('Schedule test', () => {
             testScheduler.emit('error', error);
             assert.calledWith(winstonMock.info, `queueWorker->scheduler error >> ${error}`);
 
-            testScheduler.emit('working_timestamp', timestamp);
+            testScheduler.emit('workingTimestamp', timestamp);
             assert.calledWith(winstonMock.info, `queueWorker->scheduler working timestamp ${timestamp}`);
 
-            testScheduler.emit('transferred_job', timestamp, job);
+            testScheduler.emit('transferredJob', timestamp, job);
             assert.calledWith(
                 winstonMock.info,
                 `queueWorker->scheduler enqueuing job timestamp  >> ${timestamp} ${JSON.stringify(job)}`
+            );
+
+            testScheduler.emit('cleanStuckWorker', workerName, errorPayload, delta);
+            assert.calledWith(
+                winstonMock.info,
+                `queueWorker->scheduler failing ${workerName} (stuck for ${delta}s) and failing job ${errorPayload}`
             );
         });
     });

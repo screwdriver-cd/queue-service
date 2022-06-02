@@ -123,13 +123,17 @@ async function invoke() {
         scheduler.on('poll', () => logger.info('queueWorker->scheduler polling'));
         scheduler.on('master', state => logger.info(`queueWorker->scheduler became master ${state}`));
         scheduler.on('error', error => logger.info(`queueWorker->scheduler error >> ${error}`));
-        scheduler.on('working_timestamp', timestamp =>
+        scheduler.on('workingTimestamp', timestamp =>
             logger.info(`queueWorker->scheduler working timestamp ${timestamp}`)
         );
-        scheduler.on('transferred_job', (timestamp, job) =>
+        scheduler.on('transferredJob', (timestamp, job) =>
             logger.info(`queueWorker->scheduler enqueuing job timestamp  >> ${timestamp} ${JSON.stringify(job)}`)
         );
-
+        scheduler.on('cleanStuckWorker', (workerName, errorPayload, delta) =>
+            logger.info(
+                `queueWorker->scheduler failing ${workerName} (stuck for ${delta}s) and failing job ${errorPayload}`
+            )
+        );
         multiWorker.start();
 
         await scheduler.connect();
