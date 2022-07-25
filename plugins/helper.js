@@ -248,6 +248,27 @@ async function updateBuild(updateConfig, retryStrategyFn) {
 }
 
 /**
+ *
+ * @param {String} pipelineId
+ * @param {String} token
+ * @param {Object} payload
+ * @param {String} apiUri
+ * @param {Object} retryStrategyFn
+ */
+ async function notifyPipeline(token, apiUri, pipelineId, payload, retryStrategyFn) {
+    return request(formatOptions('POST', `${apiUri}/v4/pipelines/${pipelineId}/notify`, token, payload, retryStrategyFn)).then(
+        res => {
+            logger.info(`POST /v4/pipelines/${pipelineId}/notify completed with attempts, ${res.statusCode}, ${res.attempts}`);
+            if ([200, 201, 204].includes(res.statusCode)) {
+                return res;
+            }
+
+            throw new Error(`Could not notify pipeline ${pipelineId} with ${res.statusCode}code and ${JSON.stringify(res.body)}`);
+        }
+    );
+}
+
+/**
  * Post the webhooks process
  * @method processHooks
  * @param {String} apiUri
@@ -306,5 +327,6 @@ module.exports = {
     createBuildEvent,
     getPipelineAdmin,
     updateBuild,
+    notifyPipeline,
     processHooks
 };
