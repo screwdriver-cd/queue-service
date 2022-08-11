@@ -129,7 +129,8 @@ describe('scheduler test', () => {
             createBuildEvent: sinon.stub().resolves(),
             updateBuild: sinon.stub().resolves(),
             requestRetryStrategy: sinon.stub(),
-            requestRetryStrategyPostEvent: sinon.stub()
+            requestRetryStrategyPostEvent: sinon.stub(),
+            notifyJob: sinon.stub().resolves()
         };
         buildMock = {
             eventId: 4566,
@@ -398,6 +399,34 @@ describe('scheduler test', () => {
                         jobId: testJob.id
                     }
                 ]);
+            });
+        });
+
+        it('notify pipeline if there are no admin', () => {
+            const mockPipelineId = testDelayedConfig.pipeline.id;
+            const mockJobName = testDelayedConfig.job.name;
+            const mockJobId = testDelayedConfig.job.id;
+            const mockBuildId = testDelayedConfig.buildId;
+            const status = 'failed';
+            const message = `Pipeline ${mockPipelineId} does not have admin, unable to start job ${mockJobName}.`;
+            const mockToken = 'token';
+
+            helperMock.getPipelineAdmin.resolves(null);
+            testDelayedConfig.triggerBuild = true;
+            executor.tokenGen.returns(mockToken);
+
+            return scheduler.startPeriodic(executor, testDelayedConfig).then(() => {
+                assert.calledWith(
+                    winstonMock.error,
+                    `POST event for pipeline failed as no admin found: ${mockPipelineId}:${mockJobName}:${mockJobId}:${mockBuildId}`
+                );
+                assert.calledTwice(executor.tokenGen);
+                assert.calledWith(helperMock.notifyJob, {
+                    token: mockToken,
+                    apiUri: testDelayedConfig.apiUri,
+                    jobId: mockJobId,
+                    payload: { status, message }
+                });
             });
         });
     });

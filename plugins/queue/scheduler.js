@@ -29,12 +29,13 @@ const BLOCKED_BY_SAME_JOB_WAIT_TIME = 5;
 async function postBuildEvent(executor, eventConfig) {
     const { pipeline, job, apiUri, eventId, causeMessage, buildId } = eventConfig;
     const pipelineId = pipeline.id;
+    const jobId = job.id;
 
     try {
         const token = executor.tokenGen({
             pipelineId,
             service: 'queue',
-            jobId: job.id,
+            jobId,
             scmContext: pipeline.scmContext,
             scope: ['user']
         });
@@ -71,17 +72,25 @@ async function postBuildEvent(executor, eventConfig) {
                 `POST event for pipeline failed as no admin found: ${pipelineId}:${job.name}:${job.id}:${buildId}`
             );
 
-            const token = executor.tokenGen({
+            const pipelineToken = executor.tokenGen({
                 pipelineId,
                 service: 'queue',
                 scmContext: pipeline.scmContext,
                 scope: ['pipeline']
             });
 
-            const status = "failed";
+            const status = 'failed';
             const message = `Pipeline ${pipelineId} does not have admin, unable to start job ${job.name}.`;
 
-            await helper.notifyPipeline(token, apiUri, pipelineId, { status, message }, helper.requestRetryStrategyPostEvent);
+            await helper.notifyJob(
+                {
+                    token: pipelineToken,
+                    apiUri,
+                    jobId,
+                    payload: { status, message }
+                },
+                helper.requestRetryStrategyPostEvent
+            );
 
             throw new Error(`Pipeline admin not found, cannot process build ${buildId}`);
         }
