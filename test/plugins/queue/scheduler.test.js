@@ -407,7 +407,7 @@ describe('scheduler test', () => {
             const mockJobName = testDelayedConfig.job.name;
             const mockJobId = testDelayedConfig.job.id;
             const mockBuildId = testDelayedConfig.buildId;
-            const status = 'failed';
+            const status = 'FAILURE';
             const message = `Pipeline ${mockPipelineId} does not have admin, unable to start job ${mockJobName}.`;
             const mockToken = 'token';
 

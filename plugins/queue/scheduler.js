@@ -79,7 +79,7 @@ async function postBuildEvent(executor, eventConfig) {
                 scope: ['pipeline']
             });
 
-            const status = 'failed';
+            const status = 'FAILURE';
             const message = `Pipeline ${pipelineId} does not have admin, unable to start job ${job.name}.`;
 
             await helper.notifyJob(
