@@ -248,7 +248,7 @@ async function updateBuild(updateConfig, retryStrategyFn) {
 }
 
 /**
- *
+ * Notify user with job status
  * @param {Number} jobId
  * @param {String} token
  * @param {Object} payload
