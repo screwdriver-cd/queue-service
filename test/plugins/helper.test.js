@@ -614,4 +614,85 @@ describe('Helper Test', () => {
             })
         );
     });
+
+    it('Notify user with retry', async () => {
+        mockRequest.resolves({ statusCode: 200 });
+        const retryFn = sinon.stub();
+        const jobId = 1;
+
+        try {
+            await helper.notifyJob(
+                {
+                    apiUri: 'foo.bar',
+                    token: 'fake',
+                    jobId,
+                    payload: {
+                        status,
+                        message: statusMessage
+                    }
+                },
+                retryFn
+            );
+        } catch (err) {
+            assert.isNull(err);
+        }
+
+        assert.calledWith(
+            mockRequest,
+            sinon.match({
+                method: 'POST',
+                url: `foo.bar/v4/jobs/${jobId}/notify`,
+                headers: {
+                    Authorization: 'Bearer fake'
+                },
+                json: { status, message: statusMessage },
+                retry: {
+                    limit: 3
+                },
+                hooks: { afterResponse: [retryFn] }
+            })
+        );
+    });
+
+    it('throws when cannot notify user', async () => {
+        mockRequest.resolves({
+            statusCode: 403,
+            body: { username: 'admin123' }
+        });
+        const retryFn = sinon.stub();
+        const jobId = 1;
+
+        try {
+            await helper.notifyJob(
+                {
+                    apiUri: 'foo.bar',
+                    token: 'fake',
+                    jobId,
+                    payload: {
+                        status,
+                        message: statusMessage
+                    }
+                },
+                retryFn
+            );
+        } catch (err) {
+            assert.strictEqual(err.message, 'Could not notify job 1 with 403code and {"username":"admin123"}');
+        }
+
+        assert.calledWith(
+            mockRequest,
+            sinon.match({
+                method: 'POST',
+                url: `foo.bar/v4/jobs/${jobId}/notify`,
+                headers: {
+                    Authorization: 'Bearer fake'
+                },
+                json: { status, message: statusMessage },
+                retry: {
+                    limit: 3
+                },
+                hooks: { afterResponse: [retryFn] }
+            })
+        );
+    });
 });
