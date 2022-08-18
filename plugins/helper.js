@@ -262,7 +262,7 @@ async function notifyJob(notifyConfig, retryStrategyFn) {
         res => {
             logger.info(`POST /v4/jobs/${jobId}/notify completed with attempts, ${res.statusCode}, ${res.attempts}`);
             if ([200, 201, 204].includes(res.statusCode)) {
-                return res;
+                return res.body;
             }
 
             throw new Error(`Could not notify job ${jobId} with ${res.statusCode}code and ${JSON.stringify(res.body)}`);
