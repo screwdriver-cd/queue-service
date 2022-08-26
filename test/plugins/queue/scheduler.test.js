@@ -410,8 +410,11 @@ describe('scheduler test', () => {
             const status = 'FAILURE';
             const message = `Pipeline ${mockPipelineId} does not have admin, unable to start job ${mockJobName}.`;
             const mockToken = 'token';
+            const mockError = new Error('404 Reason "Pipeline has no admin"');
 
-            helperMock.getPipelineAdmin.resolves(null);
+            mockError.statusCode = 404;
+
+            helperMock.getPipelineAdmin.throws(mockError);
             testDelayedConfig.triggerBuild = true;
             executor.tokenGen.returns(mockToken);
 
