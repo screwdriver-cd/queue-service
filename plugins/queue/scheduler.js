@@ -42,32 +42,32 @@ async function postBuildEvent(executor, eventConfig) {
 
         const admin = await helper.getPipelineAdmin(token, apiUri, pipelineId, helper.requestRetryStrategy);
 
-        if (admin) {
-            logger.info(
-                `POST event for pipeline ${pipelineId}:${job.name}:${job.id}:${buildId} using user ${admin.username}`
-            );
+        logger.info(
+            `POST event for pipeline ${pipelineId}:${job.name}:${job.id}:${buildId} using user ${admin.username}`
+        );
 
-            const jwt = executor.userTokenGen(admin.username, {}, admin.scmContext);
+        const jwt = executor.userTokenGen(admin.username, {}, admin.scmContext);
 
-            const buildEvent = {
-                pipelineId,
-                startFrom: job.name,
-                creator: {
-                    name: 'Screwdriver scheduler',
-                    username: 'sd:scheduler'
-                },
-                causeMessage: causeMessage || 'Automatically started by scheduler'
-            };
+        const buildEvent = {
+            pipelineId,
+            startFrom: job.name,
+            creator: {
+                name: 'Screwdriver scheduler',
+                username: 'sd:scheduler'
+            },
+            causeMessage: causeMessage || 'Automatically started by scheduler'
+        };
 
-            if (eventId) {
-                buildEvent.parentEventId = eventId;
-            }
-            if (buildId) {
-                buildEvent.buildId = buildId;
-            }
+        if (eventId) {
+            buildEvent.parentEventId = eventId;
+        }
+        if (buildId) {
+            buildEvent.buildId = buildId;
+        }
 
-            await helper.createBuildEvent(apiUri, jwt, buildEvent, helper.requestRetryStrategyPostEvent);
-        } else {
+        await helper.createBuildEvent(apiUri, jwt, buildEvent, helper.requestRetryStrategyPostEvent);
+    } catch (err) {
+        if (err.statusCode === 404) {
             logger.error(
                 `POST event for pipeline failed as no admin found: ${pipelineId}:${job.name}:${job.id}:${buildId}`
             );
@@ -91,10 +91,8 @@ async function postBuildEvent(executor, eventConfig) {
                 },
                 helper.requestRetryStrategyPostEvent
             );
-
-            throw new Error(`Pipeline admin not found, cannot process build ${buildId}`);
         }
-    } catch (err) {
+
         logger.error(`Error in post build event function ${buildId} ${err}`);
         throw err;
     }
