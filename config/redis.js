@@ -15,6 +15,13 @@ const connectionDetails = {
     database: redisConfig.database
 };
 
+// for redis-cluster config
+if (redisConfig.hosts) {
+    connectionDetails['hosts'] = redisConfig.hosts;
+    connectionDetails['slotsRefreshTimeout'] = redisConfig.slotsRefreshTimeout;
+    connectionDetails.options['clusterRetryStrategy'] = redisConfig.clusterRetryStrategy;
+};
+
 const queuePrefix = queueConfig.prefix || '';
 
 const runningJobsPrefix = `${queuePrefix}running_job_`;

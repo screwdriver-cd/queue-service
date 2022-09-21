@@ -152,11 +152,17 @@ queue:
   redisConnection:
     host: REDIS_HOST
     port: REDIS_PORT
+    # for redis-cluster
+    hosts: ""
     options:
       password: a-secure-password
       tls: false
+      # for redis-cluster
+      clusterRetryStrategy: "(times) => 100"
     database: 0
-  prefix: ''
+    # for redis-cluster
+    slotsRefreshTimeout: 1000
+  prefix: ""
 
 plugins:
   blockedBy:

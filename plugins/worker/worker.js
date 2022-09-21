@@ -8,7 +8,7 @@ const jobs = require('./lib/jobs');
 const timeout = require('./lib/timeout');
 const helper = require('../helper');
 const workerConfig = config.get('worker');
-const { connectionDetails, queuePrefix } = require('../../config/redis');
+const { queuePrefix } = require('../../config/redis');
 const redis = require('../redis');
 // https://github.com/mike-marcacci/node-redlock
 const redlock = new Redlock([redis], {
@@ -40,7 +40,7 @@ async function shutDownAll(worker, scheduler) {
 
 const multiWorker = new NodeResque.MultiWorker(
     {
-        connection: connectionDetails,
+        connection: { redis: redis },
         queues: [`${queuePrefix}builds`, `${queuePrefix}cache`, `${queuePrefix}webhooks`],
         minTaskProcessors: workerConfig.minTaskProcessors,
         maxTaskProcessors: workerConfig.maxTaskProcessors,
@@ -50,7 +50,7 @@ const multiWorker = new NodeResque.MultiWorker(
     jobs
 );
 
-const scheduler = new NodeResque.Scheduler({ connection: connectionDetails });
+const scheduler = new NodeResque.Scheduler({ connection: { redis: redis } });
 
 /**
  * Start worker & scheduler

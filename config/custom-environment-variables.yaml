@@ -222,10 +222,18 @@ queue:
   redisConnection:
     host: REDIS_HOST
     port: REDIS_PORT
+    # for redis-cluster
+    hosts:
+      __name: REDIS_CLUSTER_HOSTS
+      __format: json
     options:
       password: REDIS_PASSWORD
       tls: REDIS_TLS_ENABLED
+      # for redis-cluster
+      clusterRetryStrategy: CLUSTER_RETRY_STRATEGY_FUNC
     database: REDIS_DB_NUMBER
+    # for redis-cluster
+    slotsRefreshTimeout: SLOTS_REFRESH_TIMEOUT
   prefix: REDIS_QUEUE_PREFIX
 
 plugins:

@@ -455,7 +455,7 @@ async function start(executor, config) {
 async function init(executor) {
     if (executor.multiWorker) return 'Scheduler running';
 
-    const { redisConnection } = executor;
+    const { redis } = executor;
     const retryOptions = {
         plugins: ['Retry'],
         pluginOptions: {
@@ -514,7 +514,7 @@ async function init(executor) {
 
     executor.multiWorker = new Resque.MultiWorker(
         {
-            connection: redisConnection,
+            connection: { redis: redis },
             queues: [executor.periodicBuildQueue, executor.frozenBuildQueue],
             minTaskProcessors: 1,
             maxTaskProcessors: 10,
@@ -525,7 +525,7 @@ async function init(executor) {
         jobs
     );
 
-    executor.scheduler = new Resque.Scheduler({ connection: redisConnection });
+    executor.scheduler = new Resque.Scheduler({ connection: { redis: redis } });
 
     executor.multiWorker.on('start', workerId => logger.info(`worker[${workerId}] started`));
     executor.multiWorker.on('end', workerId => logger.info(`worker[${workerId}] ended`));
