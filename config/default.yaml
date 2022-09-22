@@ -149,18 +149,21 @@ ecosystem:
     max_size_mb: 0
 
 queue:
+  # redis or redisCluster
+  connectionType: redis 
   redisConnection:
     host: REDIS_HOST
     port: REDIS_PORT
-    # for redis-cluster
-    hosts: ""
     options:
       password: a-secure-password
       tls: false
-      # for redis-cluster
-      clusterRetryStrategy: "(times) => 100"
     database: 0
-    # for redis-cluster
+  redisClusterConnection:
+    hosts: []
+    options:
+      password: a-secure-password
+      tls: false
+      clusterRetryStrategy: "(times) => 100"
     slotsRefreshTimeout: 1000
   prefix: ""
 

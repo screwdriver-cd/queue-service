@@ -6,25 +6,15 @@ const { connectionDetails } = require('../config/redis');
 
 let redis;
 
-if (connectionDetails.hosts) {
-    redis = new Redis.Cluster(
-            connectionDetails.hosts, {
-            redisOptions: {
-                password: connectionDetails.options.password,
-                tls: connectionDetails.options.tls,
-                clusterRetryStrategy: connectionDetails.options.clusterRetryStrategy,
-                showFriendlyErrorStack: true
-            },
-            slotsRefreshTimeout: connectionDetails.slotsRefreshTimeout
-        }
-    );
-} else {
-    redis = new Redis({
-        port: connectionDetails.port,
-        host: connectionDetails.host,
-        password: connectionDetails.options.password,
-        tls: connectionDetails.options.tls
+if (connectionDetails.redisClusterHosts) {
+    logger.info('initalizing a redis insntace as RedisCluster')
+    redis = new Redis.Cluster(connectionDetails.redisClusterHosts, {
+        redisOptions: connectionDetails.redisOptions,
+        slotsRefreshTimeout: connectionDetails.slotsRefreshTimeout
     });
+} else {
+    logger.info('initalizing a redis insntace')
+    redis = new Redis(connectionDetails.redisOptions);
 }
 
 redis.on('connecting', () => {
