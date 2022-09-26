@@ -149,7 +149,7 @@ ecosystem:
     max_size_mb: 0
 
 queue:
-  # redis or redisCluster
+  # redis or redisCluster(beta)
   connectionType: redis 
   redisConnection:
     host: REDIS_HOST

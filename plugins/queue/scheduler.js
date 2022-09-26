@@ -8,6 +8,7 @@ const Resque = require('node-resque');
 const cron = require('./utils/cron');
 const helper = require('../helper');
 const { timeOutOfWindows } = require('./utils/freezeWindows');
+const { queueNamespace } = require('../../config/redis');
 const DEFAULT_BUILD_TIMEOUT = 90;
 const RETRY_LIMIT = 3;
 const RETRY_DELAY = 5;
@@ -455,7 +456,7 @@ async function start(executor, config) {
 async function init(executor) {
     if (executor.multiWorker) return 'Scheduler running';
 
-    const { redis } = executor;
+    const resqueConnection = { redis: executor.redis, namespace: queueNamespace };
     const retryOptions = {
         plugins: ['Retry'],
         pluginOptions: {
@@ -514,7 +515,7 @@ async function init(executor) {
 
     executor.multiWorker = new Resque.MultiWorker(
         {
-            connection: { redis: redis },
+            connection: resqueConnection,
             queues: [executor.periodicBuildQueue, executor.frozenBuildQueue],
             minTaskProcessors: 1,
             maxTaskProcessors: 10,
@@ -525,7 +526,7 @@ async function init(executor) {
         jobs
     );
 
-    executor.scheduler = new Resque.Scheduler({ connection: { redis: redis } });
+    executor.scheduler = new Resque.Scheduler({ connection: resqueConnection });
 
     executor.multiWorker.on('start', workerId => logger.info(`worker[${workerId}] started`));
     executor.multiWorker.on('end', workerId => logger.info(`worker[${workerId}] ended`));
