@@ -9,7 +9,8 @@ let redis;
 if (connectionDetails.redisClusterHosts) {
     redis = new Redis.Cluster(connectionDetails.redisClusterHosts, {
         redisOptions: connectionDetails.redisOptions,
-        slotsRefreshTimeout: connectionDetails.slotsRefreshTimeout
+        slotsRefreshTimeout: connectionDetails.slotsRefreshTimeout,
+        clusterRetryStrategy: () => 100
     });
 } else {
     redis = new Redis(connectionDetails.redisOptions);

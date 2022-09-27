@@ -58,7 +58,8 @@ describe('redis plugin', () => {
 
         assert.calledWith(ioredisMock.Cluster, ['127.0.0.0:4321', '127.0.0.0:4322', '127.0.0.0:4323'], {
             redisOptions: { password: 'dummy' },
-            slotsRefreshTimeout: 100
+            slotsRefreshTimeout: 100,
+            clusterRetryStrategy: sinon.match(() => 100)
         });
     });
 });

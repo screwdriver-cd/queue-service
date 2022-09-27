@@ -24,9 +24,7 @@ let queueNamespace;
 // for redisCluster config
 if (connectionType === 'redisCluster') {
     connectionDetails.redisClusterHosts = redisConfig.hosts;
-    connectionDetails.slotsRefreshTimeout = redisConfig.slotsRefreshTimeout;
-    // TODO: move to config
-    connectionDetails.clusterRetryStrategy = () => 100;
+    connectionDetails.slotsRefreshTimeout = parseInt(redisConfig.slotsRefreshTimeout, 10);
     // NOTE: node-resque has an issue  in multi-key operation for Redis Cluster
     // https://github.com/actionhero/node-resque/issues/786
     // so we have to set the namespace option with a hash tag so that the resque's keys are set in the same slots in Redis Cluster

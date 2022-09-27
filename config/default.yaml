@@ -163,7 +163,6 @@ queue:
     options:
       password: a-secure-password
       tls: false
-      clusterRetryStrategy: "(times) => 100"
     slotsRefreshTimeout: 1000
   prefix: ""
 
