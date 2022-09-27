@@ -57,6 +57,7 @@ describe('Jobs Unit Test', () => {
     let mockProducerSvc;
     let mockEcosystemConfig;
     let helperMock;
+    let mockNodeResque;
 
     before(() => {
         mockery.enable({
@@ -107,14 +108,15 @@ describe('Jobs Unit Test', () => {
 
         mockRedisConfig = {
             connectionDetails: {
-                host: '127.0.0.1',
-                options: {
+                redisOptions: {
+                    host: '127.0.0.1',
                     password: 'test123',
-                    tls: false
-                },
-                port: 6379,
-                database: 0
+                    tls: false,
+                    port: 6379,
+                    database: 0
+                }
             },
+            queueNamespace: 'testresque',
             queuePrefix: '',
             runningJobsPrefix: 'running_job_',
             waitingJobsPrefix: 'waiting_job_'
@@ -164,12 +166,19 @@ describe('Jobs Unit Test', () => {
             requestRetryStrategyPostEvent: sinon.stub()
         };
 
+        mockNodeResque = {
+            Plugins: {
+                Retry: sinon.stub()
+            }
+        };
+
         mockery.registerMock('config', mockConfig);
         mockery.registerMock('screwdriver-executor-router', mockExecutorRouter);
         mockery.registerMock('amqp-connection-manager', mockAmqp);
 
         mockRedis = sinon.stub().returns(mockRedisObj);
         mockery.registerMock('ioredis', mockRedis);
+        mockery.registerMock('node-resque', mockNodeResque);
         mockery.registerMock('../../../config/rabbitmq', mockRabbitmqConfig);
         mockery.registerMock('../../../config/redis', mockRedisConfig);
         mockery.registerMock('../config/redis', mockRedisConfig);
@@ -222,12 +231,14 @@ describe('Jobs Unit Test', () => {
                 password: 'test123',
                 tls: false
             };
+            const expectedDatabase = 0;
 
             assert.calledWith(mockRedis, {
                 port: expectedPort,
                 host: expectedHost,
                 password: expectedOptions.password,
-                tls: expectedOptions.tls
+                tls: expectedOptions.tls,
+                database: expectedDatabase
             });
         });
     });
@@ -235,7 +246,7 @@ describe('Jobs Unit Test', () => {
     describe('start', async () => {
         it('constructs start job correctly', () =>
             assert.deepEqual(jobs.start, {
-                plugins: [mockFilter.Filter, 'Retry', mockBlockedBy.BlockedBy],
+                plugins: [mockFilter.Filter, mockNodeResque.Plugins.Retry, mockBlockedBy.BlockedBy],
                 pluginOptions: {
                     Retry: {
                         retryLimit: 3,
@@ -433,7 +444,7 @@ describe('Jobs Unit Test', () => {
     describe('stop', () => {
         it('constructs stop job correctly', () =>
             assert.deepEqual(jobs.stop, {
-                plugins: [mockFilter.Filter, 'Retry'],
+                plugins: [mockFilter.Filter, mockNodeResque.Plugins.Retry],
                 pluginOptions: {
                     Retry: {
                         retryLimit: 3,
@@ -646,7 +657,7 @@ describe('Jobs Unit Test', () => {
         });
         it('constructs clear job correctly', () =>
             assert.deepEqual(jobs.clear, {
-                plugins: [mockCacheFilter.CacheFilter, 'Retry'],
+                plugins: [mockCacheFilter.CacheFilter, mockNodeResque.Plugins.Retry],
                 pluginOptions: {
                     Retry: {
                         retryLimit: 3,
@@ -742,7 +753,7 @@ describe('Jobs Unit Test', () => {
     describe('sendWebhook', () => {
         it('constructs sendWebhook job correctly', () =>
             assert.deepEqual(jobs.sendWebhook, {
-                plugins: ['Retry'],
+                plugins: [mockNodeResque.Plugins.Retry],
                 pluginOptions: {
                     Retry: {
                         retryLimit: 3,

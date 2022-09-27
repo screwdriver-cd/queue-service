@@ -83,7 +83,11 @@ async function invoke() {
             )
         );
         multiWorker.on('success', (workerId, queue, job, result, duration) =>
-            logger.info(`queueWorker->worker[${workerId}] ${job} success ${queue} ${JSON.stringify(job)} >> ${result} (${duration}ms)`)
+            logger.info(
+                `queueWorker->worker[${workerId}] ${job} success ${queue} ${JSON.stringify(
+                    job
+                )} >> ${result} (${duration}ms)`
+            )
         );
         multiWorker.on('failure', (workerId, queue, job, failure, duration) =>
             helper
@@ -121,7 +125,7 @@ async function invoke() {
         scheduler.on('start', () => logger.info('queueWorker->scheduler started'));
         scheduler.on('end', () => logger.info('queueWorker->scheduler ended'));
         scheduler.on('poll', () => logger.info('queueWorker->scheduler polling'));
-        scheduler.on('leader', state => logger.info(`queueWorker->scheduler became leader ${state}`));
+        scheduler.on('leader', () => logger.info(`queueWorker->scheduler became leader`));
         scheduler.on('error', error => logger.info(`queueWorker->scheduler error >> ${error}`));
         scheduler.on('workingTimestamp', timestamp =>
             logger.info(`queueWorker->scheduler working timestamp ${timestamp}`)

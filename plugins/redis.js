@@ -7,13 +7,11 @@ const { connectionDetails } = require('../config/redis');
 let redis;
 
 if (connectionDetails.redisClusterHosts) {
-    logger.info('initalizing a redis insntace as RedisCluster')
     redis = new Redis.Cluster(connectionDetails.redisClusterHosts, {
         redisOptions: connectionDetails.redisOptions,
         slotsRefreshTimeout: connectionDetails.slotsRefreshTimeout
     });
 } else {
-    logger.info('initalizing a redis insntace')
     redis = new Redis(connectionDetails.redisOptions);
 }
 

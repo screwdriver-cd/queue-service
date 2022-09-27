@@ -47,6 +47,7 @@ describe('scheduler test', () => {
     let executor;
     let multiWorker;
     let scheduler;
+    let plugins;
     let resqueMock;
     let queueMock;
     let redisMock;
@@ -88,6 +89,9 @@ describe('scheduler test', () => {
         };
         util.inherits(multiWorker, EventEmitter);
         util.inherits(scheduler, EventEmitter);
+        plugins = {
+            Retry: sinon.stub()
+        };
         queueMock = {
             connect: sinon.stub().resolves(),
             enqueue: sinon.stub().resolves(),
@@ -103,7 +107,8 @@ describe('scheduler test', () => {
         resqueMock = {
             Queue: sinon.stub().returns(queueMock),
             MultiWorker: multiWorker,
-            Scheduler: scheduler
+            Scheduler: scheduler,
+            Plugins: plugins
         };
         spyMultiWorker = sinon.spy(resqueMock, 'MultiWorker');
         spyScheduler = sinon.spy(resqueMock, 'Scheduler');
@@ -180,7 +185,6 @@ describe('scheduler test', () => {
 
     describe('event handler', () => {
         it('logs the correct message for worker', () => {
-            const state = 'mock state';
             const timestamp = 'mock timestamp';
             const workerName = 'mock workerName';
             const delta = 'mock delta';
@@ -194,8 +198,8 @@ describe('scheduler test', () => {
             executor.scheduler.emit('end');
             assert.calledWith(winstonMock.info, 'scheduler ended');
 
-            executor.scheduler.emit('master', state);
-            assert.calledWith(winstonMock.info, `scheduler became master ${state}`);
+            executor.scheduler.emit('leader');
+            assert.calledWith(winstonMock.info, `scheduler became leader`);
 
             executor.scheduler.emit('error', error);
             assert.calledWith(winstonMock.info, `scheduler error >> ${error}`);
