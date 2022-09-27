@@ -1,6 +1,6 @@
 'use strict';
 
-const NodeResque = require('node-resque');
+const { MultiWorker, Scheduler } = require('node-resque');
 const config = require('config');
 const logger = require('screwdriver-logger');
 const Redlock = require('redlock');
@@ -39,7 +39,7 @@ async function shutDownAll(worker, scheduler) {
     }
 }
 
-const multiWorker = new NodeResque.MultiWorker(
+const multiWorker = new MultiWorker(
     {
         connection: resqueConnection,
         queues: [`${queuePrefix}builds`, `${queuePrefix}cache`, `${queuePrefix}webhooks`],
@@ -51,7 +51,7 @@ const multiWorker = new NodeResque.MultiWorker(
     jobs
 );
 
-const scheduler = new NodeResque.Scheduler({ connection: resqueConnection });
+const scheduler = new Scheduler({ connection: resqueConnection });
 
 /**
  * Start worker & scheduler
@@ -82,10 +82,10 @@ async function invoke() {
                 )}`
             )
         );
-        multiWorker.on('success', (workerId, queue, job, result) =>
-            logger.info(`queueWorker->worker[${workerId}] ${job} success ${queue} ${JSON.stringify(job)} >> ${result}`)
+        multiWorker.on('success', (workerId, queue, job, result, duration) =>
+            logger.info(`queueWorker->worker[${workerId}] ${job} success ${queue} ${JSON.stringify(job)} >> ${result} (${duration}ms)`)
         );
-        multiWorker.on('failure', (workerId, queue, job, failure) =>
+        multiWorker.on('failure', (workerId, queue, job, failure, duration) =>
             helper
                 .updateBuildStatus({
                     redisInstance: redis,
@@ -97,14 +97,14 @@ async function invoke() {
                     logger.info(
                         `queueWorker->worker[${workerId}] ${JSON.stringify(job)} ` +
                             `failure ${queue} ` +
-                            `${JSON.stringify(job)} >> successfully update build status: ${failure}`
+                            `${JSON.stringify(job)} >> successfully update build status: ${failure} (${duration}ms)`
                     );
                 })
                 .catch(err => {
                     logger.error(
                         `queueWorker->worker[${workerId}] ${job} failure ` +
                             `${queue} ${JSON.stringify(job)} ` +
-                            `>> ${failure} ${err}`
+                            `>> ${failure} (${duration}ms) ${err}`
                     );
                 })
         );
@@ -114,7 +114,6 @@ async function invoke() {
         multiWorker.on('pause', workerId => logger.info(`queueWorker->worker[${workerId}] paused`));
 
         // multiWorker emitters
-        multiWorker.on('internalError', error => logger.error(error));
         multiWorker.on('multiWorkerAction', (verb, delay) =>
             logger.info(`queueWorker->*** checked for worker status: ${verb} (event loop delay: ${delay}ms)`)
         );
@@ -122,7 +121,7 @@ async function invoke() {
         scheduler.on('start', () => logger.info('queueWorker->scheduler started'));
         scheduler.on('end', () => logger.info('queueWorker->scheduler ended'));
         scheduler.on('poll', () => logger.info('queueWorker->scheduler polling'));
-        scheduler.on('master', state => logger.info(`queueWorker->scheduler became master ${state}`));
+        scheduler.on('leader', state => logger.info(`queueWorker->scheduler became leader ${state}`));
         scheduler.on('error', error => logger.info(`queueWorker->scheduler error >> ${error}`));
         scheduler.on('workingTimestamp', timestamp =>
             logger.info(`queueWorker->scheduler working timestamp ${timestamp}`)

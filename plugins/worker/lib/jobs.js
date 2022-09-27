@@ -6,6 +6,7 @@ const hoek = require('@hapi/hoek');
 const ExecutorRouter = require('screwdriver-executor-router');
 const logger = require('screwdriver-logger');
 const AWSProducer = require('screwdriver-aws-producer-service');
+const { Plugins } = require('node-resque');
 const helper = require('../../helper');
 const { BlockedBy } = require('./BlockedBy');
 const { Filter } = require('./Filter');
@@ -346,7 +347,7 @@ async function sendWebhook(configs) {
 
 module.exports = {
     start: {
-        plugins: [Filter, 'Retry', BlockedBy],
+        plugins: [Filter, Plugins.Retry, BlockedBy],
         pluginOptions: {
             Retry: retryOptions,
             BlockedBy: blockedByOptions
@@ -354,21 +355,21 @@ module.exports = {
         perform: start
     },
     stop: {
-        plugins: [Filter, 'Retry'], // stop shouldn't use blockedBy
+        plugins: [Filter, Plugins.Retry], // stop shouldn't use blockedBy
         pluginOptions: {
             Retry: retryOptions
         },
         perform: stop
     },
     clear: {
-        plugins: [CacheFilter, 'Retry'],
+        plugins: [CacheFilter, Plugins.Retry],
         pluginOptions: {
             Retry: retryOptions
         },
         perform: clear
     },
     sendWebhook: {
-        plugins: ['Retry'],
+        plugins: [Plugins.Retry],
         pluginOptions: {
             Retry: retryOptions
         },
