@@ -101,4 +101,15 @@ describe('redis config', () => {
             assert.exists(err, "'redis' or 'redisCluster' can be set for queue.connectionType");
         }
     });
+
+    it('throws exception if connectionType is not specified', async () => {
+        configMock.get.returns(hoek.applyToDefaults(queueConfig, { connectionType: '' }));
+
+        try {
+            /* eslint-disable global-require */
+            require('../../config/redis');
+        } catch (err) {
+            assert.exists(err, "'redis' or 'redisCluster' can be set for queue.connectionType");
+        }
+    });
 });

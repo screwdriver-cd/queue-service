@@ -5,7 +5,7 @@ const config = require('config');
 const queueConfig = config.get('queue');
 const connectionType = queueConfig.connectionType;
 
-if (!connectionType || (connectionType !== 'redis' || connectionType !== 'redisCluster')) {
+if (!connectionType || (connectionType !== 'redis' && connectionType !== 'redisCluster')) {
     throw new Error(
         `connectionType '${connectionType}' is not supported, use 'redis' or 'redisCluster' for the queue.connectionType setting`
     );
