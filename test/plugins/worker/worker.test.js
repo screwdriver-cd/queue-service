@@ -13,6 +13,7 @@ describe('Schedule test', () => {
     const pid = '111';
     const plugin = {};
     const result = 'result';
+    const duration = 10;
     const error = 'error';
     const verb = '+';
     const delay = '3ms';
@@ -25,18 +26,6 @@ describe('Schedule test', () => {
         maxTaskProcessors: 234,
         checkTimeout: 345,
         maxEventLoopDelay: 456
-    };
-    const queueConfig = {
-        redisConnection: {
-            host: '127.0.0.1',
-            port: 1234,
-            options: {
-                password: 'test123',
-                tls: false
-            },
-            database: 0
-        },
-        prefix: 'mockQueuePrefix_'
     };
 
     let mockJobs;
@@ -101,14 +90,15 @@ describe('Schedule test', () => {
         process.exit = processExitMock;
         redisConfigMock = {
             connectionDetails: {
-                host: '127.0.0.1',
-                options: {
+                redisOptions: {
+                    host: '127.0.0.1',
                     password: 'test123',
-                    tls: false
-                },
-                port: 1234,
-                database: 0
+                    tls: false,
+                    port: 1234,
+                    database: 0
+                }
             },
+            queueNamespace: 'testresque',
             queuePrefix: 'mockQueuePrefix_'
         };
         mockRedisObj = {
@@ -230,10 +220,12 @@ describe('Schedule test', () => {
                     `(${JSON.stringify(plugin)}) ${queue} ${JSON.stringify(job)}`
             );
 
-            testWorker.emit('success', workerId, queue, job, result);
+            testWorker.emit('success', workerId, queue, job, result, duration);
             assert.calledWith(
                 winstonMock.info,
-                `queueWorker->worker[${workerId}] ${job} success ${queue} ${JSON.stringify(job)} >> ${result}`
+                `queueWorker->worker[${workerId}] ${job} success ${queue} ${JSON.stringify(
+                    job
+                )} >> ${result} (${duration}ms)`
             );
 
             testWorker.emit('error', workerId, queue, job, error);
@@ -244,9 +236,6 @@ describe('Schedule test', () => {
 
             testWorker.emit('pause', workerId);
             assert.calledWith(winstonMock.info, `queueWorker->worker[${workerId}] paused`);
-
-            testWorker.emit('internalError', error);
-            assert.calledWith(winstonMock.error, error);
 
             testWorker.emit('multiWorkerAction', verb, delay);
             assert.calledWith(
@@ -273,10 +262,10 @@ describe('Schedule test', () => {
             let errMsg =
                 `queueWorker->worker[${workerId}] ` +
                 `${JSON.stringify(job)} failure ${queue} ` +
-                `${JSON.stringify(job)} >> successfully update build status: ${failure}`;
+                `${JSON.stringify(job)} >> successfully update build status: ${failure} (${duration}ms)`;
 
             helperMock.updateBuildStatus.resolves();
-            testWorker.emit('failure', workerId, queue, job, failure);
+            testWorker.emit('failure', workerId, queue, job, failure, duration);
             await sleep(100);
             assert.calledWith(helperMock.updateBuildStatus, updateConfig);
             assert.calledWith(winstonMock.info, errMsg);
@@ -286,18 +275,17 @@ describe('Schedule test', () => {
 
             errMsg =
                 `queueWorker->worker[${workerId}] ${job} failure ${queue} ` +
-                `${JSON.stringify(job)} >> ${failure} ` +
+                `${JSON.stringify(job)} >> ${failure} (${duration}ms) ` +
                 `${updateStatusError}`;
 
             helperMock.updateBuildStatus.rejects();
-            testWorker.emit('failure', workerId, queue, job, failure);
+            testWorker.emit('failure', workerId, queue, job, failure, duration);
             await sleep(100);
             assert.calledWith(helperMock.updateBuildStatus, updateConfig);
             assert.calledWith(winstonMock.error, errMsg);
         });
 
         it('logs the correct message for scheduler', () => {
-            const state = 'mock state';
             const timestamp = 'mock timestamp';
             const workerName = 'mock workerName';
             const delta = 'mock delta';
@@ -312,8 +300,8 @@ describe('Schedule test', () => {
             testScheduler.emit('poll');
             assert.calledWith(winstonMock.info, 'queueWorker->scheduler polling');
 
-            testScheduler.emit('master', state);
-            assert.calledWith(winstonMock.info, `queueWorker->scheduler became master ${state}`);
+            testScheduler.emit('leader');
+            assert.calledWith(winstonMock.info, `queueWorker->scheduler became leader`);
 
             testScheduler.emit('error', error);
             assert.calledWith(winstonMock.info, `queueWorker->scheduler error >> ${error}`);
@@ -370,7 +358,7 @@ describe('Schedule test', () => {
     describe('scheduler', () => {
         it('is constructed correctly', () => {
             const expectedConfig = {
-                connection: queueConfig.redisConnection
+                connection: { redis: mockRedisObj, namespace: 'testresque' }
             };
 
             assert.calledWith(Scheduler, sinon.match(expectedConfig));

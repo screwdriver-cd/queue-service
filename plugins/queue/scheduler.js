@@ -4,10 +4,11 @@ const logger = require('screwdriver-logger');
 const configSchema = require('screwdriver-data-schema').config;
 const TOKEN_CONFIG_SCHEMA = configSchema.tokenConfig;
 const { merge, reach } = require('@hapi/hoek');
-const Resque = require('node-resque');
+const { MultiWorker, Scheduler, Plugins } = require('node-resque');
 const cron = require('./utils/cron');
 const helper = require('../helper');
 const { timeOutOfWindows } = require('./utils/freezeWindows');
+const { queueNamespace } = require('../../config/redis');
 const DEFAULT_BUILD_TIMEOUT = 90;
 const RETRY_LIMIT = 3;
 const RETRY_DELAY = 5;
@@ -455,9 +456,9 @@ async function start(executor, config) {
 async function init(executor) {
     if (executor.multiWorker) return 'Scheduler running';
 
-    const { redisConnection } = executor;
+    const resqueConnection = { redis: executor.redis, namespace: queueNamespace };
     const retryOptions = {
-        plugins: ['Retry'],
+        plugins: [Plugins.Retry],
         pluginOptions: {
             Retry: {
                 retryLimit: RETRY_LIMIT,
@@ -512,9 +513,9 @@ async function init(executor) {
         }
     };
 
-    executor.multiWorker = new Resque.MultiWorker(
+    executor.multiWorker = new MultiWorker(
         {
-            connection: redisConnection,
+            connection: resqueConnection,
             queues: [executor.periodicBuildQueue, executor.frozenBuildQueue],
             minTaskProcessors: 1,
             maxTaskProcessors: 10,
@@ -525,7 +526,7 @@ async function init(executor) {
         jobs
     );
 
-    executor.scheduler = new Resque.Scheduler({ connection: redisConnection });
+    executor.scheduler = new Scheduler({ connection: resqueConnection });
 
     executor.multiWorker.on('start', workerId => logger.info(`worker[${workerId}] started`));
     executor.multiWorker.on('end', workerId => logger.info(`worker[${workerId}] ended`));
@@ -538,22 +539,19 @@ async function init(executor) {
     executor.multiWorker.on('reEnqueue', (workerId, queue, job, plugin) =>
         logger.info(`worker[${workerId}] reEnqueue job (${plugin}) ${queue} ${JSON.stringify(job)}`)
     );
-    executor.multiWorker.on('success', (workerId, queue, job, result) =>
-        logger.info(`worker[${workerId}] job success ${queue} ${JSON.stringify(job)} >> ${result}`)
+    executor.multiWorker.on('success', (workerId, queue, job, result, duration) =>
+        logger.info(`worker[${workerId}] job success ${queue} ${JSON.stringify(job)} >> ${result} (${duration}ms)`)
     );
-    executor.multiWorker.on('failure', (workerId, queue, job, failure) =>
-        logger.info(`worker[${workerId}] job failure ${queue} ${JSON.stringify(job)} >> ${failure}`)
+    executor.multiWorker.on('failure', (workerId, queue, job, failure, duration) =>
+        logger.info(`worker[${workerId}] job failure ${queue} ${JSON.stringify(job)} >> ${failure} (${duration}ms)`)
     );
     executor.multiWorker.on('error', (workerId, queue, job, error) =>
         logger.error(`worker[${workerId}] error ${queue} ${JSON.stringify(job)} >> ${error}`)
     );
 
-    // multiWorker emitters
-    executor.multiWorker.on('internalError', error => logger.error(error));
-
     executor.scheduler.on('start', () => logger.info('scheduler started'));
     executor.scheduler.on('end', () => logger.info('scheduler ended'));
-    executor.scheduler.on('master', state => logger.info(`scheduler became master ${state}`));
+    executor.scheduler.on('leader', () => logger.info(`scheduler became leader`));
     executor.scheduler.on('error', error => logger.info(`scheduler error >> ${error}`));
     executor.scheduler.on('workingTimestamp', timestamp => logger.info(`scheduler working timestamp ${timestamp}`));
     executor.scheduler.on('cleanStuckWorker', (workerName, errorPayload, delta) =>

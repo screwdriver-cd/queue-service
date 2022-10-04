@@ -4,12 +4,17 @@ const Redis = require('ioredis');
 const logger = require('screwdriver-logger');
 const { connectionDetails } = require('../config/redis');
 
-const redis = new Redis({
-    port: connectionDetails.port,
-    host: connectionDetails.host,
-    password: connectionDetails.options.password,
-    tls: connectionDetails.options.tls
-});
+let redis;
+
+if (connectionDetails.redisClusterHosts) {
+    redis = new Redis.Cluster(connectionDetails.redisClusterHosts, {
+        redisOptions: connectionDetails.redisOptions,
+        slotsRefreshTimeout: connectionDetails.slotsRefreshTimeout,
+        clusterRetryStrategy: () => 100
+    });
+} else {
+    redis = new Redis(connectionDetails.redisOptions);
+}
 
 redis.on('connecting', () => {
     logger.info('Connecting to Redis.');
