@@ -248,6 +248,50 @@ async function updateBuild(updateConfig, retryStrategyFn) {
 }
 
 /**
+ * Get job config
+ * @param {Object} config
+ * @param {Number} config.jobId
+ * @param {String} config.token
+ * @param {String} config.apiUri
+ * @param {Object} retryStrategyFn
+ */
+async function getJobConfig(config, retryStrategyFn) {
+    const { jobId, token, apiUri } = config;
+
+    return request(formatOptions('GET', `${apiUri}/v4/jobs/${jobId}`, token, undefined, retryStrategyFn)).then(res => {
+        logger.info(`GET /v4/jobs/${jobId} completed with attempts, ${res.statusCode}, ${res.attempts}`);
+        if (res.statusCode === 200) {
+            return res.body;
+        }
+
+        throw new Error(`Failed to get job config with ${res.statusCode} code and ${JSON.stringify(res.body)}`);
+    });
+}
+
+/**
+ * Get pipeline config
+ * @param {Object} config
+ * @param {Number} config.pipelineId
+ * @param {String} config.token
+ * @param {String} config.apiUri
+ * @param {Object} retryStrategyFn
+ */
+async function getPipelineConfig(config, retryStrategyFn) {
+    const { pipelineId, token, apiUri } = config;
+
+    return request(
+        formatOptions('GET', `${apiUri}/v4/pipelines/${pipelineId}`, token, undefined, retryStrategyFn)
+    ).then(res => {
+        logger.info(`GET /v4/pipelines/${pipelineId} completed with attempts, ${res.statusCode}, ${res.attempts}`);
+        if (res.statusCode === 200) {
+            return res.body;
+        }
+
+        throw new Error(`Failed to get pipeline config with ${res.statusCode} code and ${JSON.stringify(res.body)}`);
+    });
+}
+
+/**
  * Notify user with job status
  * @param {Number} jobId
  * @param {String} token
@@ -328,6 +372,8 @@ module.exports = {
     getCurrentStep,
     createBuildEvent,
     getPipelineAdmin,
+    getJobConfig,
+    getPipelineConfig,
     updateBuild,
     notifyJob,
     processHooks

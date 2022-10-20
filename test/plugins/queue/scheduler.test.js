@@ -244,12 +244,6 @@ describe('scheduler test', () => {
         it('enqueues a new delayed job in the queue', () =>
             scheduler.startPeriodic(executor, testDelayedConfig).then(() => {
                 assert.calledOnce(queueMock.connect);
-                assert.calledWith(
-                    redisMock.hset,
-                    'periodicBuildConfigs',
-                    testJob.id,
-                    JSON.stringify(testDelayedConfig)
-                );
                 assert.calledWith(cronMock.transform, '* * * * *', testJob.id);
                 assert.calledWith(cronMock.next, 'H H H H H');
                 assert.calledWith(queueMock.enqueueAt, 1500000, 'periodicBuilds', 'startDelayed', [
@@ -275,12 +269,6 @@ describe('scheduler test', () => {
 
             return scheduler.startPeriodic(executor, testDelayedConfig).then(() => {
                 assert.calledTwice(queueMock.connect);
-                assert.calledWith(
-                    redisMock.hset,
-                    'periodicBuildConfigs',
-                    testJob.id,
-                    JSON.stringify(testDelayedConfig)
-                );
                 assert.calledWith(queueMock.enqueueAt, 1500000, 'periodicBuilds', 'startDelayed', [
                     {
                         jobId: testJob.id
@@ -291,7 +279,6 @@ describe('scheduler test', () => {
                         jobId: testJob.id
                     }
                 ]);
-                assert.calledWith(redisMock.hdel, 'periodicBuildConfigs', testJob.id);
             });
         });
 
@@ -309,7 +296,6 @@ describe('scheduler test', () => {
                         jobId: testJob.id
                     }
                 ]);
-                assert.calledWith(redisMock.hdel, 'periodicBuildConfigs', testJob.id);
             });
         });
 
@@ -327,7 +313,6 @@ describe('scheduler test', () => {
                         jobId: testJob.id
                     }
                 ]);
-                assert.calledWith(redisMock.hdel, 'periodicBuildConfigs', testJob.id);
             });
         });
 
@@ -358,7 +343,6 @@ describe('scheduler test', () => {
                         jobId: testJob.id
                     }
                 ]);
-                assert.calledWith(redisMock.hdel, 'periodicBuildConfigs', testJob.id);
                 assert.calledOnce(executor.tokenGen);
                 assert.calledOnce(helperMock.getPipelineAdmin);
                 assert.calledOnce(executor.userTokenGen);
@@ -390,12 +374,6 @@ describe('scheduler test', () => {
                 assert.calledOnce(helperMock.getPipelineAdmin);
                 assert.calledWith(helperMock.createBuildEvent, ...options);
                 assert.calledOnce(queueMock.connect);
-                assert.calledWith(
-                    redisMock.hset,
-                    'periodicBuildConfigs',
-                    testJob.id,
-                    JSON.stringify(testDelayedConfig)
-                );
                 assert.calledWith(cronMock.transform, '* * * * *', testJob.id);
                 assert.calledWith(cronMock.next, 'H H H H H');
                 assert.calledWith(queueMock.enqueueAt, 1500000, 'periodicBuilds', 'startDelayed', [
