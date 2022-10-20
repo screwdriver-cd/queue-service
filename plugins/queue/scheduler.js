@@ -22,11 +22,11 @@ const BLOCKED_BY_SAME_JOB_WAIT_TIME = 5;
 /**
  * Posts a new build event to the API
  * @method postBuildEvent
- * @param {Object} config           Configuration
- * @param {Number} [config.eventId] Optional Parent event ID (optional)
- * @param {Object} config.pipeline  Pipeline of the job
- * @param {Object} config.job       Job object to create periodic builds for
- * @param {String} config.apiUri    Base URL of the Screwdriver API
+ * @param {Object} eventConfig           Configuration
+ * @param {Number} [eventConfig.eventId] Optional Parent event ID (optional)
+ * @param {Object} eventConfig.pipeline  Pipeline of the job
+ * @param {Object} eventConfig.job       Job object to create periodic builds for
+ * @param {String} eventConfig.apiUri    Base URL of the Screwdriver API
  * @return {Promise}
  */
 async function postBuildEvent(executor, eventConfig) {

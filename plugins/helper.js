@@ -169,7 +169,7 @@ async function getCurrentStep(stepConfig) {
             return null;
         }
 
-        logger.error(`PUT /v4/builds/${buildId}/steps?status=active returned non 200, ${res.statusCode}, ${res.body}`);
+        logger.error(`GET /v4/builds/${buildId}/steps?status=active returned non 200, ${res.statusCode}, ${res.body}`);
 
         throw new Error(`Failed to getCurrentStep with ${res.statusCode} code and ${res.body}`);
     });
@@ -214,7 +214,7 @@ async function getPipelineAdmin(token, apiUri, pipelineId, retryStrategyFn) {
         formatOptions('GET', `${apiUri}/v4/pipelines/${pipelineId}/admin`, token, undefined, retryStrategyFn)
     ).then(res => {
         logger.info(
-            `POST /v4/pipelines/${pipelineId}/admin completed with attempts, ${res.statusCode}, ${res.attempts}`
+            `GET /v4/pipelines/${pipelineId}/admin completed with attempts, ${res.statusCode}, ${res.attempts}`
         );
         if (res.statusCode === 200) {
             return res.body;
