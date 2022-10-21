@@ -386,10 +386,7 @@ describe('scheduler test', () => {
                         jobId: testJob.id
                     }
                 ]);
-                assert.calledOnce(executor.tokenGen);
-                assert.calledOnce(helperMock.getPipelineAdmin);
-                assert.calledOnce(executor.userTokenGen);
-                assert.calledWith(helperMock.createBuildEvent, ...options);
+                assert.notCalled(helperMock.createBuildEvent);
             });
         });
 

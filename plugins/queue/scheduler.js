@@ -221,7 +221,7 @@ async function startPeriodic(executor, config) {
     }
     logger.info(`added to delayed queue for job ${job.id}`);
 
-    if (triggerBuild) {
+    if (triggerBuild && !job.archived) {
         try {
             await postBuildEvent(executor, config);
         } catch (err) {
