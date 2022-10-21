@@ -525,6 +525,190 @@ describe('Helper Test', () => {
         );
     });
 
+    it('Gets the job config correctly', async () => {
+        mockRequest.resolves({
+            statusCode: 200,
+            body: { id: 123 }
+        });
+        const retryFn = sinon.stub();
+        const jobId = 123;
+        let result;
+
+        try {
+            result = await helper.getJobConfig({ jobId, token: 'fake', apiUri: 'foo.bar' }, retryFn);
+        } catch (err) {
+            assert.isNull(err);
+        }
+
+        assert.calledWith(
+            mockRequest,
+            sinon.match({
+                method: 'GET',
+                url: `foo.bar/v4/jobs/${jobId}`,
+                headers: {
+                    Authorization: 'Bearer fake'
+                },
+                retry: {
+                    limit: 3
+                },
+                hooks: { afterResponse: [retryFn] }
+            })
+        );
+        assert.equal(result.id, '123');
+    });
+
+    it('throws when cannot get job config correctly', async () => {
+        mockRequest.resolves({
+            statusCode: 403,
+            body: { id: 123 }
+        });
+        const retryFn = sinon.stub();
+        const jobId = 123;
+
+        try {
+            await helper.getJobConfig({ jobId, token: 'fake', apiUri: 'foo.bar' }, retryFn);
+        } catch (err) {
+            assert.strictEqual(err.message, 'Failed to get job config with 403 code and {"id":123}');
+        }
+
+        assert.calledWith(
+            mockRequest,
+            sinon.match({
+                method: 'GET',
+                url: `foo.bar/v4/jobs/${jobId}`,
+                headers: {
+                    Authorization: 'Bearer fake'
+                },
+                retry: {
+                    limit: 3
+                },
+                hooks: { afterResponse: [retryFn] }
+            })
+        );
+    });
+
+    it('throws when get error fetching job config', async () => {
+        const requestErr = new Error('invalid');
+
+        mockRequest.rejects(requestErr);
+
+        const retryFn = sinon.stub();
+        const jobId = 123;
+
+        try {
+            await helper.getJobConfig({ jobId, token: 'fake', apiUri: 'foo.bar' }, retryFn);
+        } catch (err) {
+            assert.strictEqual(err.message, requestErr.message);
+        }
+
+        assert.calledWith(
+            mockRequest,
+            sinon.match({
+                method: 'GET',
+                url: `foo.bar/v4/jobs/${jobId}`,
+                headers: {
+                    Authorization: 'Bearer fake'
+                },
+                retry: {
+                    limit: 3
+                },
+                hooks: { afterResponse: [retryFn] }
+            })
+        );
+    });
+
+    it('Gets the pipeline config correctly', async () => {
+        mockRequest.resolves({
+            statusCode: 200,
+            body: { id: 123 }
+        });
+        const retryFn = sinon.stub();
+        const pipelineId = 123;
+        let result;
+
+        try {
+            result = await helper.getPipelineConfig({ pipelineId, token: 'fake', apiUri: 'foo.bar' }, retryFn);
+        } catch (err) {
+            assert.isNull(err);
+        }
+
+        assert.calledWith(
+            mockRequest,
+            sinon.match({
+                method: 'GET',
+                url: `foo.bar/v4/pipelines/${pipelineId}`,
+                headers: {
+                    Authorization: 'Bearer fake'
+                },
+                retry: {
+                    limit: 3
+                },
+                hooks: { afterResponse: [retryFn] }
+            })
+        );
+        assert.equal(result.id, '123');
+    });
+
+    it('throws when cannot get pipeline config correctly', async () => {
+        mockRequest.resolves({
+            statusCode: 403,
+            body: { id: 123 }
+        });
+        const retryFn = sinon.stub();
+        const pipelineId = 123;
+
+        try {
+            await helper.getPipelineConfig({ pipelineId, token: 'fake', apiUri: 'foo.bar' }, retryFn);
+        } catch (err) {
+            assert.strictEqual(err.message, 'Failed to get pipeline config with 403 code and {"id":123}');
+        }
+
+        assert.calledWith(
+            mockRequest,
+            sinon.match({
+                method: 'GET',
+                url: `foo.bar/v4/pipelines/${pipelineId}`,
+                headers: {
+                    Authorization: 'Bearer fake'
+                },
+                retry: {
+                    limit: 3
+                },
+                hooks: { afterResponse: [retryFn] }
+            })
+        );
+    });
+
+    it('throws when get error fetching pipeline config', async () => {
+        const requestErr = new Error('invalid');
+
+        mockRequest.rejects(requestErr);
+
+        const retryFn = sinon.stub();
+        const pipelineId = 123;
+
+        try {
+            await helper.getPipelineConfig({ pipelineId, token: 'fake', apiUri: 'foo.bar' }, retryFn);
+        } catch (err) {
+            assert.strictEqual(err.message, requestErr.message);
+        }
+
+        assert.calledWith(
+            mockRequest,
+            sinon.match({
+                method: 'GET',
+                url: `foo.bar/v4/pipelines/${pipelineId}`,
+                headers: {
+                    Authorization: 'Bearer fake'
+                },
+                retry: {
+                    limit: 3
+                },
+                hooks: { afterResponse: [retryFn] }
+            })
+        );
+    });
+
     it('Post a webhooks process with retry', async () => {
         mockRequest.resolves({ statusCode: 200 });
 

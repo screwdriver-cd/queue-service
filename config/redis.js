@@ -3,7 +3,7 @@
 const config = require('config');
 
 const queueConfig = config.get('queue');
-const connectionType = queueConfig.connectionType;
+const { connectionType } = queueConfig;
 
 if (!connectionType || (connectionType !== 'redis' && connectionType !== 'redisCluster')) {
     throw new Error(
