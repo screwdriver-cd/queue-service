@@ -78,9 +78,11 @@ describe('scheduler test', () => {
             job: testJob,
             apiUri: 'http://localhost'
         };
-        multiWorker = function() {
+        multiWorker = function(config, jobs) {
             this.start = () => {};
             this.end = sinon.stub().resolves();
+            this.config = config;
+            this.jobs = jobs;
         };
         scheduler = function() {
             this.start = sinon.stub().resolves();
@@ -131,6 +133,8 @@ describe('scheduler test', () => {
 
         helperMock = {
             getPipelineAdmin: sinon.stub().resolves(testAdmin),
+            getJobConfig: sinon.stub().resolves(testJob),
+            getPipelineConfig: sinon.stub().resolves(testPipeline),
             createBuildEvent: sinon.stub().resolves(),
             updateBuild: sinon.stub().resolves(),
             requestRetryStrategy: sinon.stub(),
@@ -181,6 +185,45 @@ describe('scheduler test', () => {
 
     after(() => {
         mockery.disable();
+    });
+
+    describe('multi worker jobs', () => {
+        let startDelayed;
+
+        beforeEach(() => {
+            ({ startDelayed } = executor.multiWorker.jobs);
+        });
+
+        describe('startDelayed', () => {
+            it('start periodic build correctly', async () => {
+                await startDelayed.perform({ jobId: 123 });
+
+                assert.calledOnce(queueMock.connect);
+                assert.calledWith(queueMock.enqueueAt, 1500000, 'periodicBuilds', 'startDelayed', [{ jobId: 1234 }]);
+            });
+
+            it('throw if it cannot get a job', async () => {
+                helperMock.getJobConfig = sinon.stub().rejects(new Error('Cannot get job'));
+
+                try {
+                    await startDelayed.perform({ jobId: 123 });
+                    assert.fail('Should not get here');
+                } catch (err) {
+                    assert.calledWith(winstonMock.error, 'err in startDelayed job: Error: Cannot get job');
+                }
+            });
+
+            it('throw if it cannot get a pipeline', async () => {
+                helperMock.getPipelineConfig = sinon.stub().rejects(new Error('Cannot get pipeline'));
+
+                try {
+                    await startDelayed.perform({ jobId: 123 });
+                    assert.fail('Should not get here');
+                } catch (err) {
+                    assert.calledWith(winstonMock.error, 'err in startDelayed job: Error: Cannot get pipeline');
+                }
+            });
+        });
     });
 
     describe('event handler', () => {
