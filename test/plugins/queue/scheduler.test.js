@@ -365,18 +365,6 @@ describe('scheduler test', () => {
             testDelayedConfig.job.archived = true;
             testDelayedConfig.triggerBuild = true;
 
-            const options = [
-                'http://localhost',
-                'admintoken',
-                {
-                    causeMessage: 'Started by periodic build scheduler',
-                    creator: { name: 'Screwdriver scheduler', username: 'sd:scheduler' },
-                    pipelineId: testDelayedConfig.pipeline.id,
-                    startFrom: testDelayedConfig.job.name
-                },
-                helperMock.requestRetryStrategyPostEvent
-            ];
-
             return scheduler.startPeriodic(executor, testDelayedConfig).then(() => {
                 assert.calledOnce(queueMock.connect);
                 assert.notCalled(redisMock.hset);
