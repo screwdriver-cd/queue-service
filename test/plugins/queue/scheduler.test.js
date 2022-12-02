@@ -1,5 +1,6 @@
 'use strict';
 
+/* eslint-disable max-lines-per-function */
 /* eslint-disable no-underscore-dangle */
 
 const chai = require('chai');
@@ -8,6 +9,7 @@ const { assert } = chai;
 const mockery = require('mockery');
 const sinon = require('sinon');
 const { EventEmitter } = require('events');
+const defaultConfig = require('config');
 const testConnection = require('../../data/testConnection.json');
 const testConfig = require('../../data/fullConfig.json');
 const testPipeline = require('../../data/testPipeline.json');
@@ -62,6 +64,7 @@ describe('scheduler test', () => {
     let tokenGen;
     let testDelayedConfig;
     let winstonMock;
+    let configMock;
 
     before(() => {
         mockery.enable({
@@ -151,6 +154,9 @@ describe('scheduler test', () => {
             info: sinon.stub(),
             error: sinon.stub()
         };
+        configMock = {
+            get: sinon.stub().resolves(defaultConfig)
+        };
 
         mockery.registerMock('node-resque', resqueMock);
         mockery.registerMock('ioredis', redisConstructorMock);
@@ -158,6 +164,12 @@ describe('scheduler test', () => {
         mockery.registerMock('./utils/freezeWindows', freezeWindowsMock);
         mockery.registerMock('../helper', helperMock);
         mockery.registerMock('screwdriver-logger', winstonMock);
+        mockery.registerMock('config', configMock);
+
+        configMock.get.withArgs('queue').returns({
+            ...defaultConfig.queue,
+            periodicBuildTableEnabled: false
+        });
 
         /* eslint-disable global-require */
         scheduler = require('../../../plugins/queue/scheduler');
@@ -263,7 +275,7 @@ describe('scheduler test', () => {
 
     describe('startPeriodic', () => {
         beforeEach(() => {});
-        it("rejects if it can't establish a connection", function() {
+        it("rejects if it can't establish a connection", () => {
             queueMock.connect.rejects(new Error("couldn't connect"));
 
             return scheduler.startPeriodic(executor, testDelayedConfig).then(
@@ -294,7 +306,52 @@ describe('scheduler test', () => {
                         jobId: testJob.id
                     }
                 ]);
+                assert.notCalled(redisMock.hset);
             }));
+
+        it('enqueues a new delayed job in the queue using periodic build table', () => {
+            mockery.resetCache();
+            mockery.deregisterMock('config');
+            mockery.registerMock('config', configMock);
+
+            configMock.get.withArgs('queue').returns({
+                ...defaultConfig.queue
+            });
+
+            /* eslint-disable global-require */
+            scheduler = require('../../../plugins/queue/scheduler');
+            Executor = require('../../../lib/queue');
+            /* eslint-enable global-require */
+
+            executor = new Executor({
+                redisConnection: testConnection,
+                breaker: {
+                    retry: {
+                        retries: 1
+                    }
+                }
+            });
+
+            executor.tokenGen = tokenGen;
+            executor.userTokenGen = userTokenGen;
+
+            return scheduler.startPeriodic(executor, testDelayedConfig).then(() => {
+                assert.calledOnce(queueMock.connect);
+                assert.calledWith(
+                    redisMock.hset,
+                    'periodicBuildConfigs',
+                    testJob.id,
+                    JSON.stringify(testDelayedConfig)
+                );
+                assert.calledWith(cronMock.transform, '* * * * *', testJob.id);
+                assert.calledWith(cronMock.next, 'H H H H H');
+                assert.calledWith(queueMock.enqueueAt, 1500000, 'periodicBuilds', 'startDelayed', [
+                    {
+                        jobId: testJob.id
+                    }
+                ]);
+            });
+        });
 
         it('do not enqueue the same delayed job in the queue', () => {
             const err = new Error('Job already enqueued at this time with same arguments');
@@ -322,6 +379,57 @@ describe('scheduler test', () => {
                         jobId: testJob.id
                     }
                 ]);
+                assert.notCalled(redisMock.hdel);
+            });
+        });
+
+        it('stops and reEnqueues an existing job if isUpdate flag is passed and periodic build table is enabled', () => {
+            mockery.resetCache();
+            mockery.deregisterMock('config');
+            mockery.registerMock('config', configMock);
+
+            configMock.get.withArgs('queue').returns({
+                ...defaultConfig.queue
+            });
+
+            /* eslint-disable global-require */
+            scheduler = require('../../../plugins/queue/scheduler');
+            Executor = require('../../../lib/queue');
+            /* eslint-enable global-require */
+
+            executor = new Executor({
+                redisConnection: testConnection,
+                breaker: {
+                    retry: {
+                        retries: 1
+                    }
+                }
+            });
+
+            executor.tokenGen = tokenGen;
+            executor.userTokenGen = userTokenGen;
+
+            testDelayedConfig.isUpdate = true;
+
+            return scheduler.startPeriodic(executor, testDelayedConfig).then(() => {
+                assert.calledTwice(queueMock.connect);
+                assert.calledWith(
+                    redisMock.hset,
+                    'periodicBuildConfigs',
+                    testJob.id,
+                    JSON.stringify(testDelayedConfig)
+                );
+                assert.calledWith(queueMock.enqueueAt, 1500000, 'periodicBuilds', 'startDelayed', [
+                    {
+                        jobId: testJob.id
+                    }
+                ]);
+                assert.calledWith(queueMock.delDelayed, 'periodicBuilds', 'startDelayed', [
+                    {
+                        jobId: testJob.id
+                    }
+                ]);
+                assert.calledWith(redisMock.hdel, 'periodicBuildConfigs', testJob.id);
             });
         });
 
@@ -737,7 +845,7 @@ describe('scheduler test', () => {
     });
 
     describe('stop', () => {
-        it("rejects if it can't establish a connection", function() {
+        it("rejects if it can't establish a connection", () => {
             queueMock.connect.rejects(new Error("couldn't connect"));
 
             return scheduler.stop(executor, partialTestConfig).then(
@@ -992,7 +1100,7 @@ describe('scheduler test', () => {
             cacheConfig = { id: 123, scope: 'pipelines', buildClusters: [] };
             cacheConfigMsg = Object.assign(cacheConfig, { prefix: '', resource: 'caches', action: 'delete' });
         });
-        it("rejects if it can't establish a connection", function() {
+        it("rejects if it can't establish a connection", () => {
             queueMock.connect.rejects(new Error("couldn't connect"));
 
             return scheduler.clearCache(executor, { id: 123, scope: 'pipelines' }).then(
@@ -1032,7 +1140,7 @@ describe('scheduler test', () => {
             unzipConfigMsg = { buildId: 123, token: 'unzipToken' };
         });
 
-        it("rejects if it can't establish a connection", function() {
+        it("rejects if it can't establish a connection", () => {
             queueMock.connect.rejects(new Error("couldn't connect"));
 
             return scheduler.unzipArtifacts(executor, unzipConfig).then(
@@ -1087,7 +1195,7 @@ describe('scheduler test', () => {
             webhookConfig = { hookId: '72d3162e-cc78-11e3-81ab-4c9367dc0958' };
         });
 
-        it("rejects if it can't establish a connection", function() {
+        it("rejects if it can't establish a connection", () => {
             queueMock.connect.rejects(new Error("couldn't connect"));
 
             return scheduler.queueWebhook(executor, webhookConfig).then(
