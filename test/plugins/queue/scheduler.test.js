@@ -14,6 +14,7 @@ const testConnection = require('../../data/testConnection.json');
 const testConfig = require('../../data/fullConfig.json');
 const testPipeline = require('../../data/testPipeline.json');
 const testJob = require('../../data/testJob.json');
+const helper = require('../../../plugins/helper');
 const { buildId, jobId, blockedBy } = testConfig;
 const blockedBySameJob = true;
 const blockedBySameJobWaitTime = 5;
@@ -142,7 +143,8 @@ describe('scheduler test', () => {
             updateBuild: sinon.stub().resolves(),
             requestRetryStrategy: sinon.stub(),
             requestRetryStrategyPostEvent: sinon.stub(),
-            notifyJob: sinon.stub().resolves()
+            notifyJob: sinon.stub().resolves(),
+            convertToBool: helper.convertToBool
         };
         buildMock = {
             eventId: 4566,
