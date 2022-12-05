@@ -120,7 +120,7 @@ async function stopPeriodic(executor, config) {
         return executor.redisBreaker.runCommand('hdel', executor.periodicBuildTable, config.jobId);
     }
 
-    return Promise;
+    return Promise.resolve();
 }
 
 /**
