@@ -237,6 +237,8 @@ queue:
       tls: REDIS_TLS_ENABLED
     slotsRefreshTimeout: REDIS_CLUSTER_SLOTS_REFRESH_TIMEOUT
   prefix: REDIS_QUEUE_PREFIX
+  # whether or not to retrieve from redis that the data needed to start periodic builds
+  periodicBuildTableEnabled: PERIODIC_BUILD_TABLE_ENABLED
 
 plugins:
     blockedBy:

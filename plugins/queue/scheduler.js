@@ -11,6 +11,7 @@ const helper = require('../helper');
 const { timeOutOfWindows } = require('./utils/freezeWindows');
 const { queueNamespace } = require('../../config/redis');
 const ecosystem = Config.get('ecosystem');
+const periodicBuildTableEnabled = helper.convertToBool(Config.get('queue').periodicBuildTableEnabled);
 const DEFAULT_BUILD_TIMEOUT = 90;
 const RETRY_LIMIT = 3;
 const RETRY_DELAY = 5;
@@ -111,9 +112,15 @@ async function postBuildEvent(executor, eventConfig) {
 async function stopPeriodic(executor, config) {
     await executor.connect();
 
-    return executor.queueBreaker.runCommand('delDelayed', executor.periodicBuildQueue, 'startDelayed', [
+    await executor.queueBreaker.runCommand('delDelayed', executor.periodicBuildQueue, 'startDelayed', [
         { jobId: config.jobId }
     ]);
+
+    if (periodicBuildTableEnabled) {
+        return executor.redisBreaker.runCommand('hdel', executor.periodicBuildTable, config.jobId);
+    }
+
+    return Promise.resolve();
 }
 
 /**
@@ -192,6 +199,25 @@ async function startPeriodic(executor, config) {
         await executor.connect();
 
         const next = cron.next(cron.transform(buildCron, job.id));
+
+        if (periodicBuildTableEnabled) {
+            try {
+                // Store the config in redis
+                await executor.redisBreaker.runCommand(
+                    'hset',
+                    executor.periodicBuildTable,
+                    job.id,
+                    JSON.stringify(
+                        Object.assign(config, {
+                            isUpdate: false,
+                            triggerBuild: false
+                        })
+                    )
+                );
+            } catch (err) {
+                logger.error(`failed to store the config in Redis for job ${job.id}: ${err}`);
+            }
+        }
 
         // Note: arguments to enqueueAt are [timestamp, queue name, job name, array of args]
         let shouldRetry = false;
@@ -454,42 +480,57 @@ async function init(executor) {
         startDelayed: {
             perform: async config => {
                 try {
-                    const apiUri = ecosystem.api;
                     const { jobId } = config;
 
                     logger.info(`Started processing periodic job ${jobId}`);
 
-                    const buildToken = executor.tokenGen({
-                        jobId,
-                        service: 'queue',
-                        scope: ['build']
-                    });
+                    let fullConfig;
 
-                    const job = await helper.getJobConfig({
-                        jobId,
-                        token: buildToken,
-                        apiUri
-                    });
+                    if (periodicBuildTableEnabled) {
+                        const periodicBuildConfig = await executor.redisBreaker.runCommand(
+                            'hget',
+                            executor.periodicBuildTable,
+                            jobId
+                        );
 
-                    const pipelineToken = executor.tokenGen({
-                        pipelineId: job.pipelineId,
-                        service: 'queue',
-                        scope: ['pipeline']
-                    });
+                        fullConfig = Object.assign(JSON.parse(periodicBuildConfig), {
+                            triggerBuild: true
+                        });
+                    } else {
+                        const apiUri = ecosystem.api;
 
-                    const pipeline = await helper.getPipelineConfig({
-                        pipelineId: job.pipelineId,
-                        token: pipelineToken,
-                        apiUri
-                    });
+                        const buildToken = executor.tokenGen({
+                            jobId,
+                            service: 'queue',
+                            scope: ['build']
+                        });
 
-                    const fullConfig = {
-                        pipeline,
-                        job,
-                        apiUri,
-                        isUpdate: false,
-                        triggerBuild: true
-                    };
+                        const job = await helper.getJobConfig({
+                            jobId,
+                            token: buildToken,
+                            apiUri
+                        });
+
+                        const pipelineToken = executor.tokenGen({
+                            pipelineId: job.pipelineId,
+                            service: 'queue',
+                            scope: ['pipeline']
+                        });
+
+                        const pipeline = await helper.getPipelineConfig({
+                            pipelineId: job.pipelineId,
+                            token: pipelineToken,
+                            apiUri
+                        });
+
+                        fullConfig = {
+                            pipeline,
+                            job,
+                            apiUri,
+                            isUpdate: false,
+                            triggerBuild: true
+                        };
+                    }
 
                     return await startPeriodic(executor, fullConfig);
                 } catch (err) {
