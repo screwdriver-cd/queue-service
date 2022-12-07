@@ -5,7 +5,7 @@ shared:
 
 jobs:
     main:
-        image: node:12
+        image: node:18
         annotations:
             screwdriver.cd/ram: TURBO
             screwdriver.cd/cpu: TURBO
@@ -28,7 +28,7 @@ jobs:
             - COVERALLS_REPO_TOKEN
 
     publish:
-        image: node:12
+        image: node:18
         requires: [main]
         steps:
             - setup-ci: git clone https://github.com/screwdriver-cd/toolbox.git ci
@@ -44,7 +44,7 @@ jobs:
         template: sd/dind@latest
     # Deploy to our beta environment and run tests
     beta:
-        image: node:12
+        image: node:18
         requires: [docker-publish]
         steps:
             - setup-ci: git clone https://github.com/screwdriver-cd/toolbox.git ci
@@ -70,7 +70,7 @@ jobs:
 
     # Deploy to our prod environment and run tests
     prod:
-        image: node:12
+        image: node:18
         requires: [beta]
         steps:
             - setup-ci: git clone https://github.com/screwdriver-cd/toolbox.git ci
