@@ -80,6 +80,9 @@
     "Pritam Paul <pritamstyz4ever@gmail.com>",
     "Tiffany Kyi <tiffanykyi@gmail.com>"
   ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "bugs": {
     "url": "https://github.com/screwdriver-cd/screwdriver/issues"
   },
