@@ -2,12 +2,11 @@
 
 const joi = require('joi');
 const jwt = require('jsonwebtoken');
-const uuid = require('uuid');
-
+const { v4: uuidv4 } = require('uuid');
 const DEFAULT_TIMEOUT = 60; // 1h in minutes
 const ALGORITHM = 'RS256';
 
-const validate = async function() {
+const validate = async function () {
     // The _decoded token signature is validated by jwt.veriry so we can return true
     return { isValid: true };
 };
@@ -81,7 +80,7 @@ const authPlugin = {
             jwt.sign(profile, pluginOptions.jwtPrivateKey, {
                 algorithm: ALGORITHM,
                 expiresIn: buildTimeout * 60, // must be in second
-                jwtid: uuid.v4()
+                jwtid: uuidv4()
             })
         );
     }

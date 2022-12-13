@@ -139,7 +139,7 @@ describe('Jobs Unit Test', () => {
             get: sinon.stub().returns()
         };
 
-        mockExecutorRouter = function() {
+        mockExecutorRouter = function () {
             return mockExecutor;
         };
 

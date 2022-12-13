@@ -82,13 +82,13 @@ describe('scheduler test', () => {
             job: testJob,
             apiUri: 'http://localhost'
         };
-        multiWorker = function(config, jobs) {
+        multiWorker = function (config, jobs) {
             this.start = () => {};
             this.end = sinon.stub().resolves();
             this.config = config;
             this.jobs = jobs;
         };
-        scheduler = function() {
+        scheduler = function () {
             this.start = sinon.stub().resolves();
             this.connect = sinon.stub().resolves();
             this.end = sinon.stub().resolves();
