@@ -255,6 +255,7 @@ describe('Schedule test', () => {
                 status: 'FAILURE',
                 statusMessage: 'failure'
             };
+            // eslint-disable-next-line no-promise-executor-return
             const sleep = async ms => new Promise(resolve => setTimeout(resolve, ms));
             const failure = 'failure';
 
