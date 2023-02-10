@@ -31,7 +31,7 @@
     "screwdriver-executor-docker": "^6.0.0",
     "screwdriver-executor-jenkins": "^6.0.0",
     "screwdriver-executor-k8s": "^15.0.0",
-    "screwdriver-executor-k8s-vm": "^4.3.2",
+    "screwdriver-executor-k8s-vm": "^4.3.3",
     "screwdriver-executor-router": "^3.0.0",
     "screwdriver-logger": "^2.0.0",
     "screwdriver-request": "^2.0.1",
