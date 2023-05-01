@@ -466,15 +466,6 @@ async function init(executor) {
     if (executor.multiWorker) return 'Scheduler running';
 
     const resqueConnection = { redis: executor.redis, namespace: queueNamespace };
-    const retryOptions = {
-        plugins: [Plugins.Retry],
-        pluginOptions: {
-            Retry: {
-                retryLimit: RETRY_LIMIT,
-                retryDelay: RETRY_DELAY
-            }
-        }
-    };
     // Jobs object to register the worker with
     const jobs = {
         startDelayed: {
@@ -538,7 +529,16 @@ async function init(executor) {
                     throw err;
                 }
             },
-            ...retryOptions
+            plugins: [Plugins.Retry, Plugins.JobLock],
+            pluginOptions: {
+                JobLock: {
+                    reEnqueue: false
+                },
+                Retry: {
+                    retryLimit: RETRY_LIMIT,
+                    retryDelay: RETRY_DELAY
+                }
+            }
         },
         startFrozen: {
             perform: async jobConfig => {
@@ -557,7 +557,13 @@ async function init(executor) {
                     throw err;
                 }
             },
-            ...retryOptions
+            plugins: [Plugins.Retry],
+            pluginOptions: {
+                Retry: {
+                    retryLimit: RETRY_LIMIT,
+                    retryDelay: RETRY_DELAY
+                }
+            }
         }
     };
 
