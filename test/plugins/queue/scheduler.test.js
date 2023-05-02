@@ -96,6 +96,7 @@ describe('scheduler test', () => {
         util.inherits(multiWorker, EventEmitter);
         util.inherits(scheduler, EventEmitter);
         plugins = {
+            JobLock: sinon.stub(),
             Retry: sinon.stub()
         };
         queueMock = {
