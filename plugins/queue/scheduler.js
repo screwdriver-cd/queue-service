@@ -529,11 +529,8 @@ async function init(executor) {
                     throw err;
                 }
             },
-            plugins: [Plugins.Retry, Plugins.JobLock],
+            plugins: [Plugins.Retry, Plugins.JobLock, Plugins.DelayQueueLock, Plugins.QueueLock],
             pluginOptions: {
-                JobLock: {
-                    reEnqueue: false
-                },
                 Retry: {
                     retryLimit: RETRY_LIMIT,
                     retryDelay: RETRY_DELAY
