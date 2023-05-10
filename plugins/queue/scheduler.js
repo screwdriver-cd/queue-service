@@ -523,7 +523,7 @@ async function init(executor) {
                         };
                     }
 
-                    return await startPeriodic(executor, fullConfig);
+                    await startPeriodic(executor, fullConfig);
                 } catch (err) {
                     logger.error(`err in startDelayed job: ${err}`);
                     throw err;
@@ -531,6 +531,9 @@ async function init(executor) {
             },
             plugins: [Plugins.Retry, Plugins.JobLock, Plugins.DelayQueueLock, Plugins.QueueLock],
             pluginOptions: {
+                JobLock: {
+                    reEnqueue: false
+                },
                 Retry: {
                     retryLimit: RETRY_LIMIT,
                     retryDelay: RETRY_DELAY
