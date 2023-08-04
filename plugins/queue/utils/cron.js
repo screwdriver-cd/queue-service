@@ -110,7 +110,7 @@ const nextExecution = cronExp => {
     // Scheduled jobs may run a little ahead of schedule.
     // The next job to be executed is delayed so that it will be at the next timing even in that case.
     const date = Date.now();
-    
+
     date.setMinutes(date.getMinutes() + 5);
     const options = {
         currentDate: date
