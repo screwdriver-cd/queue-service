@@ -221,6 +221,9 @@ async function startPeriodic(executor, config) {
 
         // Note: arguments to enqueueAt are [timestamp, queue name, job name, array of args]
         let shouldRetry = false;
+        const nextDate = new Date(next);
+
+        logger.info(`Enqueued periodic job ${jobId} to be executed at ${nextDate}`);
 
         try {
             await executor.queue.enqueueAt(next, executor.periodicBuildQueue, 'startDelayed', [{ jobId: job.id }]);
@@ -230,8 +233,6 @@ async function startPeriodic(executor, config) {
             if (err && err.message !== 'Job already enqueued at this time with same arguments') {
                 shouldRetry = true;
                 logger.warn(`duplicate build: failed to enqueue for job ${job.id}: ${err}`);
-            } else {
-                logger.error(`failed to enqueue for job ${job.id}: ${err}`);
             }
         }
 
