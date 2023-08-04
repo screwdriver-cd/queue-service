@@ -107,7 +107,14 @@ const transformCron = (cronExp, jobId) => {
  * @return {Number}         Epoch timestamp (time of next execution).
  */
 const nextExecution = cronExp => {
-    const interval = parseExpression(cronExp);
+    // Scheduled jobs may run a little ahead of schedule.
+    // The next job to be executed is delayed so that it will be at the next timing even in that case.
+    let date = Date.now();
+    date.setMinutes(date.getMinutes() + 5);
+    const options = {
+        currentDate: date
+    };
+    const interval = parseExpression(cronExp, options);
 
     return interval.next().getTime();
 };
