@@ -1,10 +1,10 @@
 'use strict';
 
-const { assert } = require('chai');
 const { EventEmitter } = require('events');
+const util = require('util');
+const { assert } = require('chai');
 const mockery = require('mockery');
 const sinon = require('sinon');
-const util = require('util');
 
 sinon.assert.expose(assert, { prefix: '' });
 
