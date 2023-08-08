@@ -155,6 +155,7 @@ describe('scheduler test', () => {
         };
         winstonMock = {
             info: sinon.stub(),
+            warn: sinon.stub(),
             error: sinon.stub()
         };
         configMock = {
