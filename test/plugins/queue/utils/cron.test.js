@@ -1,6 +1,7 @@
 'use strict';
 
 const { assert } = require('chai');
+const sinon = require('sinon');
 const hash = require('string-hash');
 const cron = require('../../../../plugins/queue/utils/cron');
 
@@ -53,5 +54,27 @@ describe('cron', () => {
             Error,
             'H(99-100) has an invalid range, expected range 0-23'
         );
+    });
+
+    it('should return the next timing', () => {
+        const now = new Date('2020-01-01 09:01:00');
+        const next = new Date('2020-01-01 10:00:00');
+        const clock = sinon.useFakeTimers(now.getTime());
+
+        const cronExp = '0 * * * *';
+
+        assert.deepEqual(cron.next(cronExp), next.getTime());
+        clock.restore();
+    });
+
+    it('should return the next next timing in case the timing is a little early', () => {
+        const now = new Date('2020-01-01 08:59:50');
+        const next = new Date('2020-01-01 10:00:00');
+        const clock = sinon.useFakeTimers(now.getTime());
+
+        const cronExp = '0 * * * *';
+
+        assert.deepEqual(cron.next(cronExp), next.getTime());
+        clock.restore();
     });
 });

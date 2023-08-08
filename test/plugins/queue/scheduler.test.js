@@ -3,12 +3,12 @@
 /* eslint-disable max-lines-per-function */
 /* eslint-disable no-underscore-dangle */
 
-const chai = require('chai');
 const util = require('util');
+const { EventEmitter } = require('events');
+const chai = require('chai');
 const { assert } = chai;
 const mockery = require('mockery');
 const sinon = require('sinon');
-const { EventEmitter } = require('events');
 const defaultConfig = require('config');
 const testConnection = require('../../data/testConnection.json');
 const testConfig = require('../../data/fullConfig.json');
@@ -155,6 +155,7 @@ describe('scheduler test', () => {
         };
         winstonMock = {
             info: sinon.stub(),
+            warn: sinon.stub(),
             error: sinon.stub()
         };
         configMock = {
