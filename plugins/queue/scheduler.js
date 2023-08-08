@@ -232,9 +232,9 @@ async function startPeriodic(executor, config) {
             // eslint-disable-next-line max-len
             if (err && err.message !== 'Job already enqueued at this time with same arguments') {
                 shouldRetry = true;
-                logger.warn(`duplicate build: failed to enqueue for job ${job.id}: ${err}`);
-            } else {
                 logger.error(`failed to enqueue for job ${job.id}: ${err}`);
+            } else {
+                logger.warn(`duplicate build: failed to enqueue for job ${job.id}: ${err}`);
             }
         }
 
