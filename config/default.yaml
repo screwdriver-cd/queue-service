@@ -74,53 +74,6 @@ executor:
         # in milliseconds
         retryDelay: 3000
         maxAttempts: 5
-  k8s-vm:
-    options:
-      # Configuration of Docker
-      kubernetes:
-        # The host or IP of the kubernetes cluster
-        host: kubernetes.default
-        # Privileged mode, default restricted, set to true for trusted container runtime use-case
-        privileged: false
-        # Resources for build pod
-        resources:
-          cpu:
-            # Number of cpu cores
-            micro: 1
-            low: 2
-            high: 6
-            turbo: 12
-            # upper bound for user custom cpu
-            max: 12
-          memory:
-            # Memory in GB
-            micro: 1
-            low: 2
-            high: 12
-            turbo: 16
-            # upper bound for user custom memory
-            max: 16
-        # Default build timeout for all builds in this cluster
-        buildTimeout: 90
-        # Default max build timeout
-        maxBuildTimeout: 120
-        # k8s node selectors for approprate pod scheduling
-        nodeSelectors: {}
-        preferredNodeSelectors: {}
-      # Launcher image to use
-      launchImage: screwdrivercd/launcher
-      # Launcher container tag to use
-      launchVersion: stable
-      # Circuit breaker config
-      fusebox:
-        breaker:
-          # in milliseconds
-          timeout: 10000
-      # requestretry configs
-      requestretry:
-        # in milliseconds
-        retryDelay: 3000
-        maxAttempts: 5
 
 httpd:
   # Port to listen on
