@@ -1,5 +1,5 @@
 {
-    "plugin": "k8s-test",
+    "plugin": "k8s-vm",
     "k8s": {
         "options": {
             "kubernetes": {
@@ -43,7 +43,7 @@
             }
         }
     },
-    "k8s-test": {
+    "k8s-vm": {
         "options": {
             "kubernetes": {
                 "host": "kubernetes.default",
