@@ -774,6 +774,36 @@ describe('scheduler test', () => {
                 assert.calledWith(queueMock.enqueue, 'builds', 'start', [partialTestDefaultConfig]);
             });
         });
+
+        it('skip execution of the build and update the status to SUCCESS for virtual job', () => {
+            const dateNow = Date.now();
+            const sandbox = sinon.createSandbox({
+                useFakeTimers: false
+            });
+
+            sandbox.useFakeTimers(dateNow);
+            buildMock.stats = {};
+            testConfig.build = buildMock;
+            testConfig.annotations['screwdriver.cd/virtualJob'] = true;
+
+            return scheduler.start(executor, testConfig).then(() => {
+                assert.calledTwice(queueMock.connect);
+                assert.notCalled(redisMock.hset);
+                assert.notCalled(queueMock.enqueue);
+                assert.calledOnce(executor.tokenGen);
+                assert.calledWith(
+                    helperMock.updateBuild,
+                    {
+                        buildId,
+                        token: 'buildToken',
+                        apiUri: 'http://api.com',
+                        payload: { status: 'SUCCESS', statusMessage: 'Skipped execution of the virtual job' }
+                    },
+                    helperMock.requestRetryStrategy
+                );
+                sandbox.restore();
+            });
+        });
     });
 
     describe('startFrozen', () => {
