@@ -422,28 +422,14 @@ async function start(executor, config) {
             throw value.error;
         }
 
+        let buildUpdatePayload;
+
         if (isVirtualJob(annotations)) {
             // Bypass execution of the build if the job is virtual
-            const payload = {
+            buildUpdatePayload = {
                 status: 'SUCCESS',
                 statusMessage: 'Skipped execution of the virtual job'
             };
-
-            await helper
-                .updateBuild(
-                    {
-                        buildId,
-                        token: buildToken,
-                        apiUri,
-                        payload
-                    },
-                    helper.requestRetryStrategy
-                )
-                .catch(err => {
-                    logger.error(`virtualBuilds: failed to update build status for build ${buildId}: ${err}`);
-
-                    throw err;
-                });
         } else {
             const token = executor.tokenGen(
                 Object.assign(tokenConfig, { scope: ['temporal'] }),
@@ -475,22 +461,26 @@ async function start(executor, config) {
                 }
             ]);
             if (buildStats) {
-                await helper
-                    .updateBuild(
-                        {
-                            buildId,
-                            token: buildToken,
-                            apiUri,
-                            payload: { stats: build.stats, status: 'QUEUED' }
-                        },
-                        helper.requestRetryStrategy
-                    )
-                    .catch(err => {
-                        logger.error(`Failed to update build status for build ${buildId}: ${err}`);
-
-                        throw err;
-                    });
+                buildUpdatePayload = { stats: build.stats, status: 'QUEUED' };
             }
+        }
+
+        if (buildUpdatePayload) {
+            await helper
+                .updateBuild(
+                    {
+                        buildId,
+                        token: buildToken,
+                        apiUri,
+                        payload: buildUpdatePayload
+                    },
+                    helper.requestRetryStrategy
+                )
+                .catch(err => {
+                    logger.error(`Failed to update build status for build ${buildId}: ${err}`);
+
+                    throw err;
+                });
         }
     }
 
