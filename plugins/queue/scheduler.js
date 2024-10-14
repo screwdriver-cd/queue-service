@@ -428,7 +428,8 @@ async function start(executor, config) {
             // Bypass execution of the build if the job is virtual
             buildUpdatePayload = {
                 status: 'SUCCESS',
-                statusMessage: 'Skipped execution of the virtual job'
+                statusMessage: 'Skipped execution of the virtual job',
+                statusMessageType: 'INFO'
             };
         } else {
             const token = executor.tokenGen(

@@ -27,7 +27,7 @@
     "node-resque": "^9.2.0",
     "redlock": "^4.2.0",
     "screwdriver-aws-producer-service": "^2.0.0",
-    "screwdriver-data-schema": "^24.0.0",
+    "screwdriver-data-schema": "^24.1.0",
     "screwdriver-executor-docker": "^7.0.0",
     "screwdriver-executor-jenkins": "^7.0.0",
     "screwdriver-executor-k8s": "^16.0.0",
