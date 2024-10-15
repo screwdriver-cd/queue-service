@@ -797,7 +797,11 @@ describe('scheduler test', () => {
                         buildId,
                         token: 'buildToken',
                         apiUri: 'http://api.com',
-                        payload: { status: 'SUCCESS', statusMessage: 'Skipped execution of the virtual job' }
+                        payload: {
+                            status: 'SUCCESS',
+                            statusMessage: 'Skipped execution of the virtual job',
+                            statusMessageType: 'INFO'
+                        }
                     },
                     helperMock.requestRetryStrategy
                 );
