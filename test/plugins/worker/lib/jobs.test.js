@@ -786,7 +786,7 @@ describe('Jobs Unit Test', () => {
                     assert.notCalled(mockExecutor.tokenGen);
                     assert.notCalled(helperMock.processHooks);
                     assert.strictEqual(err.name, 'SyntaxError');
-                    assert.strictEqual(err.message, 'Unexpected token o in JSON at position 1');
+                    assert.strictEqual(err.message, 'Unexpected token \'o\', "foo" is not valid JSON');
                 }
             );
         });
