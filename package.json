@@ -1,6 +1,6 @@
 {
   "name": "screwdriver-queue-service",
-  "version": "4.0.0",
+  "version": "5.0.0",
   "description": "Screwdriver Queue Service API",
   "main": "app.js",
   "directories": {
@@ -26,15 +26,15 @@
     "jsonwebtoken": "^9.0.0",
     "node-resque": "^9.2.0",
     "redlock": "^4.2.0",
-    "screwdriver-aws-producer-service": "^2.0.0",
-    "screwdriver-data-schema": "^24.1.0",
-    "screwdriver-executor-docker": "^7.0.0",
-    "screwdriver-executor-jenkins": "^7.0.0",
-    "screwdriver-executor-k8s": "^16.0.0",
+    "screwdriver-aws-producer-service": "^3.0.0",
+    "screwdriver-data-schema": "^25.0.0",
+    "screwdriver-executor-docker": "^8.0.1",
+    "screwdriver-executor-jenkins": "^8.0.0",
+    "screwdriver-executor-k8s": "^17.1.0",
     "screwdriver-executor-k8s-vm": "^5.0.0",
-    "screwdriver-executor-router": "^4.0.0",
-    "screwdriver-logger": "^2.0.0",
-    "screwdriver-request": "^2.0.1",
+    "screwdriver-executor-router": "^5.0.0",
+    "screwdriver-logger": "^3.0.0",
+    "screwdriver-request": "^3.0.0",
     "string-hash": "^1.1.3",
     "uuid": "^9.0.0"
   },
@@ -43,8 +43,8 @@
     "chai-jwt": "^2.0.0",
     "coveralls": "^3.0.9",
     "cucumber": "^6.0.5",
-    "eslint": "^8.28.0",
-    "eslint-config-screwdriver": "^7.0.0",
+    "eslint": "^8.57.0",
+    "eslint-config-screwdriver": "^8.0.0",
     "mocha": "^10.1.0",
     "mocha-multi-reporters": "^1.5.1",
     "mocha-sonarqube-reporter": "^1.0.2",
@@ -81,7 +81,7 @@
     "Tiffany Kyi <tiffanykyi@gmail.com>"
   ],
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=22.0.0"
   },
   "bugs": {
     "url": "https://github.com/screwdriver-cd/screwdriver/issues"
