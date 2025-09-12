@@ -14,7 +14,7 @@ describe('server case', () => {
     };
     const config = {
         ecosystem,
-        queueConfig: {
+        queue: {
             redisConnection: {
                 port: 4321,
                 host: '127.0.0.0',

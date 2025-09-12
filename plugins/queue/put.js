@@ -3,7 +3,7 @@
 const logger = require('screwdriver-logger');
 const scheduler = require('./scheduler');
 
-module.exports = () => ({
+module.exports = options => ({
     method: 'POST',
     path: '/queue/message',
     config: {
@@ -14,8 +14,14 @@ module.exports = () => ({
             strategies: ['token'],
             scope: ['sdapi']
         },
+        payload: {
+            maxBytes: parseInt(options.queueMaxPayloadSize, 10) || 5242880, // 5MB default
+            parse: true,
+            output: 'data'
+        },
         handler: async (request, h) => {
             try {
+                console.log('options', options);
                 const executor = request.server.app.executorQueue;
 
                 const { type } = request.query;

@@ -239,6 +239,7 @@ queue:
   prefix: REDIS_QUEUE_PREFIX
   # whether or not to retrieve from redis that the data needed to start periodic builds
   periodicBuildTableEnabled: PERIODIC_BUILD_TABLE_ENABLED
+  queueMaxPayloadSize: QUEUE_MAX_PAYLOAD_SIZE
 
 plugins:
     blockedBy:

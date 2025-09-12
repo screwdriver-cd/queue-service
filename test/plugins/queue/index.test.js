@@ -87,7 +87,8 @@ describe('queue plugin test', () => {
         await server.register({
             plugin,
             options: {
-                name: 'queue'
+                name: 'queue',
+                queueMaxPayloadSize: 5242880
             },
             routes: {
                 prefix: '/v1'
@@ -273,6 +274,14 @@ describe('queue plugin test', () => {
 
             assert.equal(reply.statusCode, 200);
             assert.calledOnce(schedulerMock.queueWebhook);
+        });
+
+        // check max payload validation
+        it('returns 413 when payload exceeds maxBytes', async () => {
+            options.payload = Buffer.alloc(6 * 1024 * 1024, 'a'); // 6MB
+            const reply = await server.inject(options);
+
+            assert.equal(reply.statusCode, 413);
         });
     });
 });

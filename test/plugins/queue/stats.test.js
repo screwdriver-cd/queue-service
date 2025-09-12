@@ -58,7 +58,8 @@ describe('queue plugin test', () => {
         await server.register({
             plugin,
             options: {
-                name: 'queue'
+                name: 'queue',
+                queueMaxPayloadSize: 5242880
             },
             routes: {
                 prefix: '/v1'
