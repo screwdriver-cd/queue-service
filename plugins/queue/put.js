@@ -21,7 +21,6 @@ module.exports = options => ({
         },
         handler: async (request, h) => {
             try {
-                console.log('options', options);
                 const executor = request.server.app.executorQueue;
 
                 const { type } = request.query;
