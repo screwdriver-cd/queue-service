@@ -7,7 +7,7 @@ const scheduler = require('./scheduler');
 
 const queuePlugin = {
     name: 'queue',
-    async register(server) {
+    async register(server, options) {
         /**
          * Exposes an init function to begin the scheduler process
          * @method init
@@ -28,7 +28,7 @@ const queuePlugin = {
             return scheduler.cleanUp(executor);
         });
 
-        server.route([putRoute(), deleteRoute(), statsRoute()]);
+        server.route([putRoute(options), deleteRoute(), statsRoute()]);
     }
 };
 

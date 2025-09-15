@@ -18,6 +18,6 @@ const authConfig = config.get('auth');
 server({
     httpd: httpdConfig,
     ecosystem,
-    queueConfig,
+    queue: queueConfig,
     auth: authConfig
 });

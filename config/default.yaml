@@ -167,6 +167,8 @@ queue:
   prefix: ""
   # whether or not to retrieve from redis that the data needed to start periodic builds
   periodicBuildTableEnabled: true
+  # max payload size in bytes, default to 10MB
+  queueMaxPayloadSize: 10485760
 
 plugins:
   blockedBy:
