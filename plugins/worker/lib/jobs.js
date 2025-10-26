@@ -41,6 +41,24 @@ const executor = new ExecutorRouter({
     executor: executorPlugins,
     ecosystem
 });
+
+let luaScriptLoader;
+
+/**
+ * Get LuaScriptLoader instance (lazy loaded to avoid circular dependency)
+ * @return {LuaScriptLoader} Lua script loader instance
+ */
+function getLuaScriptLoader() {
+    if (!luaScriptLoader) {
+        // eslint-disable-next-line global-require
+        const worker = require('../worker');
+
+        luaScriptLoader = worker.luaScriptLoader;
+    }
+
+    return luaScriptLoader;
+}
+
 const retryOptions = {
     retryLimit: RETRY_LIMIT,
     retryDelay: RETRY_DELAY
@@ -256,47 +274,77 @@ async function start(buildConfig) {
 
 /**
  * Call executor.stop with the buildConfig
+ *
+ * Uses atomic Lua script for cleanup to prevent partial failures
+ *
  * @method stop
  * @param  {Object}    buildConfig               Configuration object
  * @param  {String}    buildConfig.buildId       Unique ID for a build
  * @param  {String}    buildConfig.jobId         Job that this build belongs to
- * @param  {String}    buildConfig.blockedBy     Jobs that are blocking this job
  * @param  {String}    buildConfig.started       Whether job has started
- * @param  {String}    buildConfig.jobName    Job name
  * @return {Promise}
  */
 async function stop(buildConfig) {
     const started = hoek.reach(buildConfig, 'started', { default: true }); // default value for backward compatibility
-    const { buildId, jobId, jobName } = buildConfig;
-    let stopConfig = { buildId, jobId, jobName };
-    const runningKey = `${runningJobsPrefix}${jobId}`;
+    const { buildId, jobId } = buildConfig;
 
     try {
-        const fullBuildConfig = await redis.hget(`${queuePrefix}buildConfigs`, buildId);
-        const parsedConfig = JSON.parse(fullBuildConfig);
+        let stopConfig = buildConfig;
 
-        if (parsedConfig) {
-            stopConfig = {
-                buildId,
-                ...parsedConfig
-            };
+        try {
+            const fullBuildConfig = await redis.hget(`${queuePrefix}buildConfigs`, buildId);
+
+            if (fullBuildConfig) {
+                stopConfig = JSON.parse(fullBuildConfig);
+            }
+        } catch (err) {
+            logger.error(`[Stop Build] Failed to get config for build ${buildId}: ${err.message}`);
+        }
+
+        const loader = getLuaScriptLoader();
+        const result = await loader.executeScript(
+            'stopBuild.lua',
+            [],
+            [String(buildId), String(jobId), queuePrefix, runningJobsPrefix, waitingJobsPrefix]
+        );
+
+        const cleanupResult = JSON.parse(result);
+
+        logger.info(
+            '[Stop Build] Atomic cleanup for build %s: action=%s, keysDeleted=%j',
+            buildId,
+            cleanupResult.action,
+            cleanupResult.keysDeleted
+        );
+
+        if (cleanupResult.keysDeleted.runningKey) {
+            logger.info('[Stop Build] Deleted running key for job %s, build %s', jobId, buildId);
+        } else if (cleanupResult.currentRunningBuildId) {
+            logger.info(
+                '[Stop Build] Running key for job %s is %s, not %s (skip delete)',
+                jobId,
+                cleanupResult.currentRunningBuildId,
+                buildId
+            );
+        }
+
+        if (cleanupResult.keysDeleted.lastRunningKey) {
+            logger.info('[Stop Build] Deleted last running key for job %s, build %s', jobId, buildId);
+        }
+
+        if (cleanupResult.keysDeleted.waitingKey) {
+            logger.info('[Stop Build] Removed build %s from waiting queue for job %s', buildId, jobId);
+        }
+
+        if (started) {
+            await schedule('stop', stopConfig);
+            logger.info('[Stop Build] Executor stop called for job %s, build %s', jobId, buildId);
+        } else {
+            logger.info('[Stop Build] Build %s not started, skipping executor stop', buildId);
         }
     } catch (err) {
-        logger.error(`[Stop Build] failed to get config for build ${buildId}: ${err.message}`);
-    }
-
-    await redis.hdel(`${queuePrefix}buildConfigs`, buildId);
-    // If this is a running job
-    const runningBuildId = await redis.get(runningKey);
-
-    if (parseInt(runningBuildId, 10) === buildId) {
-        await redis.del(runningKey);
-    }
-    // If this is a waiting job
-    await redis.lrem(`${waitingJobsPrefix}${jobId}`, 0, buildId);
-
-    if (started) {
-        await schedule('stop', stopConfig);
+        logger.error('[Stop Build] Error in stop for build %s: %s', buildId, err.message);
+        throw err;
     }
 
     return null;

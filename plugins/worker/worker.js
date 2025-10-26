@@ -3,21 +3,16 @@
 const { MultiWorker, Scheduler } = require('node-resque');
 const config = require('config');
 const logger = require('screwdriver-logger');
-const Redlock = require('redlock');
 const jobs = require('./lib/jobs');
 const timeout = require('./lib/timeout');
 const helper = require('../helper');
+const LuaScriptLoader = require('./lib/LuaScriptLoader');
 const workerConfig = config.get('worker');
 const { queueNamespace, queuePrefix } = require('../../config/redis');
 const redis = require('../redis');
-// https://github.com/mike-marcacci/node-redlock
-const redlock = new Redlock([redis], {
-    driftFactor: 0.01, // time in ms
-    retryCount: 5,
-    retryDelay: 200, // time in ms
-    retryJitter: 200 // time in ms
-});
+
 const resqueConnection = { redis, namespace: queueNamespace };
+const luaScriptLoader = new LuaScriptLoader(redis);
 
 /**
  * Shutdown both worker and scheduler and then exit the process
@@ -60,6 +55,10 @@ const scheduler = new Scheduler({ connection: resqueConnection });
  */
 async function invoke() {
     try {
+        logger.info('Loading Lua scripts...');
+        await luaScriptLoader.loadAllScripts();
+        logger.info('Lua scripts loaded successfully');
+
         /* eslint-disable max-len */
         multiWorker.on('start', workerId => logger.info(`queueWorker->worker[${workerId}] started`));
         multiWorker.on('end', workerId => logger.info(`queueWorker->worker[${workerId}] ended`));
@@ -69,7 +68,7 @@ async function invoke() {
         multiWorker.on('poll', async (workerId, queue) => {
             if (queue === 'builds') {
                 logger.info(`queueWorker->worker[${workerId}] polling ${queue}`);
-                await timeout.checkWithBackOff(redis, redlock, workerId);
+                await timeout.checkWithBackOff(redis, workerId);
             }
         });
         multiWorker.on('job', (workerId, queue, job) =>
@@ -165,5 +164,6 @@ module.exports = {
     multiWorker,
     scheduler,
     shutDownAll,
-    cleanUp
+    cleanUp,
+    luaScriptLoader
 };
