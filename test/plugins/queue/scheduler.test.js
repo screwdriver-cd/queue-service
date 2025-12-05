@@ -557,9 +557,17 @@ describe('scheduler test', () => {
     });
 
     describe('start', () => {
+        let sandbox;
+
         beforeEach(() => {
             executor.tokenGen.returns('buildToken');
+            sandbox = sinon.createSandbox({ useFakeTimers: false });
         });
+
+        afterEach(() => {
+            sandbox.restore();
+        });
+
         it("rejects if it can't establish a connection", () => {
             queueMock.connect.rejects(new Error("couldn't connect"));
 
@@ -576,11 +584,8 @@ describe('scheduler test', () => {
         it('enqueues a build and caches the config', () => {
             const dateNow = Date.now();
             const isoTime = new Date(dateNow).toISOString();
-            const sandbox = sinon.createSandbox({
-                useFakeTimers: false
-            });
 
-            sandbox.useFakeTimers(dateNow);
+            sandbox.useFakeTimers({ now: dateNow, toFake: ['Date'] });
             buildMock.stats = {};
             testConfig.build = buildMock;
 
@@ -600,19 +605,15 @@ describe('scheduler test', () => {
                     helperMock.requestRetryStrategy
                 );
                 assert.equal(buildMock.stats.queueEnterTime, isoTime);
-                sandbox.restore();
             });
         });
 
-        it('logs error when failed to enqueues a build', () => {
+        it('logs error when failed to update build status to QUEUED', () => {
             const dateNow = Date.now();
             const isoTime = new Date(dateNow).toISOString();
-            const sandbox = sinon.createSandbox({
-                useFakeTimers: false
-            });
             const expectedError = new Error('updateBuild Error');
 
-            sandbox.useFakeTimers(dateNow);
+            sandbox.useFakeTimers({ now: dateNow, toFake: ['Date'] });
             buildMock.stats = {};
             testConfig.build = buildMock;
             helperMock.updateBuild.rejects(expectedError);
@@ -623,10 +624,6 @@ describe('scheduler test', () => {
                     assert.fail('Should not get here');
                 })
                 .catch(err => {
-                    assert.calledTwice(queueMock.connect);
-                    assert.calledWith(redisMock.hset, 'buildConfigs', buildId, JSON.stringify(testConfig));
-                    assert.calledWith(queueMock.enqueue, 'builds', 'start', [partialTestDefaultConfig]);
-                    assert.calledTwice(executor.tokenGen);
                     assert.calledWith(
                         helperMock.updateBuild,
                         {
@@ -641,19 +638,54 @@ describe('scheduler test', () => {
                     assert.deepEqual(err, expectedError);
                     assert.calledWith(
                         winstonMock.error,
-                        `Failed to update build status for build ${buildId}: ${expectedError}`
+                        `Failed to update build status to QUEUED for build ${buildId}: ${expectedError}`
                     );
-                    sandbox.restore();
+                    assert.notCalled(redisMock.hset);
+                    assert.notCalled(queueMock.enqueue);
+                });
+        });
+
+        it('logs error when failed to enqueue a build', () => {
+            const dateNow = Date.now();
+            const isoTime = new Date(dateNow).toISOString();
+            const expectedError = new Error('enqueue Error');
+
+            sandbox.useFakeTimers({ now: dateNow, toFake: ['Date'] });
+            buildMock.stats = {};
+            testConfig.build = buildMock;
+
+            queueMock.enqueue = sinon.stub().rejects(expectedError);
+
+            return scheduler
+                .start(executor, testConfig)
+                .then(() => {
+                    assert.fail('Should not get here');
+                })
+                .catch(err => {
+                    assert.calledWith(
+                        helperMock.updateBuild,
+                        {
+                            buildId,
+                            token: 'buildToken',
+                            apiUri: 'http://api.com',
+                            payload: { stats: buildMock.stats, status: 'QUEUED' }
+                        },
+                        helperMock.requestRetryStrategy
+                    );
+                    assert.calledTwice(queueMock.connect);
+                    assert.calledWith(redisMock.hset, 'buildConfigs', buildId, JSON.stringify(testConfig));
+                    assert.calledWith(queueMock.enqueue, 'builds', 'start', [partialTestDefaultConfig]);
+                    assert.calledTwice(executor.tokenGen);
+                    assert.equal(buildMock.stats.queueEnterTime, isoTime);
+                    assert.strictEqual(err, expectedError);
+                    assert.calledWith(winstonMock.error, `Redis enqueue failed for build ${buildId}: ${expectedError}`);
                 });
         });
 
         it('fails to enqueue a build with validation error for tokenConfig', () => {
             const dateNow = Date.now();
-            const sandbox = sinon.createSandbox({
-                useFakeTimers: false
-            });
 
-            sandbox.useFakeTimers(dateNow);
+            sandbox.useFakeTimers({ now: dateNow, toFake: ['Date'] });
             buildMock.stats = {};
             testConfig.build = buildMock;
             const newConfig = { ...testConfig };
@@ -682,7 +714,6 @@ describe('scheduler test', () => {
                         username: newConfig.buildId
                     });
                     assert.calledOnce(executor.tokenGen);
-                    sandbox.restore();
                     assert.isNotNull(err);
                 });
         });
@@ -690,11 +721,8 @@ describe('scheduler test', () => {
         it('enqueues a build and when force start is on', () => {
             const dateNow = Date.now();
             const isoTime = new Date(dateNow).toISOString();
-            const sandbox = sinon.createSandbox({
-                useFakeTimers: false
-            });
 
-            sandbox.useFakeTimers(dateNow);
+            sandbox.useFakeTimers({ now: dateNow, toFake: ['Date'] });
             buildMock.stats = {};
             testConfig.build = buildMock;
             testConfig.causeMessage = '[force start] Need to push hotfix';
@@ -743,7 +771,6 @@ describe('scheduler test', () => {
                     helperMock.requestRetryStrategy
                 );
                 assert.equal(buildMock.stats.queueEnterTime, isoTime);
-                sandbox.restore();
             });
         });
 
@@ -777,11 +804,8 @@ describe('scheduler test', () => {
 
         it('skip execution of the build and update the status to SUCCESS for virtual job', () => {
             const dateNow = Date.now();
-            const sandbox = sinon.createSandbox({
-                useFakeTimers: false
-            });
 
-            sandbox.useFakeTimers(dateNow);
+            sandbox.useFakeTimers({ now: dateNow, toFake: ['Date'] });
             buildMock.stats = {};
             testConfig.build = buildMock;
             testConfig.annotations['screwdriver.cd/virtualJob'] = true;
@@ -805,7 +829,6 @@ describe('scheduler test', () => {
                     },
                     helperMock.requestRetryStrategy
                 );
-                sandbox.restore();
             });
         });
     });
@@ -848,7 +871,7 @@ describe('scheduler test', () => {
                 useFakeTimers: false
             });
 
-            sandbox.useFakeTimers(dateNow.getTime());
+            sandbox.useFakeTimers({ now: dateNow.getTime(), toFake: ['Date'] });
 
             executor.tokenGen.returns('buildToken');
 
@@ -972,7 +995,7 @@ describe('scheduler test', () => {
                 startTime: isoTime
             };
 
-            sandbox.useFakeTimers(dateNow);
+            sandbox.useFakeTimers({ now: dateNow, toFake: ['Date'] });
             redisMock.hget.withArgs('timeoutConfigs', buildId).yieldsAsync(null, {
                 buildId,
                 jobId,
@@ -1019,7 +1042,7 @@ describe('scheduler test', () => {
                 startTime: isoTime
             };
 
-            sandbox.useFakeTimers(dateNow);
+            sandbox.useFakeTimers({ now: dateNow, toFake: ['Date'] });
             redisMock.hget.yieldsAsync(null, null);
             await scheduler.startTimer(executor, timerConfig);
             assert.calledOnce(queueMock.connect);
@@ -1050,7 +1073,7 @@ describe('scheduler test', () => {
                 startTime: isoTime
             };
 
-            sandbox.useFakeTimers(dateNow);
+            sandbox.useFakeTimers({ now: dateNow, toFake: ['Date'] });
             redisMock.hget.yieldsAsync(null, null);
 
             await scheduler.startTimer(executor, timerConfig);
@@ -1073,7 +1096,7 @@ describe('scheduler test', () => {
                 startTime: isoTime
             };
 
-            sandbox.useFakeTimers(dateNow);
+            sandbox.useFakeTimers({ now: dateNow, toFake: ['Date'] });
             redisMock.hget.withArgs('timeoutConfigs', buildId).yieldsAsync({
                 jobId,
                 startTime: isoTime,
@@ -1103,7 +1126,7 @@ describe('scheduler test', () => {
                 }
             };
 
-            sandbox.useFakeTimers(dateNow);
+            sandbox.useFakeTimers({ now: dateNow, toFake: ['Date'] });
             redisMock.hget.yieldsAsync(null, null);
             await scheduler.startTimer(executor, timerConfig);
             assert.calledOnce(queueMock.connect);
