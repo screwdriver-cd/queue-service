@@ -831,6 +831,44 @@ describe('scheduler test', () => {
                 );
             });
         });
+
+        it('logs error when updating virtual build status fails', () => {
+            const dateNow = Date.now();
+            const expectedError = new Error('virtual updateBuild Error');
+
+            sandbox.useFakeTimers(dateNow);
+            buildMock.stats = {};
+            testConfig.build = buildMock;
+            testConfig.annotations['screwdriver.cd/virtualJob'] = true;
+            helperMock.updateBuild.rejects(expectedError);
+
+            return scheduler
+                .start(executor, testConfig)
+                .then(() => {
+                    assert.fail('Should not get here');
+                })
+                .catch(err => {
+                    assert.calledWith(
+                        helperMock.updateBuild,
+                        {
+                            buildId,
+                            token: 'buildToken',
+                            apiUri: 'http://api.com',
+                            payload: {
+                                status: 'SUCCESS',
+                                statusMessage: 'Skipped execution of the virtual job',
+                                statusMessageType: 'INFO'
+                            }
+                        },
+                        helperMock.requestRetryStrategy
+                    );
+                    assert.strictEqual(err, expectedError);
+                    assert.calledWith(
+                        winstonMock.error,
+                        `Failed to update virtual build status for build ${buildId}: ${expectedError}`
+                    );
+                });
+        });
     });
 
     describe('startFrozen', () => {
