@@ -422,51 +422,14 @@ async function start(executor, config) {
             throw value.error;
         }
 
-        let buildUpdatePayload;
-
         if (isVirtualJob(annotations)) {
             // Bypass execution of the build if the job is virtual
-            buildUpdatePayload = {
+            const buildUpdatePayload = {
                 status: 'SUCCESS',
                 statusMessage: 'Skipped execution of the virtual job',
                 statusMessageType: 'INFO'
             };
-        } else {
-            const token = executor.tokenGen(
-                Object.assign(tokenConfig, { scope: ['temporal'] }),
-                TEMPORAL_TOKEN_TIMEOUT
-            );
 
-            // set the start time in the queue
-            Object.assign(config, { token });
-            // Store the config in redis
-            await executor.redisBreaker.runCommand('hset', executor.buildConfigTable, buildId, JSON.stringify(config));
-
-            const blockedBySameJob = reach(config, 'annotations>screwdriver.cd/blockedBySameJob', {
-                separator: '>',
-                default: true
-            });
-            const blockedBySameJobWaitTime = reach(config, 'annotations>screwdriver.cd/blockedBySameJobWaitTime', {
-                separator: '>',
-                default: BLOCKED_BY_SAME_JOB_WAIT_TIME
-            });
-
-            // Note: arguments to enqueue are [queue name, job name, array of args]
-            enq = await executor.queueBreaker.runCommand('enqueue', executor.buildQueue, 'start', [
-                {
-                    buildId,
-                    jobId,
-                    blockedBy: blockedBy.toString(),
-                    blockedBySameJob,
-                    blockedBySameJobWaitTime
-                }
-            ]);
-            if (buildStats) {
-                buildUpdatePayload = { stats: build.stats, status: 'QUEUED' };
-            }
-        }
-
-        if (buildUpdatePayload) {
             await helper
                 .updateBuild(
                     {
@@ -478,10 +441,68 @@ async function start(executor, config) {
                     helper.requestRetryStrategy
                 )
                 .catch(err => {
-                    logger.error(`Failed to update build status for build ${buildId}: ${err}`);
+                    logger.error(`Failed to update virtual build status for build ${buildId}: ${err}`);
 
                     throw err;
                 });
+        } else {
+            if (buildStats) {
+                await helper
+                    .updateBuild(
+                        {
+                            buildId,
+                            token: buildToken,
+                            apiUri,
+                            payload: { stats: build.stats, status: 'QUEUED' }
+                        },
+                        helper.requestRetryStrategy
+                    )
+                    .catch(err => {
+                        logger.error(`Failed to update build status to QUEUED for build ${buildId}: ${err}`);
+                        throw err;
+                    });
+            }
+
+            try {
+                const token = executor.tokenGen(
+                    Object.assign(tokenConfig, { scope: ['temporal'] }),
+                    TEMPORAL_TOKEN_TIMEOUT
+                );
+
+                // set the start time in the queue
+                Object.assign(config, { token });
+                // Store the config in redis
+                await executor.redisBreaker.runCommand(
+                    'hset',
+                    executor.buildConfigTable,
+                    buildId,
+                    JSON.stringify(config)
+                );
+
+                const blockedBySameJob = reach(config, 'annotations>screwdriver.cd/blockedBySameJob', {
+                    separator: '>',
+                    default: true
+                });
+                const blockedBySameJobWaitTime = reach(config, 'annotations>screwdriver.cd/blockedBySameJobWaitTime', {
+                    separator: '>',
+                    default: BLOCKED_BY_SAME_JOB_WAIT_TIME
+                });
+
+                // Note: arguments to enqueue are [queue name, job name, array of args]
+                enq = await executor.queueBreaker.runCommand('enqueue', executor.buildQueue, 'start', [
+                    {
+                        buildId,
+                        jobId,
+                        blockedBy: blockedBy.toString(),
+                        blockedBySameJob,
+                        blockedBySameJobWaitTime
+                    }
+                ]);
+            } catch (err) {
+                logger.error(`Redis enqueue failed for build ${buildId}: ${err}`);
+
+                throw err;
+            }
         }
     }
 
