@@ -172,8 +172,8 @@ queue:
 
 plugins:
   blockedBy:
-    # re-enqueue in 1 mins if blocked
-    reenqueueWaitTime: 1
+    # re-enqueue in 10 seconds if blocked (0.167 minutes)
+    reenqueueWaitTime: 0.167
     # job is blocking for maximum 120 mins = build timeout
     blockTimeout: 120
     # job blocked by itself

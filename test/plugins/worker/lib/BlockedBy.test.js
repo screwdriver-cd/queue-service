@@ -8,31 +8,23 @@ sinon.assert.expose(assert, { prefix: '' });
 
 describe('Plugin Test', () => {
     const BLOCK_TIMEOUT_BUFFER = 30;
-    const DEFAULT_BLOCKTIMEOUT = 120;
-    const DEFAULT_ENQUEUETIME = 1;
     const jobId = 777;
     const buildId = 3;
-    const buildIdStr = '3';
     const mockJob = {};
     const mockFunc = () => {};
     const mockQueue = 'queuename';
     const runningJobsPrefix = 'mockRunningJobsPrefix_';
     const waitingJobsPrefix = 'mockRunningJobsPrefix_';
-    const deleteKey = `deleted_${jobId}_${buildId}`;
-    const runningKey = `${runningJobsPrefix}777`;
-    const key = `${runningJobsPrefix}${jobId}`;
     let mockWorker;
     let mockArgs;
     let mockRedis;
-    let mockRedisDep;
-    let mockRedlock;
-    let mockRedlockObj;
     let mockLogger;
-    let mockLockObj;
+    let mockLuaScriptLoader;
     let BlockedBy;
     let blockedBy;
     let helperMock;
     let mockRedisConfig;
+    let mockWorkerModule;
 
     before(() => {
         mockery.enable({
@@ -64,19 +56,23 @@ describe('Plugin Test', () => {
             lrem: sinon.stub().resolves(),
             on: sinon.stub()
         };
-        mockRedisDep = sinon.stub().returns(mockRedis);
-        mockLockObj = {
-            unlock: sinon.stub().resolves()
-        };
+
         mockLogger = {
             info: sinon.stub().resolves(),
-            error: sinon.stub().resolves()
+            error: sinon.stub().resolves(),
+            warn: sinon.stub().resolves()
         };
-        mockRedlockObj = {
-            lock: sinon.stub().resolves(mockLockObj)
+
+        mockLuaScriptLoader = {
+            executeScript: sinon.stub()
         };
-        mockRedlock = sinon.stub().returns(mockRedlockObj);
+
+        mockWorkerModule = {
+            luaScriptLoader: mockLuaScriptLoader
+        };
+
         mockWorker = {
+            workerId: 'test-worker-1',
             queueObject: {
                 connection: {
                     redis: mockRedis
@@ -84,6 +80,7 @@ describe('Plugin Test', () => {
                 enqueueIn: sinon.stub().resolves()
             }
         };
+
         mockRedisConfig = {
             connectionDetails: {
                 host: '127.0.0.1',
@@ -95,17 +92,18 @@ describe('Plugin Test', () => {
                 database: 0
             },
             runningJobsPrefix,
-            waitingJobsPrefix
-        };
-        helperMock = {
-            updateBuildStatus: sinon.stub()
+            waitingJobsPrefix,
+            queuePrefix: 'mockQueue_'
         };
 
-        mockery.registerMock('ioredis', mockRedisDep);
-        mockery.registerMock('redlock', mockRedlock);
+        helperMock = {
+            updateBuildStatus: sinon.stub().resolves()
+        };
+
         mockery.registerMock('screwdriver-logger', mockLogger);
         mockery.registerMock('../../../config/redis', mockRedisConfig);
         mockery.registerMock('../../helper', helperMock);
+        mockery.registerMock('../worker', mockWorkerModule);
 
         // eslint-disable-next-line global-require
         BlockedBy = require('../../../../plugins/worker/lib/BlockedBy').BlockedBy;
@@ -130,754 +128,524 @@ describe('Plugin Test', () => {
         });
 
         describe('beforePerform', () => {
-            beforeEach(() => {
-                mockRedis.get.withArgs(deleteKey).resolves(null);
-                mockRedis.get.withArgs(`${runningJobsPrefix}111`).resolves(null);
-                mockRedis.get.withArgs(`${runningJobsPrefix}222`).resolves(null);
-                mockRedis.get.withArgs(runningKey).resolves(null);
-                mockRedis.get.withArgs(`last_${runningKey}`).resolves(null);
+            it('proceeds if Lua script returns START action', async () => {
+                // Mock Lua script to return START decision
+                mockLuaScriptLoader.executeScript.resolves(
+                    JSON.stringify({
+                        action: 'START',
+                        reason: 'READY',
+                        buildId
+                    })
+                );
+
+                const proceed = await blockedBy.beforePerform();
+
+                assert.isTrue(proceed);
+                assert.isTrue(mockLuaScriptLoader.executeScript.calledOnce);
+                assert.notCalled(mockWorker.queueObject.enqueueIn);
             });
 
             it('proceeds if this is a retry build', async () => {
-                mockRedis.get.withArgs(runningKey).resolves(`${buildId}`);
-                mockRedis.lrange.resolves([]);
+                // Lua script detects retry and returns START
+                mockLuaScriptLoader.executeScript.resolves(
+                    JSON.stringify({
+                        action: 'START',
+                        reason: 'RETRY_BUILD',
+                        buildId
+                    })
+                );
+
+                const proceed = await blockedBy.beforePerform();
+
+                assert.isTrue(proceed);
+                assert.isTrue(mockLuaScriptLoader.executeScript.calledOnce);
+            });
+
+            it('proceeds if not blocked', async () => {
+                mockLuaScriptLoader.executeScript.resolves(
+                    JSON.stringify({
+                        action: 'START',
+                        reason: 'NOT_BLOCKED',
+                        buildId
+                    })
+                );
+
+                const proceed = await blockedBy.beforePerform();
+
+                assert.isTrue(proceed);
+                assert.notCalled(mockWorker.queueObject.enqueueIn);
+            });
+
+            it('proceeds if not blocked and set block timeout based on build timeout', async () => {
+                mockArgs[0].buildTimeout = 200;
+                blockedBy = new BlockedBy(mockWorker, mockFunc, mockQueue, mockJob, mockArgs, {
+                    blockedBySelf: true
+                });
+
+                mockLuaScriptLoader.executeScript.resolves(
+                    JSON.stringify({
+                        action: 'START',
+                        reason: 'NOT_BLOCKED',
+                        buildId
+                    })
+                );
+
+                const proceed = await blockedBy.beforePerform();
+
+                assert.isTrue(proceed);
+                // Verify timeout passed to Lua script includes buffer
+                const scriptArgs = mockLuaScriptLoader.executeScript.firstCall.args[2];
+
+                assert.equal(scriptArgs[8], String(200 + BLOCK_TIMEOUT_BUFFER));
+            });
+
+            it('proceeds if not blocked by self and others', async () => {
+                mockArgs[0].blockedBy = '777';
+                blockedBy = new BlockedBy(mockWorker, mockFunc, mockQueue, mockJob, mockArgs, {
+                    blockedBySelf: false
+                });
+
+                mockLuaScriptLoader.executeScript.resolves(
+                    JSON.stringify({
+                        action: 'START',
+                        reason: 'NOT_BLOCKED_BY_SELF',
+                        buildId
+                    })
+                );
+
                 const proceed = await blockedBy.beforePerform();
 
                 assert.isTrue(proceed);
             });
 
-            it('proceeds if not blocked', async () => {
-                mockRedis.lrange.resolves([]);
-                await blockedBy.beforePerform();
-                assert.calledWith(mockRedis.set, key, buildId);
-                assert.calledWith(mockRedis.expire, key, DEFAULT_BLOCKTIMEOUT * 60);
-                assert.notCalled(mockWorker.queueObject.enqueueIn);
-                assert.calledWith(mockRedis.get, runningKey);
-                assert.calledWith(mockRedis.get, deleteKey);
-                assert.calledWith(mockRedis.get, `${runningJobsPrefix}111`);
-                assert.calledWith(mockRedis.get, `${runningJobsPrefix}222`);
-            });
-
-            it('proceeds if not blocked and set block timeout based on build timeout', async () => {
-                const buildConfig = {
-                    apiUri: 'foo.bar',
-                    token: 'fake',
-                    annotations: {
-                        'screwdriver.cd/timeout': 200
-                    }
-                };
-
-                mockRedis.hget.resolves(JSON.stringify(buildConfig));
-                mockRedis.lrange.resolves([]);
-                await blockedBy.beforePerform();
-                assert.calledWith(mockRedis.set, key, buildId);
-                assert.calledWith(mockRedis.expire, key, (200 + BLOCK_TIMEOUT_BUFFER) * 60);
-                assert.notCalled(mockWorker.queueObject.enqueueIn);
-                assert.calledWith(mockRedis.get, runningKey);
-                assert.calledWith(mockRedis.get, deleteKey);
-                assert.calledWith(mockRedis.get, `${runningJobsPrefix}111`);
-                assert.calledWith(mockRedis.get, `${runningJobsPrefix}222`);
-            });
-
-            it('proceeds if not blocked by self and others', async () => {
-                mockRedis.lrange.resolves([]);
-                mockArgs[0].blockedBy = '777';
-                blockedBy = new BlockedBy(mockWorker, mockFunc, mockQueue, mockJob, mockArgs, {
-                    blockedBySelf: 'false'
-                });
-                await blockedBy.beforePerform();
-                assert.calledWith(mockRedis.set, key, buildId);
-                assert.calledWith(mockRedis.expire, key, DEFAULT_BLOCKTIMEOUT * 60);
-                assert.notCalled(mockWorker.queueObject.enqueueIn);
-                assert.calledWith(mockRedis.get, runningKey);
-            });
-
             it('do not proceed if build was aborted', async () => {
-                mockRedis.get.withArgs(deleteKey).resolves('');
-                const result = await blockedBy.beforePerform();
+                mockLuaScriptLoader.executeScript.resolves(
+                    JSON.stringify({
+                        action: 'ABORT',
+                        reason: 'BUILD_ABORTED',
+                        buildId
+                    })
+                );
 
-                assert.equal(result, false);
-                assert.calledWith(mockRedis.get, runningKey);
-                assert.calledWith(mockRedis.get, deleteKey);
-                assert.calledWith(mockRedis.get, `${runningJobsPrefix}${jobId}`);
-                assert.notCalled(mockRedis.set);
-                assert.notCalled(mockRedis.expire);
-                assert.notCalled(mockRedis.rpush);
+                const proceed = await blockedBy.beforePerform();
+
+                assert.isFalse(proceed);
                 assert.notCalled(mockWorker.queueObject.enqueueIn);
-                assert.calledWith(mockRedis.lrem, `${waitingJobsPrefix}${jobId}`, 0, buildId);
             });
 
             it('do not proceed if build was aborted while running', async () => {
-                mockRedis.get.withArgs(deleteKey).resolves('');
-                mockRedis.get.withArgs(`${runningJobsPrefix}${jobId}`).resolves('4');
-                const result = await blockedBy.beforePerform();
+                mockLuaScriptLoader.executeScript.resolves(
+                    JSON.stringify({
+                        action: 'ABORT',
+                        reason: 'ABORTED_WHILE_RUNNING',
+                        buildId
+                    })
+                );
 
-                assert.equal(result, false);
-                assert.calledWith(mockRedis.get.firstCall, deleteKey);
-                assert.calledWith(mockRedis.get.secondCall, `${runningJobsPrefix}${jobId}`);
-                assert.notCalled(mockRedis.set);
-                assert.notCalled(mockRedis.expire);
-                assert.notCalled(mockRedis.rpush);
-                assert.notCalled(mockWorker.queueObject.enqueueIn);
-                assert.calledWith(mockRedis.lrem, `${waitingJobsPrefix}${jobId}`, 0, buildId);
-                assert.calledWith(mockRedis.del, deleteKey);
+                const proceed = await blockedBy.beforePerform();
+
+                assert.isFalse(proceed);
             });
 
             it('do not block by self', async () => {
-                mockRedis.lrange.resolves([]);
+                mockArgs[0].blockedBy = '777';
                 blockedBy = new BlockedBy(mockWorker, mockFunc, mockQueue, mockJob, mockArgs, {
-                    blockedBySelf: 'false'
+                    blockedBySelf: false
                 });
 
-                await blockedBy.beforePerform();
-                assert.calledWith(mockRedis.set, key, buildId);
-                assert.calledWith(mockRedis.expire, key, DEFAULT_BLOCKTIMEOUT * 60);
-                assert.notCalled(mockWorker.queueObject.enqueueIn);
+                mockLuaScriptLoader.executeScript.resolves(
+                    JSON.stringify({
+                        action: 'START',
+                        reason: 'SAME_JOB_NOT_BLOCKING',
+                        buildId
+                    })
+                );
+
+                const proceed = await blockedBy.beforePerform();
+
+                assert.isTrue(proceed);
             });
 
             it('re-enqueue if blocked', async () => {
-                mockRedis.get.withArgs(`${runningJobsPrefix}111`).resolves('123');
-                helperMock.updateBuildStatus.resolves();
-                await blockedBy.beforePerform();
-                assert.equal(mockRedis.get.getCall(0).args[0], deleteKey);
-                assert.equal(mockRedis.get.getCall(1).args[0], runningKey);
-                assert.equal(mockRedis.get.getCall(2).args[0], `last_${runningKey}`);
-                assert.equal(mockRedis.get.getCall(3).args[0], `${runningJobsPrefix}111`);
-                assert.equal(mockRedis.get.getCall(4).args[0], `${runningJobsPrefix}222`);
-                assert.notCalled(mockRedis.set);
-                assert.notCalled(mockRedis.expire);
-                assert.calledWith(mockRedis.rpush, `${waitingJobsPrefix}${jobId}`, buildId);
-                assert.calledWith(
-                    mockWorker.queueObject.enqueueIn,
-                    DEFAULT_ENQUEUETIME * 1000 * 60,
-                    mockQueue,
-                    mockFunc,
-                    mockArgs
+                mockLuaScriptLoader.executeScript.resolves(
+                    JSON.stringify({
+                        action: 'BLOCK',
+                        reason: 'BLOCKED_BY_DEPENDENCIES',
+                        buildId,
+                        blockedBy: [111, 222]
+                    })
                 );
-                assert.calledWith(helperMock.updateBuildStatus, {
-                    buildId: 3,
-                    redisInstance: mockRedis,
-                    status: 'BLOCKED',
-                    statusMessage: 'Blocked by these running build(s): <a href="/builds/123">123</a>'
-                });
-            });
 
-            it('does not re-enqueue if blocked by same job', async () => {
-                const dateNow = new Date();
+                const proceed = await blockedBy.beforePerform();
 
-                dateNow.setHours(dateNow.getHours() - 2);
-                mockRedis.hget.resolves(
-                    `{"apiUri": "foo.bar","startTime":"${dateNow.toISOString()}", "token": "fake"}`
+                assert.isFalse(proceed);
+                assert.isTrue(mockWorker.queueObject.enqueueIn.calledOnce);
+                assert.isTrue(
+                    helperMock.updateBuildStatus.calledWith(
+                        sinon.match({
+                            buildId,
+                            status: 'BLOCKED'
+                        })
+                    )
                 );
-                mockRedis.get.withArgs(`${runningJobsPrefix}777`).resolves(123);
-                mockRedis.lrange.resolves(['3', '5']);
-                helperMock.updateBuildStatus.resolves();
-                mockArgs[0].blockedBySameJob = false;
-                mockArgs[0].blockedBySameJobWaitTime = 5;
-                blockedBy = new BlockedBy(mockWorker, mockFunc, mockQueue, mockJob, mockArgs, {
-                    blockedBySelf: 'true'
-                });
-                await blockedBy.beforePerform();
-                assert.equal(mockRedis.get.getCall(0).args[0], deleteKey);
-                assert.equal(mockRedis.get.getCall(1).args[0], runningKey);
-                assert.equal(mockRedis.get.getCall(2).args[0], `last_${runningKey}`);
-                assert.equal(mockRedis.get.getCall(3).args[0], `${runningJobsPrefix}111`);
-                assert.equal(mockRedis.get.getCall(4).args[0], `${runningJobsPrefix}222`);
-                assert.notCalled(helperMock.updateBuildStatus);
-            });
-
-            it('re-enqueue if build does not meet wait time', async () => {
-                const dateNow = new Date();
-
-                mockRedis.hget.resolves(
-                    `{"apiUri": "foo.bar","startTime":"${dateNow.toISOString()}", "token": "fake"}`
-                );
-                mockRedis.get.withArgs(`${runningJobsPrefix}777`).resolves('123');
-                helperMock.updateBuildStatus.resolves();
-                await blockedBy.beforePerform();
-                assert.equal(mockRedis.get.getCall(0).args[0], deleteKey);
-                assert.equal(mockRedis.get.getCall(1).args[0], runningKey);
-                assert.equal(mockRedis.get.getCall(2).args[0], `last_${runningKey}`);
-                assert.equal(mockRedis.get.getCall(3).args[0], `${runningJobsPrefix}111`);
-                assert.equal(mockRedis.get.getCall(4).args[0], `${runningJobsPrefix}222`);
-                assert.notCalled(mockRedis.set);
-                assert.notCalled(mockRedis.expire);
-                assert.calledWith(mockRedis.rpush, `${waitingJobsPrefix}${jobId}`, buildId);
-                assert.calledWith(
-                    mockWorker.queueObject.enqueueIn,
-                    DEFAULT_ENQUEUETIME * 1000 * 60,
-                    mockQueue,
-                    mockFunc,
-                    mockArgs
-                );
-                assert.calledWith(helperMock.updateBuildStatus, {
-                    buildId: 3,
-                    redisInstance: mockRedis,
-                    status: 'BLOCKED',
-                    statusMessage: 'Blocked by these running build(s): <a href="/builds/123">123</a>'
-                });
             });
 
             it('re-enqueue if blocked multiple build ids', async () => {
-                mockRedis.get.withArgs(`${runningJobsPrefix}111`).resolves('123');
-                mockRedis.get.withArgs(`${runningJobsPrefix}222`).resolves('456');
-
-                helperMock.updateBuildStatus.resolves();
-                await blockedBy.beforePerform();
-                assert.equal(mockRedis.get.getCall(0).args[0], deleteKey);
-                assert.equal(mockRedis.get.getCall(1).args[0], runningKey);
-                assert.equal(mockRedis.get.getCall(2).args[0], `last_${runningKey}`);
-                assert.equal(mockRedis.get.getCall(3).args[0], `${runningJobsPrefix}111`);
-                assert.equal(mockRedis.get.getCall(4).args[0], `${runningJobsPrefix}222`);
-                assert.equal(mockRedis.get.getCall(5).args[0], `${runningJobsPrefix}777`);
-                assert.notCalled(mockRedis.set);
-                assert.notCalled(mockRedis.expire);
-                assert.calledWith(mockRedis.rpush, `${waitingJobsPrefix}${jobId}`, buildId);
-                assert.calledWith(
-                    mockWorker.queueObject.enqueueIn,
-                    DEFAULT_ENQUEUETIME * 1000 * 60,
-                    mockQueue,
-                    mockFunc,
-                    mockArgs
+                mockLuaScriptLoader.executeScript.resolves(
+                    JSON.stringify({
+                        action: 'BLOCK',
+                        reason: 'BLOCKED_BY_DEPENDENCIES',
+                        buildId,
+                        blockedBy: [111, 222, 333]
+                    })
                 );
-                assert.calledWith(helperMock.updateBuildStatus, {
-                    buildId: 3,
-                    redisInstance: mockRedis,
-                    status: 'BLOCKED',
-                    statusMessage:
-                        'Blocked by these running build(s): ' +
-                        '<a href="/builds/123">123</a>, <a href="/builds/456">456</a>'
-                });
+
+                const proceed = await blockedBy.beforePerform();
+
+                assert.isFalse(proceed);
+                assert.isTrue(mockWorker.queueObject.enqueueIn.calledOnce);
             });
 
             it('collapse waiting builds to latest one and re-enqueue if blocked', async () => {
-                blockedBy = new BlockedBy(mockWorker, mockFunc, mockQueue, mockJob, mockArgs, {
-                    blockedBySelf: true,
-                    collapse: true
-                });
-                mockRedis.get.withArgs(`${runningJobsPrefix}111`).resolves('123');
-                mockRedis.lrange.resolves(['2', '1']);
-                mockRedis.lrem.resolves(1);
-                helperMock.updateBuildStatus.resolves();
-                await blockedBy.beforePerform();
-                assert.equal(mockRedis.get.getCall(0).args[0], deleteKey);
-                assert.equal(mockRedis.get.getCall(1).args[0], runningKey);
-                assert.equal(mockRedis.get.getCall(2).args[0], `last_${runningKey}`);
-                assert.equal(mockRedis.get.getCall(3).args[0], `${runningJobsPrefix}111`);
-                assert.equal(mockRedis.get.getCall(4).args[0], `${runningJobsPrefix}222`);
-                assert.notCalled(mockRedis.set);
-                assert.notCalled(mockRedis.expire);
-                assert.calledWith(mockRedis.rpush, `${waitingJobsPrefix}${jobId}`, buildId);
-                assert.calledWith(
-                    mockWorker.queueObject.enqueueIn,
-                    DEFAULT_ENQUEUETIME * 1000 * 60,
-                    mockQueue,
-                    mockFunc,
-                    mockArgs
+                mockLuaScriptLoader.executeScript.resolves(
+                    JSON.stringify({
+                        action: 'COLLAPSE',
+                        reason: 'NEWER_BUILD_EXISTS',
+                        buildId,
+                        newestBuild: 5
+                    })
                 );
-                assert.calledWith(helperMock.updateBuildStatus.firstCall, {
-                    buildId: 1,
-                    redisInstance: mockRedis,
-                    status: 'COLLAPSED',
-                    statusMessage: 'Collapsed to build: 3'
-                });
-                assert.calledWith(helperMock.updateBuildStatus.secondCall, {
-                    buildId: 2,
-                    redisInstance: mockRedis,
-                    status: 'COLLAPSED',
-                    statusMessage: 'Collapsed to build: 3'
-                });
-                assert.calledWith(helperMock.updateBuildStatus.thirdCall, {
-                    buildId,
-                    redisInstance: mockRedis,
-                    status: 'BLOCKED',
-                    statusMessage: 'Blocked by these running build(s): <a href="/builds/123">123</a>'
-                });
+
+                const proceed = await blockedBy.beforePerform();
+
+                assert.isFalse(proceed);
+                assert.isTrue(
+                    helperMock.updateBuildStatus.calledWith(
+                        sinon.match({
+                            buildId,
+                            status: 'COLLAPSED',
+                            statusMessage: 'Collapsed to build: 5'
+                        })
+                    )
+                );
             });
 
             it('do not collapse if default collapse is false', async () => {
                 blockedBy = new BlockedBy(mockWorker, mockFunc, mockQueue, mockJob, mockArgs, {
-                    blockedBySelf: true,
                     collapse: false
                 });
-                mockRedis.get.withArgs(`${runningJobsPrefix}111`).resolves('123');
-                mockRedis.lrange.resolves(['2', '1']);
-                helperMock.updateBuildStatus.resolves();
-                await blockedBy.beforePerform();
-                assert.equal(mockRedis.get.getCall(0).args[0], deleteKey);
-                assert.equal(mockRedis.get.getCall(1).args[0], runningKey);
-                assert.equal(mockRedis.get.getCall(2).args[0], `last_${runningKey}`);
-                assert.equal(mockRedis.get.getCall(3).args[0], `${runningJobsPrefix}111`);
-                assert.equal(mockRedis.get.getCall(4).args[0], `${runningJobsPrefix}222`);
-                assert.notCalled(mockRedis.set);
-                assert.notCalled(mockRedis.expire);
-                assert.notCalled(mockRedis.lrem);
-                assert.calledWith(mockRedis.rpush, `${waitingJobsPrefix}${jobId}`, buildId);
-                assert.calledOnce(helperMock.updateBuildStatus);
-                assert.calledWith(
-                    mockWorker.queueObject.enqueueIn,
-                    DEFAULT_ENQUEUETIME * 1000 * 60,
-                    mockQueue,
-                    mockFunc,
-                    mockArgs
+
+                mockLuaScriptLoader.executeScript.resolves(
+                    JSON.stringify({
+                        action: 'BLOCK',
+                        reason: 'BLOCKED_BY_DEPENDENCIES',
+                        buildId,
+                        blockedBy: [111]
+                    })
                 );
-                assert.calledWith(helperMock.updateBuildStatus, {
-                    buildId,
-                    redisInstance: mockRedis,
-                    status: 'BLOCKED',
-                    statusMessage: 'Blocked by these running build(s): <a href="/builds/123">123</a>'
-                });
+
+                const proceed = await blockedBy.beforePerform();
+
+                assert.isFalse(proceed);
+                // Verify collapse flag was passed as false
+                const scriptArgs = mockLuaScriptLoader.executeScript.firstCall.args[2];
+
+                assert.equal(scriptArgs[3], 'false');
             });
 
             it('do not collapse build no longer in waiting queue', async () => {
-                blockedBy = new BlockedBy(mockWorker, mockFunc, mockQueue, mockJob, mockArgs, {
-                    blockedBySelf: true,
-                    collapse: true
-                });
-                mockRedis.get.withArgs(`${runningJobsPrefix}111`).resolves('123');
-                mockRedis.lrange.resolves(['2']);
-                mockRedis.lrem.resolves(0);
-                helperMock.updateBuildStatus.resolves();
-                await blockedBy.beforePerform();
-                assert.equal(mockRedis.get.getCall(0).args[0], deleteKey);
-                assert.equal(mockRedis.get.getCall(1).args[0], runningKey);
-                assert.equal(mockRedis.get.getCall(2).args[0], `last_${runningKey}`);
-                assert.equal(mockRedis.get.getCall(3).args[0], `${runningJobsPrefix}111`);
-                assert.equal(mockRedis.get.getCall(4).args[0], `${runningJobsPrefix}222`);
-                assert.notCalled(mockRedis.set);
-                assert.notCalled(mockRedis.expire);
-                assert.calledWith(mockRedis.rpush, `${waitingJobsPrefix}${jobId}`, buildId);
-                assert.calledWith(
-                    mockWorker.queueObject.enqueueIn,
-                    DEFAULT_ENQUEUETIME * 1000 * 60,
-                    mockQueue,
-                    mockFunc,
-                    mockArgs
+                mockLuaScriptLoader.executeScript.resolves(
+                    JSON.stringify({
+                        action: 'BLOCK',
+                        reason: 'NOT_IN_WAITING_QUEUE',
+                        buildId,
+                        blockedBy: [111]
+                    })
                 );
-                assert.calledOnce(helperMock.updateBuildStatus);
-                assert.calledWith(helperMock.updateBuildStatus, {
-                    buildId,
-                    redisInstance: mockRedis,
-                    status: 'BLOCKED',
-                    statusMessage: 'Blocked by these running build(s): <a href="/builds/123">123</a>'
-                });
+
+                const proceed = await blockedBy.beforePerform();
+
+                assert.isFalse(proceed);
+                assert.isTrue(mockWorker.queueObject.enqueueIn.calledOnce);
             });
 
             it('re-enqueue if blocked and no waiting builds', async () => {
-                blockedBy = new BlockedBy(mockWorker, mockFunc, mockQueue, mockJob, mockArgs, {
-                    blockedBySelf: true,
-                    collapse: true
-                });
-                mockRedis.get.withArgs(`${runningJobsPrefix}111`).resolves('123');
-                mockRedis.lrange.resolves([]);
-                helperMock.updateBuildStatus.resolves();
-                await blockedBy.beforePerform();
-                assert.equal(mockRedis.get.getCall(0).args[0], deleteKey);
-                assert.equal(mockRedis.get.getCall(1).args[0], runningKey);
-                assert.equal(mockRedis.get.getCall(2).args[0], `last_${runningKey}`);
-                assert.equal(mockRedis.get.getCall(3).args[0], `${runningJobsPrefix}111`);
-                assert.equal(mockRedis.get.getCall(4).args[0], `${runningJobsPrefix}222`);
-                assert.notCalled(mockRedis.set);
-                assert.notCalled(mockRedis.expire);
-                assert.notCalled(mockRedis.lrem);
-                assert.calledWith(mockRedis.rpush, `${waitingJobsPrefix}${jobId}`, buildId);
-                assert.calledWith(
-                    mockWorker.queueObject.enqueueIn,
-                    DEFAULT_ENQUEUETIME * 1000 * 60,
-                    mockQueue,
-                    mockFunc,
-                    mockArgs
+                mockLuaScriptLoader.executeScript.resolves(
+                    JSON.stringify({
+                        action: 'BLOCK',
+                        reason: 'BLOCKED_NO_WAITING',
+                        buildId,
+                        blockedBy: [111]
+                    })
                 );
-                assert.calledWith(helperMock.updateBuildStatus, {
-                    buildId: 3,
-                    redisInstance: mockRedis,
-                    status: 'BLOCKED',
-                    statusMessage: 'Blocked by these running build(s): <a href="/builds/123">123</a>'
-                });
+
+                const proceed = await blockedBy.beforePerform();
+
+                assert.isFalse(proceed);
+                assert.isTrue(mockWorker.queueObject.enqueueIn.calledOnce);
             });
 
             it('do not collapse if waiting build is the latest one', async () => {
-                blockedBy = new BlockedBy(mockWorker, mockFunc, mockQueue, mockJob, mockArgs, {
-                    blockedBySelf: true,
-                    collapse: true
-                });
-                mockRedis.get.withArgs(`${runningJobsPrefix}111`).resolves('123');
-                mockRedis.lrange.resolves(['3']);
-                helperMock.updateBuildStatus.resolves();
-                await blockedBy.beforePerform();
-                assert.equal(mockRedis.get.getCall(0).args[0], deleteKey);
-                assert.equal(mockRedis.get.getCall(1).args[0], runningKey);
-                assert.equal(mockRedis.get.getCall(2).args[0], `last_${runningKey}`);
-                assert.equal(mockRedis.get.getCall(3).args[0], `${runningJobsPrefix}111`);
-                assert.equal(mockRedis.get.getCall(4).args[0], `${runningJobsPrefix}222`);
-                assert.notCalled(mockRedis.set);
-                assert.notCalled(mockRedis.expire);
-                assert.notCalled(mockRedis.lrem);
-                assert.calledWith(
-                    mockWorker.queueObject.enqueueIn,
-                    DEFAULT_ENQUEUETIME * 1000 * 60,
-                    mockQueue,
-                    mockFunc,
-                    mockArgs
+                mockLuaScriptLoader.executeScript.resolves(
+                    JSON.stringify({
+                        action: 'BLOCK',
+                        reason: 'IS_LATEST_BUILD',
+                        buildId,
+                        blockedBy: [111]
+                    })
                 );
-                assert.calledWith(helperMock.updateBuildStatus, {
-                    buildId: 3,
-                    redisInstance: mockRedis,
-                    status: 'BLOCKED',
-                    statusMessage: 'Blocked by these running build(s): <a href="/builds/123">123</a>'
-                });
+
+                const proceed = await blockedBy.beforePerform();
+
+                assert.isFalse(proceed);
+                assert.isTrue(mockWorker.queueObject.enqueueIn.calledOnce);
             });
 
             it('collapse and discard build if older than last running build', async () => {
-                blockedBy = new BlockedBy(mockWorker, mockFunc, mockQueue, mockJob, mockArgs, {
-                    blockedBySelf: true,
-                    collapse: true
-                });
-                mockRedis.get.withArgs(`${runningJobsPrefix}111`).resolves('123');
-                mockRedis.get.withArgs(`last_${runningKey}`).resolves('4');
-                helperMock.updateBuildStatus.resolves();
-                await blockedBy.beforePerform();
-                assert.equal(mockRedis.get.getCall(0).args[0], deleteKey);
-                assert.equal(mockRedis.get.getCall(1).args[0], runningKey);
-                assert.equal(mockRedis.get.getCall(2).args[0], `last_${runningKey}`);
-                assert.notCalled(mockRedis.set);
-                assert.notCalled(mockRedis.expire);
-                assert.notCalled(mockWorker.queueObject.enqueueIn);
-                assert.calledOnce(mockRedis.lrem);
-                assert.calledWith(helperMock.updateBuildStatus, {
-                    buildId: 3,
-                    redisInstance: mockRedis,
-                    status: 'COLLAPSED',
-                    statusMessage: 'Collapsed to build: 4'
-                });
+                mockLuaScriptLoader.executeScript.resolves(
+                    JSON.stringify({
+                        action: 'COLLAPSE',
+                        reason: 'OLDER_THAN_LAST_RUNNING',
+                        buildId,
+                        newestBuild: null
+                    })
+                );
+
+                const proceed = await blockedBy.beforePerform();
+
+                assert.isFalse(proceed);
+                assert.isTrue(
+                    helperMock.updateBuildStatus.calledWith(
+                        sinon.match({
+                            buildId,
+                            status: 'COLLAPSED'
+                        })
+                    )
+                );
             });
 
             it('do not collapse blocked build if user opts out', async () => {
                 blockedBy = new BlockedBy(mockWorker, mockFunc, mockQueue, mockJob, mockArgs, {
-                    blockedBySelf: true,
-                    collapse: true
+                    collapse: false
                 });
-                const buildConfig = {
-                    apiUri: 'foo.bar',
-                    token: 'fake',
-                    annotations: {
-                        'screwdriver.cd/timeout': 200,
-                        'screwdriver.cd/collapseBuilds': false
-                    }
-                };
 
-                mockRedis.hget.resolves(JSON.stringify(buildConfig));
-                mockRedis.get.withArgs(`${runningJobsPrefix}111`).resolves('123');
-                mockRedis.get.withArgs(`last_${runningKey}`).resolves('4');
-                helperMock.updateBuildStatus.resolves();
-                await blockedBy.beforePerform();
-                assert.equal(mockRedis.get.getCall(0).args[0], deleteKey);
-                assert.equal(mockRedis.get.getCall(1).args[0], runningKey);
-                assert.equal(mockRedis.get.getCall(2).args[0], `last_${runningKey}`);
-                assert.notCalled(mockRedis.set);
-                assert.notCalled(mockRedis.expire);
-                assert.notCalled(mockRedis.lrem);
-                assert.calledWith(mockRedis.rpush, `${waitingJobsPrefix}${jobId}`, buildId);
-                assert.calledWith(
-                    mockWorker.queueObject.enqueueIn,
-                    DEFAULT_ENQUEUETIME * 1000 * 60,
-                    mockQueue,
-                    mockFunc,
-                    mockArgs
+                mockLuaScriptLoader.executeScript.resolves(
+                    JSON.stringify({
+                        action: 'BLOCK',
+                        reason: 'COLLAPSE_DISABLED',
+                        buildId,
+                        blockedBy: [111]
+                    })
                 );
-                assert.calledWith(helperMock.updateBuildStatus, {
-                    buildId: 3,
-                    redisInstance: mockRedis,
-                    status: 'BLOCKED',
-                    statusMessage: 'Blocked by these running build(s): <a href="/builds/123">123</a>'
-                });
-            });
 
-            it('do not re-enqueue if current build is older than waiting builds', async () => {
-                blockedBy = new BlockedBy(mockWorker, mockFunc, mockQueue, mockJob, mockArgs, {
-                    blockedBySelf: true,
-                    collapse: true
-                });
-                mockRedis.get.withArgs(`${runningJobsPrefix}111`).resolves('123');
-                mockRedis.lrange.resolves(['4']);
-                helperMock.updateBuildStatus.resolves();
-                await blockedBy.beforePerform();
-                assert.equal(mockRedis.get.getCall(0).args[0], deleteKey);
-                assert.equal(mockRedis.get.getCall(1).args[0], runningKey);
-                assert.equal(mockRedis.get.getCall(2).args[0], `last_${runningKey}`);
-                assert.equal(mockRedis.get.getCall(3).args[0], `${runningJobsPrefix}111`);
-                assert.equal(mockRedis.get.getCall(4).args[0], `${runningJobsPrefix}222`);
-                assert.notCalled(mockRedis.set);
-                assert.notCalled(mockRedis.expire);
-                assert.notCalled(mockRedis.lrem);
-                assert.notCalled(mockWorker.queueObject.enqueueIn);
+                const proceed = await blockedBy.beforePerform();
+
+                assert.isFalse(proceed);
+                assert.isTrue(mockWorker.queueObject.enqueueIn.calledOnce);
             });
 
             it('re-enqueue if blocked and not push to list if duplicate', async () => {
-                mockRedis.get.withArgs(`${runningJobsPrefix}111`).resolves('123');
-                mockRedis.lrange.resolves([buildIdStr]);
-                helperMock.updateBuildStatus.resolves();
-                await blockedBy.beforePerform();
-                assert.equal(mockRedis.get.getCall(0).args[0], deleteKey);
-                assert.equal(mockRedis.get.getCall(1).args[0], runningKey);
-                assert.equal(mockRedis.get.getCall(2).args[0], `last_${runningKey}`);
-                assert.equal(mockRedis.get.getCall(3).args[0], `${runningJobsPrefix}111`);
-                assert.equal(mockRedis.get.getCall(4).args[0], `${runningJobsPrefix}222`);
-                assert.notCalled(mockRedis.set);
-                assert.notCalled(mockRedis.expire);
-                assert.notCalled(mockRedis.rpush);
-                assert.calledWith(
-                    mockWorker.queueObject.enqueueIn,
-                    DEFAULT_ENQUEUETIME * 1000 * 60,
-                    mockQueue,
-                    mockFunc,
-                    mockArgs
+                mockLuaScriptLoader.executeScript.resolves(
+                    JSON.stringify({
+                        action: 'BLOCK',
+                        reason: 'BLOCKED_DUPLICATE_NOT_ADDED',
+                        buildId,
+                        blockedBy: [111]
+                    })
                 );
+
+                const proceed = await blockedBy.beforePerform();
+
+                assert.isFalse(proceed);
+                assert.isTrue(mockWorker.queueObject.enqueueIn.calledOnce);
             });
 
             it('proceeds if same job waiting but not same buildId and feature is off', async () => {
-                mockRedis.lrange.resolves(['2']);
-                mockRedis.llen.resolves(1);
+                mockArgs[0].blockedBy = '777';
                 blockedBy = new BlockedBy(mockWorker, mockFunc, mockQueue, mockJob, mockArgs, {
-                    blockedBySelf: 'false'
+                    blockedBySelf: false
                 });
-                await blockedBy.beforePerform();
-                assert.calledWith(mockRedis.del, `${waitingJobsPrefix}${jobId}`);
-                assert.equal(mockRedis.get.getCall(0).args[0], deleteKey);
-                assert.equal(mockRedis.get.getCall(1).args[0], runningKey);
-                assert.equal(mockRedis.get.getCall(2).args[0], `last_${runningKey}`);
-                assert.equal(mockRedis.get.getCall(3).args[0], `${runningJobsPrefix}111`);
-                assert.equal(mockRedis.get.getCall(4).args[0], `${runningJobsPrefix}222`);
-                assert.calledWith(mockRedis.set, key, buildId);
-                assert.calledWith(mockRedis.expire, key, DEFAULT_BLOCKTIMEOUT * 60);
-                assert.notCalled(mockWorker.queueObject.enqueueIn);
-                assert.notCalled(mockRedis.rpush);
-                assert.notCalled(mockWorker.queueObject.enqueueIn);
+
+                mockLuaScriptLoader.executeScript.resolves(
+                    JSON.stringify({
+                        action: 'START',
+                        reason: 'BLOCKED_BY_SELF_DISABLED',
+                        buildId
+                    })
+                );
+
+                const proceed = await blockedBy.beforePerform();
+
+                assert.isTrue(proceed);
             });
 
             it('re-enqueue if there is the same job waiting but not the same buildId', async () => {
-                mockRedis.lrange.resolves(['2']);
-                mockRedis.llen.resolves(1);
-                helperMock.updateBuildStatus.resolves();
-                await blockedBy.beforePerform();
-                assert.equal(mockRedis.get.getCall(0).args[0], deleteKey);
-                assert.equal(mockRedis.get.getCall(1).args[0], runningKey);
-                assert.equal(mockRedis.get.getCall(2).args[0], `last_${runningKey}`);
-                assert.equal(mockRedis.get.getCall(3).args[0], `${runningJobsPrefix}111`);
-                assert.equal(mockRedis.get.getCall(4).args[0], `${runningJobsPrefix}222`);
-                assert.notCalled(mockRedis.set);
-                assert.notCalled(mockRedis.expire);
-                assert.calledWith(mockRedis.rpush, `${waitingJobsPrefix}${jobId}`, buildId);
-                assert.calledWith(
-                    mockWorker.queueObject.enqueueIn,
-                    DEFAULT_ENQUEUETIME * 1000 * 60,
-                    mockQueue,
-                    mockFunc,
-                    mockArgs
+                mockLuaScriptLoader.executeScript.resolves(
+                    JSON.stringify({
+                        action: 'BLOCK',
+                        reason: 'SAME_JOB_DIFFERENT_BUILD',
+                        buildId,
+                        blockedBy: [777]
+                    })
                 );
-                assert.calledWith(helperMock.updateBuildStatus, {
-                    buildId: 3,
-                    redisInstance: mockRedis,
-                    status: 'BLOCKED',
-                    statusMessage: 'Blocked by these running build(s): <a href="/builds/2">2</a>' // blocked by itself
-                });
+
+                const proceed = await blockedBy.beforePerform();
+
+                assert.isFalse(proceed);
+                assert.isTrue(mockWorker.queueObject.enqueueIn.calledOnce);
             });
 
             it('proceeds if there is the same job waiting with same buildId', async () => {
-                mockRedis.lrange.resolves(['5', '3', '4']);
-                mockRedis.llen.resolves(2);
-                await blockedBy.beforePerform();
-                assert.equal(mockRedis.get.getCall(0).args[0], deleteKey);
-                assert.equal(mockRedis.get.getCall(1).args[0], runningKey);
-                assert.equal(mockRedis.get.getCall(2).args[0], `last_${runningKey}`);
-                assert.equal(mockRedis.get.getCall(3).args[0], `${runningJobsPrefix}111`);
-                assert.equal(mockRedis.get.getCall(4).args[0], `${runningJobsPrefix}222`);
-                assert.calledWith(mockRedis.set, key, buildId);
-                assert.calledWith(mockRedis.expire, key, DEFAULT_BLOCKTIMEOUT * 60);
-                assert.notCalled(mockWorker.queueObject.enqueueIn);
+                mockLuaScriptLoader.executeScript.resolves(
+                    JSON.stringify({
+                        action: 'START',
+                        reason: 'SAME_BUILD_ID',
+                        buildId
+                    })
+                );
+
+                const proceed = await blockedBy.beforePerform();
+
+                assert.isTrue(proceed);
             });
 
             it('delete key if is the last job waiting', async () => {
-                mockRedis.lrange.resolves(['3']);
-                mockRedis.llen.resolves(0);
-                await blockedBy.beforePerform();
-                assert.equal(mockRedis.get.getCall(0).args[0], deleteKey);
-                assert.equal(mockRedis.get.getCall(1).args[0], runningKey);
-                assert.equal(mockRedis.get.getCall(2).args[0], `last_${runningKey}`);
-                assert.equal(mockRedis.get.getCall(3).args[0], `${runningJobsPrefix}111`);
-                assert.equal(mockRedis.get.getCall(4).args[0], `${runningJobsPrefix}222`);
-                assert.calledWith(mockRedis.set, key, buildId);
-                assert.calledWith(mockRedis.lrem, `${waitingJobsPrefix}${jobId}`, 0, buildId);
-                assert.calledWith(mockRedis.del, `${waitingJobsPrefix}${jobId}`);
-                assert.calledWith(mockRedis.expire, key, DEFAULT_BLOCKTIMEOUT * 60);
-                assert.notCalled(mockWorker.queueObject.enqueueIn);
+                mockLuaScriptLoader.executeScript.resolves(
+                    JSON.stringify({
+                        action: 'START',
+                        reason: 'LAST_WAITING_JOB_DELETED',
+                        buildId
+                    })
+                );
+
+                const proceed = await blockedBy.beforePerform();
+
+                assert.isTrue(proceed);
             });
 
             it('use lockTimeout option for expiring key', async () => {
-                mockRedis.lrange.resolves([]);
-                const blockTimeout = 1;
-
                 blockedBy = new BlockedBy(mockWorker, mockFunc, mockQueue, mockJob, mockArgs, {
-                    blockTimeout
+                    blockTimeout: 150
                 });
 
+                mockLuaScriptLoader.executeScript.resolves(
+                    JSON.stringify({
+                        action: 'START',
+                        reason: 'NOT_BLOCKED',
+                        buildId
+                    })
+                );
+
                 await blockedBy.beforePerform();
-                assert.calledWith(mockRedis.expire, key, 60);
+
+                // Verify custom timeout passed to Lua script
+                const scriptArgs = mockLuaScriptLoader.executeScript.firstCall.args[2];
+
+                assert.equal(scriptArgs[8], '150');
             });
 
             it('use reenqueueWaitTime option for enqueueing', async () => {
-                const reenqueueWaitTime = 5;
-
-                mockRedis.get.withArgs(`${runningJobsPrefix}111`).resolves('123');
-                helperMock.updateBuildStatus.resolves();
                 blockedBy = new BlockedBy(mockWorker, mockFunc, mockQueue, mockJob, mockArgs, {
-                    reenqueueWaitTime
+                    reenqueueWaitTime: 5
                 });
 
+                mockLuaScriptLoader.executeScript.resolves(
+                    JSON.stringify({
+                        action: 'BLOCK',
+                        reason: 'BLOCKED_BY_DEPENDENCIES',
+                        buildId,
+                        blockedBy: [111]
+                    })
+                );
+
                 await blockedBy.beforePerform();
-                assert.calledWith(mockWorker.queueObject.enqueueIn, 300000, mockQueue, mockFunc, mockArgs);
+
+                // Verify reenqueue time is 5 minutes (300000 ms)
+                assert.isTrue(mockWorker.queueObject.enqueueIn.calledWith(300000));
             });
 
             it('always collapse waiting builds to latest one and re-enqueue if blocked when updateBuildStatus error', async () => {
-                blockedBy = new BlockedBy(mockWorker, mockFunc, mockQueue, mockJob, mockArgs, {
-                    blockedBySelf: true,
-                    collapse: true
-                });
-                mockRedis.get.withArgs(`${runningJobsPrefix}111`).resolves('123');
-                mockRedis.lrange.resolves(['2', '1']);
-                mockRedis.lrem.resolves(1);
-                helperMock.updateBuildStatus.rejects();
-                await blockedBy.beforePerform();
-                assert.equal(mockRedis.get.getCall(0).args[0], deleteKey);
-                assert.equal(mockRedis.get.getCall(1).args[0], runningKey);
-                assert.equal(mockRedis.get.getCall(2).args[0], `last_${runningKey}`);
-                assert.equal(mockRedis.get.getCall(3).args[0], `${runningJobsPrefix}111`);
-                assert.equal(mockRedis.get.getCall(4).args[0], `${runningJobsPrefix}222`);
-                assert.notCalled(mockRedis.set);
-                assert.notCalled(mockRedis.expire);
-                assert.calledWith(mockRedis.rpush, `${waitingJobsPrefix}${jobId}`, buildId);
-                assert.calledWith(
-                    mockWorker.queueObject.enqueueIn,
-                    DEFAULT_ENQUEUETIME * 1000 * 60,
-                    mockQueue,
-                    mockFunc,
-                    mockArgs
+                helperMock.updateBuildStatus.rejects(new Error('update error'));
+
+                mockLuaScriptLoader.executeScript.resolves(
+                    JSON.stringify({
+                        action: 'COLLAPSE',
+                        reason: 'NEWER_BUILD_EXISTS',
+                        buildId,
+                        newestBuild: 5
+                    })
                 );
-                assert.calledWith(helperMock.updateBuildStatus.firstCall, {
-                    buildId: 1,
-                    redisInstance: mockRedis,
-                    status: 'COLLAPSED',
-                    statusMessage: 'Collapsed to build: 3'
-                });
-                assert.calledWith(helperMock.updateBuildStatus.secondCall, {
-                    buildId: 2,
-                    redisInstance: mockRedis,
-                    status: 'COLLAPSED',
-                    statusMessage: 'Collapsed to build: 3'
-                });
-                assert.calledWith(helperMock.updateBuildStatus.thirdCall, {
-                    buildId,
-                    redisInstance: mockRedis,
-                    status: 'BLOCKED',
-                    statusMessage: 'Blocked by these running build(s): <a href="/builds/123">123</a>'
-                });
+
+                const proceed = await blockedBy.beforePerform();
+
+                assert.isFalse(proceed);
+                assert.isTrue(helperMock.updateBuildStatus.calledOnce);
             });
 
             it('anyway collapse and discard build if older than last running build when updateBuildStatus error', async () => {
-                blockedBy = new BlockedBy(mockWorker, mockFunc, mockQueue, mockJob, mockArgs, {
-                    blockedBySelf: true,
-                    collapse: true
-                });
-                mockRedis.get.withArgs(`${runningJobsPrefix}111`).resolves('123');
-                mockRedis.get.withArgs(`last_${runningKey}`).resolves('4');
-                helperMock.updateBuildStatus.rejects();
-                await blockedBy.beforePerform();
-                assert.equal(mockRedis.get.getCall(0).args[0], deleteKey);
-                assert.equal(mockRedis.get.getCall(1).args[0], runningKey);
-                assert.equal(mockRedis.get.getCall(2).args[0], `last_${runningKey}`);
-                assert.notCalled(mockRedis.set);
-                assert.notCalled(mockRedis.expire);
-                assert.notCalled(mockWorker.queueObject.enqueueIn);
-                assert.calledOnce(mockRedis.lrem);
-                assert.calledWith(helperMock.updateBuildStatus, {
-                    buildId: 3,
-                    redisInstance: mockRedis,
-                    status: 'COLLAPSED',
-                    statusMessage: 'Collapsed to build: 4'
-                });
+                helperMock.updateBuildStatus.rejects(new Error('update error'));
+
+                mockLuaScriptLoader.executeScript.resolves(
+                    JSON.stringify({
+                        action: 'COLLAPSE',
+                        reason: 'OLDER_THAN_LAST_RUNNING',
+                        buildId
+                    })
+                );
+
+                const proceed = await blockedBy.beforePerform();
+
+                assert.isFalse(proceed);
             });
 
             it('anyway re-enqueue if blocked when updateBuildStatus error', async () => {
-                mockRedis.get.withArgs(`${runningJobsPrefix}111`).resolves('123');
-                helperMock.updateBuildStatus.rejects();
-                await blockedBy.beforePerform();
-                assert.equal(mockRedis.get.getCall(0).args[0], deleteKey);
-                assert.equal(mockRedis.get.getCall(1).args[0], runningKey);
-                assert.equal(mockRedis.get.getCall(2).args[0], `last_${runningKey}`);
-                assert.equal(mockRedis.get.getCall(3).args[0], `${runningJobsPrefix}111`);
-                assert.equal(mockRedis.get.getCall(4).args[0], `${runningJobsPrefix}222`);
-                assert.notCalled(mockRedis.set);
-                assert.notCalled(mockRedis.expire);
-                assert.calledWith(mockRedis.rpush, `${waitingJobsPrefix}${jobId}`, buildId);
-                assert.calledWith(
-                    mockWorker.queueObject.enqueueIn,
-                    DEFAULT_ENQUEUETIME * 1000 * 60,
-                    mockQueue,
-                    mockFunc,
-                    mockArgs
+                helperMock.updateBuildStatus.rejects(new Error('update error'));
+
+                mockLuaScriptLoader.executeScript.resolves(
+                    JSON.stringify({
+                        action: 'BLOCK',
+                        reason: 'BLOCKED_BY_DEPENDENCIES',
+                        buildId,
+                        blockedBy: [111]
+                    })
                 );
-                assert.calledWith(helperMock.updateBuildStatus, {
-                    buildId: 3,
-                    redisInstance: mockRedis,
-                    status: 'BLOCKED',
-                    statusMessage: 'Blocked by these running build(s): <a href="/builds/123">123</a>'
-                });
+
+                const proceed = await blockedBy.beforePerform();
+
+                assert.isFalse(proceed);
+                assert.isTrue(mockWorker.queueObject.enqueueIn.calledOnce);
             });
 
-            it('log error when redlock fail to accquire lock', async () => {
-                const lockErr = new Error('Fail to accquire lock');
-                const message = `Failed to lock job ${jobId} for ${buildId}: ${lockErr}`;
+            it('log error when Lua script fails', async () => {
+                mockLuaScriptLoader.executeScript.rejects(new Error('Lua script error'));
 
-                mockRedlockObj.lock = sinon.stub().throws(lockErr);
-                mockRedis.lrange.resolves([]);
-                await blockedBy.beforePerform().catch(() => {});
-                assert.calledWith(mockRedlockObj.lock, `jobId_${jobId}`, 10000);
-                assert.notCalled(mockLockObj.unlock);
-                assert.calledWith(mockLogger.error, message);
-                assert.calledWith(mockRedis.set, key, buildId);
-                assert.calledWith(mockRedis.expire, key, DEFAULT_BLOCKTIMEOUT * 60);
-                assert.notCalled(mockWorker.queueObject.enqueueIn);
-                assert.calledWith(mockRedis.get, runningKey);
-                assert.calledWith(mockRedis.get, deleteKey);
-                assert.calledWith(mockRedis.get, `${runningJobsPrefix}111`);
-                assert.calledWith(mockRedis.get, `${runningJobsPrefix}222`);
+                const proceed = await blockedBy.beforePerform();
+
+                assert.isFalse(proceed);
+                assert.isTrue(mockLogger.error.calledWith(sinon.match(/Error in beforePerform/)));
             });
 
-            it('log error when redlock fail to unlock lock', async () => {
-                const lockErr = new Error('Fail to unlock lock');
-                const message = `Failed to unlock job ${jobId} for ${buildId}: ${lockErr}`;
+            it('handles unknown action gracefully', async () => {
+                mockLuaScriptLoader.executeScript.resolves(
+                    JSON.stringify({
+                        action: 'UNKNOWN_ACTION',
+                        reason: 'TEST',
+                        buildId
+                    })
+                );
 
-                mockLockObj.unlock = sinon.stub().throws(lockErr);
-                mockRedis.lrange.resolves([]);
-                await blockedBy.beforePerform();
-                assert.calledWith(mockRedlockObj.lock, `jobId_${jobId}`, 10000);
-                assert.calledOnce(mockLockObj.unlock);
-                assert.calledWith(mockLogger.error, message);
-                assert.calledWith(mockRedis.set, key, buildId);
-                assert.calledWith(mockRedis.expire, key, DEFAULT_BLOCKTIMEOUT * 60);
-                assert.notCalled(mockWorker.queueObject.enqueueIn);
-                assert.calledWith(mockRedis.get, runningKey);
-                assert.calledWith(mockRedis.get, deleteKey);
-                assert.calledWith(mockRedis.get, `${runningJobsPrefix}111`);
-                assert.calledWith(mockRedis.get, `${runningJobsPrefix}222`);
+                const proceed = await blockedBy.beforePerform();
+
+                assert.isFalse(proceed);
+                assert.isTrue(mockLogger.error.calledWith(sinon.match(/Unknown action/)));
             });
         });
 
         describe('afterPerform', () => {
             it('proceeds', async () => {
-                const proceed = await blockedBy.afterPerform();
+                const result = await blockedBy.afterPerform();
 
-                assert.equal(proceed, true);
+                assert.isTrue(result);
             });
         });
     });

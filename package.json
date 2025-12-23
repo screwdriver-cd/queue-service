@@ -1,6 +1,6 @@
 {
   "name": "screwdriver-queue-service",
-  "version": "5.0.0",
+  "version": "6.0.0",
   "description": "Screwdriver Queue Service API",
   "main": "app.js",
   "directories": {
@@ -50,6 +50,7 @@
     "mocha-sonarqube-reporter": "^1.0.2",
     "mockery": "^2.1.0",
     "nyc": "^15.1.0",
+    "redis-memory-server": "^0.13.0",
     "sinon": "^15.0.0",
     "snyk": "^1.814.0",
     "util": "^0.12.5"
