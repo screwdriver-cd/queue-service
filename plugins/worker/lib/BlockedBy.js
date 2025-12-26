@@ -134,11 +134,18 @@ class BlockedBy extends NodeResque.Plugin {
      */
     async reEnqueue(buildConfig, decision) {
         const { buildId } = buildConfig;
-        const blockedBy = decision.blockedBy || [];
+        const blockedByArray = decision.blockedBy || [];
+        const runningBuildId = decision.runningBuildId;
+
+        const allBlockingBuilds = [...blockedByArray];
+
+        if (runningBuildId) {
+            allBlockingBuilds.push(runningBuildId);
+        }
 
         let statusMessage = 'Blocked by these running build(s): ';
 
-        statusMessage += blockedBy
+        statusMessage += allBlockingBuilds
             .map(blockingBuildId => `<a href="/builds/${blockingBuildId}">${blockingBuildId}</a>`)
             .join(', ');
 
