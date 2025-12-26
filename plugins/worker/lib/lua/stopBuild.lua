@@ -25,8 +25,6 @@
     }
 ]]
 
--- Load cjson for JSON encoding/decoding
-local cjson = require("cjson")
 
 -- Parse arguments
 local buildId = ARGV[1]
