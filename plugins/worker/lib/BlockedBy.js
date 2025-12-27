@@ -134,11 +134,18 @@ class BlockedBy extends NodeResque.Plugin {
      */
     async reEnqueue(buildConfig, decision) {
         const { buildId } = buildConfig;
-        const blockedBy = decision.blockedBy || [];
+        const blockedByArray = decision.blockedBy || [];
+        const runningBuildId = decision.runningBuildId;
+
+        const allBlockingBuilds = [...blockedByArray];
+
+        if (runningBuildId) {
+            allBlockingBuilds.push(runningBuildId);
+        }
 
         let statusMessage = 'Blocked by these running build(s): ';
 
-        statusMessage += blockedBy
+        statusMessage += allBlockingBuilds
             .map(blockingBuildId => `<a href="/builds/${blockingBuildId}">${blockingBuildId}</a>`)
             .join(', ');
 
@@ -177,7 +184,8 @@ class BlockedBy extends NodeResque.Plugin {
                 redisInstance: this.queueObject.connection.redis,
                 buildId,
                 status: 'COLLAPSED',
-                statusMessage: newestBuild ? `Collapsed to build: ${newestBuild}` : 'Collapsed'
+                statusMessage: newestBuild ? `Collapsed to build: ${newestBuild}` : 'Collapsed',
+                buildConfig
             })
             .catch(err => {
                 logger.error(`Failed to update build status to COLLAPSED for build:${buildId}:${err}`);
