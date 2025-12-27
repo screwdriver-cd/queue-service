@@ -85,12 +85,15 @@ function formatOptions(method, url, token, json, retryStrategyFn) {
  * Update build status
  * @method updateBuildStatus
  * @param  {Object}  updateConfig build config of the job
+ * @param  {Object}  updateConfig.buildConfig Optional buildConfig to avoid Redis lookup
  * @return {Promise}
  */
 async function updateBuildStatus(updateConfig) {
-    const { redisInstance, status, statusMessage, buildId } = updateConfig;
+    const { redisInstance, status, statusMessage, buildId, buildConfig: providedConfig } = updateConfig;
 
-    const buildConfig = await redisInstance.hget(`${queuePrefix}buildConfigs`, buildId).then(JSON.parse);
+    // Use provided buildConfig if available, otherwise fetch from Redis
+    const buildConfig =
+        providedConfig || (await redisInstance.hget(`${queuePrefix}buildConfigs`, buildId).then(JSON.parse));
 
     if (!buildConfig) return null;
 
@@ -118,11 +121,15 @@ async function updateBuildStatus(updateConfig) {
  * @param {String} stepConfig.buildId
  * @param {String} stepConfig.stepName
  * @param {Integer} stepConfig.code
+ * @param {Object} stepConfig.buildConfig Optional buildConfig to avoid Redis lookup
  * @return {Promise} response body or error
  */
 async function updateStepStop(stepConfig) {
-    const { redisInstance, buildId, stepName, code } = stepConfig;
-    const buildConfig = await redisInstance.hget(`${queuePrefix}buildConfigs`, buildId).then(JSON.parse);
+    const { redisInstance, buildId, stepName, code, buildConfig: providedConfig } = stepConfig;
+
+    // Use provided buildConfig if available, otherwise fetch from Redis
+    const buildConfig =
+        providedConfig || (await redisInstance.hget(`${queuePrefix}buildConfigs`, buildId).then(JSON.parse));
 
     // if buildConfig got deleted already, do not update
     if (!buildConfig) return null;
@@ -149,11 +156,15 @@ async function updateStepStop(stepConfig) {
  * @param {Object} stepConfig
  * @param {Object} stepConfig.redisInstance
  * @param {String} stepConfig.buildId
+ * @param {Object} stepConfig.buildConfig Optional buildConfig to avoid Redis lookup
  * @return {Promise} active step or error
  */
 async function getCurrentStep(stepConfig) {
-    const { redisInstance, buildId } = stepConfig;
-    const buildConfig = await redisInstance.hget(`${queuePrefix}buildConfigs`, buildId).then(JSON.parse);
+    const { redisInstance, buildId, buildConfig: providedConfig } = stepConfig;
+
+    // Use provided buildConfig if available, otherwise fetch from Redis
+    const buildConfig =
+        providedConfig || (await redisInstance.hget(`${queuePrefix}buildConfigs`, buildId).then(JSON.parse));
 
     // if buildConfig got deleted already, do not update
     if (!buildConfig) return null;

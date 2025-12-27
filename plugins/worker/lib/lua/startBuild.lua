@@ -44,6 +44,32 @@ local waitingBuilds = redis.call("LRANGE", waitingKey, 0, -1)
 local lastRunningBuildId = redis.call("GET", lastRunningKey)
 local deleteKeyExists = redis.call("EXISTS", deleteKey)
 
+-- Early exit: If buildConfig doesn't exist, build was already processed/deleted
+-- Clean up any remaining state and abort
+if not buildConfig then
+    redis.log(redis.LOG_WARNING, string.format(
+        "[startBuild] BUILD_CONFIG_MISSING: build=%s job=%s - buildConfig deleted externally",
+        buildId, jobId
+    ))
+
+    redis.call("LREM", waitingKey, 0, buildId)
+    redis.call("DEL", deleteKey)
+
+    -- If this build is somehow marked as running, clean that up too
+    if runningBuildId and tostring(runningBuildId) == tostring(buildId) then
+        redis.call("DEL", runningKey)
+    end
+    if lastRunningBuildId and tostring(lastRunningBuildId) == tostring(buildId) then
+        redis.call("DEL", lastRunningKey)
+    end
+
+    return cjson.encode({
+        action = "ABORT",
+        reason = "BUILD_CONFIG_MISSING",
+        buildId = buildId
+    })
+end
+
 -- Check if build was aborted (deleteKey exists)
 local isAborted = (deleteKeyExists == 1)
 
@@ -58,25 +84,19 @@ end
 
 -- Check which dependencies are currently running
 local runningBuilds = {}
+local runningJobIds = {}
 for _, depJobId in ipairs(dependencies) do
     local depRunningBuild = redis.call("GET", runningJobsPrefix .. tostring(depJobId))
     if depRunningBuild then
         table.insert(runningBuilds, depRunningBuild)
+        table.insert(runningJobIds, depJobId)
     end
 end
 
 -- Helper: Check if blocked by dependencies
-local function isBlockedByDependencies(deps, running)
-    local blockedByBuilds = {}
-    for _, dep in ipairs(deps) do
-        for _, runningId in ipairs(running) do
-            if tostring(dep) == tostring(runningId) then
-                table.insert(blockedByBuilds, dep)
-                break
-            end
-        end
-    end
-    return #blockedByBuilds > 0, blockedByBuilds
+-- Returns: isBlocked (boolean), blockedByBuilds (array of buildIds that are blocking)
+local function isBlockedByDependencies(runningBuildIds)
+    return #runningBuildIds > 0, runningBuildIds
 end
 
 -- Helper: Check if blocked by same job
@@ -121,9 +141,16 @@ local function shouldCollapse()
     return false, nil, "IS_NEWEST_BUILD"
 end
 
-local isBlockedByDeps, blockedByBuilds = isBlockedByDependencies(dependencies, runningBuilds)
+local isBlockedByDeps, blockedByBuilds = isBlockedByDependencies(runningBuilds)
 local isBlockedBySelf = isBlockedBySameJob()
 local shouldCollapseFlag, newestBuild, collapseReason = shouldCollapse()
+
+redis.log(redis.LOG_NOTICE, string.format(
+    "[startBuild] build=%s job=%s deps=%d blockedByDeps=%s blockedBySelf=%s runningBuildId=%s lastRunning=%s shouldCollapse=%s deleteKeyExists=%s",
+    buildId, jobId, #dependencies, tostring(isBlockedByDeps), tostring(isBlockedBySelf),
+    tostring(runningBuildId or "nil"), tostring(lastRunningBuildId or "nil"),
+    tostring(shouldCollapseFlag), tostring(deleteKeyExists == 1)
+))
 
 -- Determine final action (Priority: ABORT > COLLAPSE > BLOCK > START)
 local action, reason, actionData
@@ -154,7 +181,11 @@ end
 
 -- Update Redis state based on decision
 if action == "ABORT" then
-    -- Build was aborted, no state changes needed
+    -- Build was aborted - clean up waiting queue and configs
+    redis.call("HDEL", buildConfigKey, buildId)
+    redis.call("LREM", waitingKey, 0, buildId)
+    redis.call("DEL", deleteKey)
+
     return cjson.encode({
         action = "ABORT",
         reason = reason,
@@ -163,6 +194,10 @@ if action == "ABORT" then
 
 elseif action == "COLLAPSE" then
     -- Collapse this build - remove from configs and waiting queue
+    redis.log(redis.LOG_NOTICE, string.format(
+        "[startBuild] COLLAPSE: Deleting buildConfig for build=%s job=%s reason=%s",
+        buildId, jobId, reason
+    ))
     redis.call("HDEL", buildConfigKey, buildId)
     redis.call("LREM", waitingKey, 0, buildId)
 
@@ -186,9 +221,6 @@ elseif action == "BLOCK" then
     if not alreadyWaiting then
         redis.call("RPUSH", waitingKey, buildId)
     end
-
-    -- Set deleteKey with timeout (prevents zombie builds)
-    redis.call("SET", deleteKey, buildId, "EX", blockTimeout * 60)
 
     return cjson.encode({
         action = "BLOCK",

@@ -184,7 +184,8 @@ class BlockedBy extends NodeResque.Plugin {
                 redisInstance: this.queueObject.connection.redis,
                 buildId,
                 status: 'COLLAPSED',
-                statusMessage: newestBuild ? `Collapsed to build: ${newestBuild}` : 'Collapsed'
+                statusMessage: newestBuild ? `Collapsed to build: ${newestBuild}` : 'Collapsed',
+                buildConfig
             })
             .catch(err => {
                 logger.error(`Failed to update build status to COLLAPSED for build:${buildId}:${err}`);

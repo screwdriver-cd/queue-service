@@ -253,7 +253,8 @@ describe('Schedule test', () => {
                 buildId: 1,
                 redisInstance: mockRedisObj,
                 status: 'FAILURE',
-                statusMessage: 'failure'
+                statusMessage: 'failure',
+                buildConfig: job.args[0] // buildConfig is now passed to avoid Redis lookup
             };
             // eslint-disable-next-line no-promise-executor-return
             const sleep = async ms => new Promise(resolve => setTimeout(resolve, ms));
