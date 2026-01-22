@@ -438,7 +438,7 @@ async function start(executor, config) {
             {
                 buildId,
                 jobId,
-                blockedBy: blockedBy.toString(),
+                blockedBy: blockedBy,
                 blockedBySameJob,
                 blockedBySameJobWaitTime,
                 virtualJob
