@@ -244,8 +244,35 @@ async function schedule(job, buildConfig) {
 async function start(buildConfig) {
     try {
         const fullBuildConfig = await redis.hget(`${queuePrefix}buildConfigs`, buildConfig.buildId);
+        const parsedConfig = fullBuildConfig && JSON.parse(fullBuildConfig);
 
-        await schedule('start', JSON.parse(fullBuildConfig));
+        // Short-circuit virtual jobs: mark success and skip executor start
+        if (buildConfig.virtualJob) {
+            const payload = {
+                status: 'SUCCESS',
+                statusMessage: 'Skipped execution of the virtual job',
+                statusMessageType: 'INFO'
+            };
+
+            // Preserve any queued stats (e.g. queueEnterTime) if present
+            if (parsedConfig && parsedConfig.stats) {
+                payload.stats = parsedConfig.stats;
+            }
+
+            await helper.updateBuild(
+                {
+                    buildId: buildConfig.buildId,
+                    token: parsedConfig && parsedConfig.token,
+                    apiUri: parsedConfig && parsedConfig.apiUri,
+                    payload
+                },
+                helper.requestRetryStrategy
+            );
+
+            return null;
+        }
+
+        await schedule('start', parsedConfig);
 
         return null;
     } catch (err) {

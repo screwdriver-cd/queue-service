@@ -21,16 +21,6 @@ const TEMPORAL_UNZIP_TOKEN_TIMEOUT = 2 * 60; // 2 hours in minutes
 const BLOCKED_BY_SAME_JOB_WAIT_TIME = 5;
 
 /**
- * Checks whether the job associated with the build is virtual or not
- * @method isVirtualJob
- * @param {Object} annotations           Job Annotations
- * @return {Boolean}
- */
-function isVirtualJob(annotations) {
-    return annotations && annotations['screwdriver.cd/virtualJob'];
-}
-
-/**
  * Posts a new build event to the API
  * @method postBuildEvent
  * @param {Object} eventConfig           Configuration
@@ -310,8 +300,7 @@ async function start(executor, config) {
         apiUri,
         pipeline,
         isPR,
-        prParentJobId,
-        annotations
+        prParentJobId
     } = config;
     const forceStart = /\[(force start)\]/.test(causeMessage);
 
@@ -422,14 +411,44 @@ async function start(executor, config) {
             throw value.error;
         }
 
-        if (isVirtualJob(annotations)) {
-            // Bypass execution of the build if the job is virtual
-            const buildUpdatePayload = {
-                status: 'SUCCESS',
-                statusMessage: 'Skipped execution of the virtual job',
-                statusMessageType: 'INFO'
-            };
+        let buildUpdatePayload;
 
+        const token = executor.tokenGen(Object.assign(tokenConfig, { scope: ['temporal'] }), TEMPORAL_TOKEN_TIMEOUT);
+
+        // set the start time in the queue
+        Object.assign(config, { token });
+        // Store the config in redis
+        await executor.redisBreaker.runCommand('hset', executor.buildConfigTable, buildId, JSON.stringify(config));
+
+        const blockedBySameJob = reach(config, 'annotations>screwdriver.cd/blockedBySameJob', {
+            separator: '>',
+            default: true
+        });
+        const blockedBySameJobWaitTime = reach(config, 'annotations>screwdriver.cd/blockedBySameJobWaitTime', {
+            separator: '>',
+            default: BLOCKED_BY_SAME_JOB_WAIT_TIME
+        });
+        const virtualJob = reach(config, 'annotations>screwdriver.cd/virtualJob', {
+            separator: '>',
+            default: false
+        });
+
+        // Note: arguments to enqueue are [queue name, job name, array of args]
+        enq = await executor.queueBreaker.runCommand('enqueue', executor.buildQueue, 'start', [
+            {
+                buildId,
+                jobId,
+                blockedBy: blockedBy.toString(),
+                blockedBySameJob,
+                blockedBySameJobWaitTime,
+                virtualJob
+            }
+        ]);
+        if (buildStats) {
+            buildUpdatePayload = { stats: build.stats, status: 'QUEUED' };
+        }
+
+        if (buildUpdatePayload) {
             await helper
                 .updateBuild(
                     {
@@ -464,11 +483,6 @@ async function start(executor, config) {
             }
 
             try {
-                const token = executor.tokenGen(
-                    Object.assign(tokenConfig, { scope: ['temporal'] }),
-                    TEMPORAL_TOKEN_TIMEOUT
-                );
-
                 // set the start time in the queue
                 Object.assign(config, { token });
                 // Store the config in redis
@@ -479,15 +493,6 @@ async function start(executor, config) {
                     JSON.stringify(config)
                 );
 
-                const blockedBySameJob = reach(config, 'annotations>screwdriver.cd/blockedBySameJob', {
-                    separator: '>',
-                    default: true
-                });
-                const blockedBySameJobWaitTime = reach(config, 'annotations>screwdriver.cd/blockedBySameJobWaitTime', {
-                    separator: '>',
-                    default: BLOCKED_BY_SAME_JOB_WAIT_TIME
-                });
-
                 // Note: arguments to enqueue are [queue name, job name, array of args]
                 enq = await executor.queueBreaker.runCommand('enqueue', executor.buildQueue, 'start', [
                     {
@@ -495,7 +500,8 @@ async function start(executor, config) {
                         jobId,
                         blockedBy: blockedBy.toString(),
                         blockedBySameJob,
-                        blockedBySameJobWaitTime
+                        blockedBySameJobWaitTime,
+                        virtualJob
                     }
                 ]);
             } catch (err) {
