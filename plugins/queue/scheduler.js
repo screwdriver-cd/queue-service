@@ -493,7 +493,7 @@ async function start(executor, config) {
                     {
                         buildId,
                         jobId,
-                        blockedBy,
+                        blockedBy: blockedBy.toString(),
                         blockedBySameJob,
                         blockedBySameJobWaitTime
                     }
@@ -758,7 +758,13 @@ async function stopTimer(executor, config) {
 async function stop(executor, config) {
     await executor.connect();
 
-    const { buildId, jobId, blockedBy } = config; // in case config contains something else
+    const { buildId, jobId } = config; // in case config contains something else
+
+    let blockedBy;
+
+    if (config.blockedBy !== undefined) {
+        blockedBy = config.blockedBy.toString();
+    }
 
     const numDeleted = await executor.queueBreaker.runCommand('del', executor.buildQueue, 'start', [
         {

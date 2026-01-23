@@ -28,14 +28,14 @@ const partialTestConfig = {
 const partialTestDefaultConfig = {
     buildId,
     jobId,
-    blockedBy,
+    blockedBy: blockedBy.toString(),
     blockedBySameJob,
     blockedBySameJobWaitTime
 };
-const partialTestStopConfig = {
+const partialTestStopConfigToString = {
     buildId,
     jobId,
-    blockedBy
+    blockedBy: blockedBy.toString()
 };
 const testAdmin = {
     username: 'admin'
@@ -959,11 +959,11 @@ describe('scheduler test', () => {
 
         it('removes a start event from the queue and the cached buildconfig', () => {
             const deleteKey = `deleted_${jobId}_${buildId}`;
-            const stopConfig = { started: false, ...partialTestStopConfig };
+            const stopConfig = { started: false, ...partialTestStopConfigToString };
 
             return scheduler.stop(executor, partialTestConfig).then(() => {
                 assert.calledOnce(queueMock.connect);
-                assert.calledWith(queueMock.del, 'builds', 'start', [partialTestStopConfig]);
+                assert.calledWith(queueMock.del, 'builds', 'start', [partialTestStopConfigToString]);
                 assert.calledWith(redisMock.set, deleteKey, '');
                 assert.calledWith(redisMock.expire, deleteKey, 1800);
                 assert.calledWith(queueMock.enqueue, 'builds', 'stop', [stopConfig]);
@@ -972,18 +972,18 @@ describe('scheduler test', () => {
 
         it('adds a stop event to the queue if no start events were removed', () => {
             queueMock.del.resolves(0);
-            const stopConfig = { started: true, ...partialTestStopConfig };
+            const stopConfig = { started: true, ...partialTestStopConfigToString };
 
             return scheduler.stop(executor, partialTestConfig).then(() => {
                 assert.calledOnce(queueMock.connect);
-                assert.calledWith(queueMock.del, 'builds', 'start', [partialTestStopConfig]);
+                assert.calledWith(queueMock.del, 'builds', 'start', [partialTestStopConfigToString]);
                 assert.calledWith(queueMock.enqueue, 'builds', 'stop', [stopConfig]);
             });
         });
 
         it('adds a stop event to the queue if it has no blocked job', () => {
             queueMock.del.resolves(0);
-            const partialTestConfigUndefined = { ...partialTestStopConfig, blockedBy: undefined };
+            const partialTestConfigUndefined = { ...partialTestStopConfigToString, blockedBy: undefined };
             const stopConfig = { started: true, ...partialTestConfigUndefined };
 
             return scheduler.stop(executor, partialTestConfigUndefined).then(() => {
@@ -1005,7 +1005,7 @@ describe('scheduler test', () => {
                 })
                 .then(() => {
                     assert.notCalled(queueMock.connect);
-                    assert.calledWith(queueMock.del, 'builds', 'start', [partialTestStopConfig]);
+                    assert.calledWith(queueMock.del, 'builds', 'start', [partialTestStopConfigToString]);
                 });
         });
     });
