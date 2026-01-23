@@ -58,7 +58,6 @@ describe('Jobs Unit Test', () => {
     let mockEcosystemConfig;
     let helperMock;
     let mockNodeResque;
-    let mockLuaScriptLoader;
 
     before(() => {
         mockery.enable({
@@ -173,36 +172,6 @@ describe('Jobs Unit Test', () => {
             }
         };
 
-        mockLuaScriptLoader = {
-            executeScript: sinon.stub()
-        };
-
-        // Default Lua response for stop tests
-        const defaultLuaResult = JSON.stringify({
-            action: 'CLEANED',
-            buildId: '8609',
-            jobId: '777',
-            keysDeleted: {
-                buildConfig: true,
-                runningKey: true,
-                lastRunningKey: true,
-                waitingKey: false,
-                timeoutConfig: true,
-                deleteKey: false
-            },
-            currentRunningBuildId: '8609',
-            ownsRunningKey: true,
-            ownsLastRunningKey: true
-        });
-
-        mockLuaScriptLoader.executeScript.resolves(defaultLuaResult);
-
-        // Mock the worker module to provide luaScriptLoader
-        const mockWorker = {
-            luaScriptLoader: mockLuaScriptLoader
-        };
-
-        mockery.registerMock('../worker', mockWorker);
         mockery.registerMock('config', mockConfig);
         mockery.registerMock('screwdriver-executor-router', mockExecutorRouter);
         mockery.registerMock('amqp-connection-manager', mockAmqp);
@@ -487,71 +456,36 @@ describe('Jobs Unit Test', () => {
 
         it('do not call executor stop if job has not started', () => {
             const stopConfig = { started: false, ...partialConfig };
-            const luaResult = JSON.stringify({
-                action: 'CLEANED',
-                buildId: '8609',
-                jobId: '777',
-                keysDeleted: {
-                    buildConfig: true,
-                    runningKey: false,
-                    lastRunningKey: false,
-                    waitingKey: false,
-                    timeoutConfig: true,
-                    deleteKey: false
-                },
-                currentRunningBuildId: '1000',
-                ownsRunningKey: false,
-                ownsLastRunningKey: false
-            });
 
             mockExecutor.stop.resolves(null);
             mockRedisObj.hget.resolves(JSON.stringify(fullConfig));
-            mockLuaScriptLoader.executeScript.resolves(luaResult);
+            mockRedisObj.hdel.resolves(1);
+            mockRedisObj.del.resolves(null);
+            mockRedisObj.get.withArgs('running_job_777').resolves('1000');
 
             return jobs.stop.perform(stopConfig).then(result => {
                 assert.isNull(result);
                 assert.calledWith(mockRedisObj.hget, 'buildConfigs', fullConfig.buildId);
-                assert.calledWith(
-                    mockLuaScriptLoader.executeScript,
-                    'stopBuild.lua',
-                    [],
-                    [String(fullConfig.buildId), String(fullConfig.jobId), '', 'running_job_', 'waiting_job_']
-                );
+                assert.calledWith(mockRedisObj.hdel, 'buildConfigs', fullConfig.buildId);
+                assert.notCalled(mockRedisObj.del);
+                assert.calledWith(mockRedisObj.lrem, 'waiting_job_777', 0, fullConfig.buildId);
                 assert.notCalled(mockExecutor.stop);
             });
         });
 
         it('stops a job', () => {
-            const luaResult = JSON.stringify({
-                action: 'CLEANED',
-                buildId: '8609',
-                jobId: '777',
-                keysDeleted: {
-                    buildConfig: true,
-                    runningKey: true,
-                    lastRunningKey: true,
-                    waitingKey: true,
-                    timeoutConfig: true,
-                    deleteKey: false
-                },
-                currentRunningBuildId: '8609',
-                ownsRunningKey: true,
-                ownsLastRunningKey: true
-            });
-
             mockExecutor.stop.resolves(null);
             mockRedisObj.hget.resolves(JSON.stringify(fullConfig));
-            mockLuaScriptLoader.executeScript.resolves(luaResult);
+            mockRedisObj.hdel.resolves(1);
+            mockRedisObj.del.resolves(null);
+            mockRedisObj.get.withArgs('running_job_777').resolves(fullConfig.buildId);
 
             return jobs.stop.perform(fullConfig).then(result => {
                 assert.isNull(result);
                 assert.calledWith(mockRedisObj.hget, 'buildConfigs', fullConfig.buildId);
-                assert.calledWith(
-                    mockLuaScriptLoader.executeScript,
-                    'stopBuild.lua',
-                    [],
-                    [String(fullConfig.buildId), String(fullConfig.jobId), '', 'running_job_', 'waiting_job_']
-                );
+                assert.calledWith(mockRedisObj.hdel, 'buildConfigs', fullConfig.buildId);
+                assert.calledWith(mockRedisObj.del, 'running_job_777');
+                assert.calledWith(mockRedisObj.lrem, 'waiting_job_777', 0, fullConfig.buildId);
                 assert.calledWith(mockExecutor.stop, {
                     buildId: 8609,
                     annotations: { 'beta.screwdriver.cd/executor': 'k8s' },
@@ -568,6 +502,9 @@ describe('Jobs Unit Test', () => {
             fullConfig.buildClusterName = 'sd';
             mockExecutor.stop.resolves(null);
             mockRedisObj.hget.resolves(JSON.stringify(fullConfig));
+            mockRedisObj.hdel.resolves(1);
+            mockRedisObj.del.resolves(null);
+            mockRedisObj.get.withArgs('running_job_777').resolves(fullConfig.buildId);
             mockRabbitmqConfigObj.schedulerMode = true;
             mockRabbitmqConfig.getConfig.returns(mockRabbitmqConfigObj);
             const { amqpURI, exchange, connectOptions } = mockRabbitmqConfigObj;
@@ -581,7 +518,10 @@ describe('Jobs Unit Test', () => {
 
                 assert.isNull(result);
                 assert.calledWith(mockRedisObj.hget, 'buildConfigs', fullConfig.buildId);
-                assert.calledWith(mockLuaScriptLoader.executeScript, 'stopBuild.lua');
+                assert.calledWith(mockRedisObj.hdel, 'buildConfigs', fullConfig.buildId);
+                assert.calledWith(mockRedisObj.del, 'running_job_777');
+                assert.calledWith(mockRedisObj.lrem, 'waiting_job_777', 0, fullConfig.buildId);
+                assert.calledWith(mockRedisObj.hget, 'buildConfigs', fullConfig.buildId);
                 assert.calledWith(mockAmqp.connect, [amqpURI], connectOptions);
                 assert.calledOnce(mockRabbitmqConnection.createChannel);
                 assert.calledWith(mockRabbitmqCh.publish, exchange, 'sd', msg, {
@@ -597,6 +537,10 @@ describe('Jobs Unit Test', () => {
         it('enqueues a stop job to kafka queue when kafkaEnabled is true', () => {
             mockExecutor.stop.resolves(null);
             mockRedisObj.hget.resolves(JSON.stringify(configWithProvider));
+
+            mockRedisObj.hdel.resolves(1);
+            mockRedisObj.del.resolves(null);
+            mockRedisObj.get.withArgs('running_job_777').resolves(configWithProvider.buildId);
 
             return jobs.stop.perform(configWithProvider).then(result => {
                 delete configWithProvider.buildClusterName;
@@ -615,7 +559,10 @@ describe('Jobs Unit Test', () => {
 
                 assert.isNull(result);
                 assert.calledWith(mockRedisObj.hget, 'buildConfigs', configWithProvider.buildId);
-                assert.calledWith(mockLuaScriptLoader.executeScript, 'stopBuild.lua');
+                assert.calledWith(mockRedisObj.hdel, 'buildConfigs', configWithProvider.buildId);
+                assert.calledWith(mockRedisObj.del, 'running_job_777');
+                assert.calledWith(mockRedisObj.lrem, 'waiting_job_777', 0, configWithProvider.buildId);
+                assert.calledWith(mockRedisObj.hget, 'buildConfigs', configWithProvider.buildId);
                 assert.notCalled(mockAmqp.connect);
                 assert.notCalled(mockRabbitmqConnection.createChannel);
                 assert.notCalled(mockRabbitmqCh.publish);
@@ -636,9 +583,11 @@ describe('Jobs Unit Test', () => {
             return jobs.stop.perform(partialConfig).then(result => {
                 assert.isNull(result);
                 assert.calledWith(mockRedisObj.hget, 'buildConfigs', fullConfig.buildId);
-                assert.calledWith(mockLuaScriptLoader.executeScript, 'stopBuild.lua');
-                // When hget fails, stopConfig falls back to partialConfig (no blockedBy)
-                assert.calledWith(mockExecutor.stop, partialConfig);
+                assert.calledWith(mockExecutor.stop, {
+                    buildId: fullConfig.buildId,
+                    jobName: fullConfig.jobName,
+                    jobId: fullConfig.jobId
+                });
             });
         });
 
@@ -651,11 +600,13 @@ describe('Jobs Unit Test', () => {
             return jobs.stop.perform(partialConfig).then(result => {
                 assert.isNull(result);
                 assert.calledWith(mockRedisObj.hget, 'buildConfigs', fullConfig.buildId);
-                assert.calledWith(mockLuaScriptLoader.executeScript, 'stopBuild.lua');
                 assert.notCalled(mockProducerSvc.connect);
                 assert.notCalled(mockProducerSvc.sendMessage);
-                // When hget fails, stopConfig falls back to partialConfig (no blockedBy)
-                assert.calledWith(mockExecutor.stop, partialConfig);
+                assert.calledWith(mockExecutor.stop, {
+                    buildId: fullConfig.buildId,
+                    jobName: fullConfig.jobName,
+                    jobId: fullConfig.jobId
+                });
             });
         });
 
@@ -663,6 +614,7 @@ describe('Jobs Unit Test', () => {
             const expectedError = new Error('executor.stop Error');
 
             mockRedisObj.hget.resolves('{}');
+            mockRedisObj.hdel.resolves(1);
             mockExecutor.stop.rejects(expectedError);
 
             return jobs.stop.perform({}).then(
@@ -675,11 +627,11 @@ describe('Jobs Unit Test', () => {
             );
         });
 
-        it('returns an error when Lua script fails', () => {
-            const expectedError = new Error('Lua script error');
+        it('returns an error when redis fails to remove a config', () => {
+            const expectedError = new Error('hdel error');
 
             mockRedisObj.hget.resolves('{}');
-            mockLuaScriptLoader.executeScript.rejects(expectedError);
+            mockRedisObj.hdel.rejects(expectedError);
 
             return jobs.stop.perform({}).then(
                 () => {

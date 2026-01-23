@@ -196,7 +196,7 @@ describe('Schedule test', () => {
 
             testWorker.emit('poll', workerId, 'builds');
             assert.calledWith(winstonMock.info, `queueWorker->worker[${workerId}] polling builds`);
-            assert.calledWith(timeoutMock.checkWithBackOff, mockRedisObj, workerId);
+            assert.calledWith(timeoutMock.checkWithBackOff, mockRedisObj, mockRedlockObj, workerId);
 
             testWorker.emit('job', workerId, queue, job);
             assert.calledWith(
@@ -253,8 +253,7 @@ describe('Schedule test', () => {
                 buildId: 1,
                 redisInstance: mockRedisObj,
                 status: 'FAILURE',
-                statusMessage: 'failure',
-                buildConfig: job.args[0] // buildConfig is now passed to avoid Redis lookup
+                statusMessage: 'failure'
             };
             // eslint-disable-next-line no-promise-executor-return
             const sleep = async ms => new Promise(resolve => setTimeout(resolve, ms));
