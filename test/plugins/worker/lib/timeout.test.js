@@ -167,8 +167,7 @@ describe('Timeout test', () => {
                 redisInstance: redis,
                 buildId,
                 status: 'FAILURE',
-                statusMessage: 'Build failed due to timeout (51 minutes)',
-                buildConfig // buildConfig is now passed to avoid Redis lookup
+                statusMessage: 'Build failed due to timeout (51 minutes)'
             });
 
             // Verify Redis state was cleaned up by Lua script
@@ -218,8 +217,7 @@ describe('Timeout test', () => {
                 redisInstance: redis,
                 buildId,
                 stepName: 'wait',
-                code: 3,
-                buildConfig // buildConfig is now passed to avoid Redis lookup
+                code: 3
             });
         });
 
@@ -281,8 +279,7 @@ describe('Timeout test', () => {
                 redisInstance: redis,
                 buildId,
                 status: 'FAILURE',
-                statusMessage: 'Build failed due to timeout (91 minutes)',
-                buildConfig // buildConfig is now passed to avoid Redis lookup
+                statusMessage: 'Build failed due to timeout (91 minutes)'
             });
 
             // Verify cleanup
@@ -347,8 +344,7 @@ describe('Timeout test', () => {
                 redisInstance: redis,
                 buildId,
                 status: 'FAILURE',
-                statusMessage: 'Build failed due to timeout (51 minutes)',
-                buildConfig // buildConfig is now passed to avoid Redis lookup
+                statusMessage: 'Build failed due to timeout (51 minutes)'
             });
         });
 
@@ -414,8 +410,7 @@ describe('Timeout test', () => {
                 redisInstance: redis,
                 buildId,
                 status: 'FAILURE',
-                statusMessage: 'Build failed due to timeout (51 minutes)',
-                buildConfig // buildConfig is now passed to avoid Redis lookup
+                statusMessage: 'Build failed due to timeout (51 minutes)'
             });
 
             // Verify cleanup

@@ -31,10 +31,9 @@ const hash = `${queuePrefix}timeoutConfigs`;
  * @param {String} buildId
  * @param {Object} redis
  * @param {String} workerId
- * @param {Object} buildConfig - Build config fetched before Lua execution
  * @return {Promise}
  */
-async function executeTimeout(decision, buildId, redis, workerId, buildConfig) {
+async function executeTimeout(decision, buildId, redis, workerId) {
     const { timeoutMinutes } = decision;
 
     // Get and update current step
@@ -43,8 +42,7 @@ async function executeTimeout(decision, buildId, redis, workerId, buildConfig) {
     try {
         step = await helper.getCurrentStep({
             redisInstance: redis,
-            buildId,
-            buildConfig
+            buildId
         });
     } catch (err) {
         logger.error(`worker[${workerId}] -> No active step found for ${buildId}`);
@@ -55,8 +53,7 @@ async function executeTimeout(decision, buildId, redis, workerId, buildConfig) {
             redisInstance: redis,
             buildId,
             stepName: step.name,
-            code: TIMEOUT_CODE,
-            buildConfig
+            code: TIMEOUT_CODE
         });
     }
 
@@ -64,8 +61,7 @@ async function executeTimeout(decision, buildId, redis, workerId, buildConfig) {
         redisInstance: redis,
         buildId,
         status: 'FAILURE',
-        statusMessage: `Build failed due to timeout (${timeoutMinutes} minutes)`,
-        buildConfig
+        statusMessage: `Build failed due to timeout (${timeoutMinutes} minutes)`
     });
 
     logger.info(`worker[${workerId}] -> Timeout cleanup completed for build ${buildId}`);
@@ -77,15 +73,14 @@ async function executeTimeout(decision, buildId, redis, workerId, buildConfig) {
  * @param {String} buildId - Build ID
  * @param {Object} redis - Redis instance
  * @param {String} workerId - Worker ID
- * @param {Object} buildConfig - Build config fetched before Lua execution
  * @return {Promise}
  */
-async function handleDecision(decision, buildId, redis, workerId, buildConfig) {
+async function handleDecision(decision, buildId, redis, workerId) {
     switch (decision.action) {
         case 'TIMEOUT':
             // Build has timed out - execute cleanup
             logger.info(`worker[${workerId}] -> Build has timed out ${buildId}`);
-            await executeTimeout(decision, buildId, redis, workerId, buildConfig);
+            await executeTimeout(decision, buildId, redis, workerId);
             break;
 
         case 'CLEANUP':
@@ -124,10 +119,6 @@ async function process(timeoutConfig, buildId, redis, workerId) {
     }
 
     try {
-        // Fetch buildConfig BEFORE Lua execution (Lua script will delete it if timeout)
-        const buildConfigJson = await redis.hget(`${queuePrefix}buildConfigs`, buildId);
-        const buildConfig = buildConfigJson ? JSON.parse(buildConfigJson) : null;
-
         const loader = getLuaScriptLoader();
         const result = await loader.executeScript(
             'checkTimeout.lua',
@@ -148,7 +139,7 @@ async function process(timeoutConfig, buildId, redis, workerId) {
 
         logger.info(`worker[${workerId}] -> Build ${buildId}: action=${decision.action}, reason=${decision.reason}`);
 
-        await handleDecision(decision, buildId, redis, workerId, buildConfig);
+        await handleDecision(decision, buildId, redis, workerId);
     } catch (err) {
         logger.error(`Error in timeout check for build ${buildId}: ${err.message}`);
         logger.error(err.stack);

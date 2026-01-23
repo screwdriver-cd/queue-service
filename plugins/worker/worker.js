@@ -94,8 +94,7 @@ async function invoke() {
                     redisInstance: redis,
                     buildId: job.args[0].buildId,
                     status: 'FAILURE',
-                    statusMessage: `${failure}`,
-                    buildConfig: job.args[0] // Pass buildConfig to avoid Redis lookup
+                    statusMessage: `${failure}`
                 })
                 .then(() => {
                     logger.info(
