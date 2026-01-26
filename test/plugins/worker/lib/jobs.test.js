@@ -163,7 +163,9 @@ describe('Jobs Unit Test', () => {
 
         helperMock = {
             processHooks: sinon.stub(),
-            requestRetryStrategyPostEvent: sinon.stub()
+            requestRetryStrategyPostEvent: sinon.stub(),
+            updateBuild: sinon.stub().resolves(),
+            requestRetryStrategy: sinon.stub()
         };
 
         mockNodeResque = {
@@ -641,6 +643,45 @@ describe('Jobs Unit Test', () => {
                     assert.deepEqual(err, expectedError);
                 }
             );
+        });
+
+        it('short-circuits virtual jobs and marks build as SUCCESS', () => {
+            const fullBuildConfigWithStats = {
+                apiUri: 'http://api.com',
+                token: 'buildToken',
+                stats: {
+                    queueEnterTime: '2026-01-22T10:00:00.000Z'
+                }
+            };
+
+            mockRedisObj.hget.resolves(JSON.stringify(fullBuildConfigWithStats));
+
+            const virtualJobConfig = {
+                buildId: fullConfig.buildId,
+                jobId: fullConfig.jobId,
+                virtualJob: true
+            };
+
+            return jobs.start.perform(virtualJobConfig).then(result => {
+                assert.isNull(result);
+                assert.calledWith(mockRedisObj.hget, 'buildConfigs', fullConfig.buildId);
+                assert.notCalled(mockExecutor.start);
+                assert.calledWith(
+                    helperMock.updateBuild,
+                    {
+                        buildId: fullConfig.buildId,
+                        token: fullBuildConfigWithStats.token,
+                        apiUri: fullBuildConfigWithStats.apiUri,
+                        payload: {
+                            status: 'SUCCESS',
+                            statusMessage: 'Skipped execution of the virtual job',
+                            statusMessageType: 'INFO',
+                            stats: fullBuildConfigWithStats.stats
+                        }
+                    },
+                    helperMock.requestRetryStrategy
+                );
+            });
         });
     });
 
