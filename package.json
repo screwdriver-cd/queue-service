@@ -22,7 +22,7 @@
     "hapi-auth-jwt2": "^10.2.0",
     "ioredis": "^5.2.3",
     "joi": "^17.7.0",
-    "js-yaml": "^4.1.0",
+    "js-yaml": "^5.2.3",
     "jsonwebtoken": "^9.0.0",
     "node-resque": "^9.2.0",
     "redlock": "^4.2.0",
